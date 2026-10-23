@@ -211,7 +211,7 @@ window.__ModuleLoader__.load({
               name: 'settings.section',
               id: 'lazy-tools',
               order: 70,
-              label: '按需工具组',
+              label: '工具抽屉',
             },
             LazyToolsSettings,
           ),

@@ -1,12 +1,14 @@
 # dsh-lazy-tools
 
+**中文名：工具抽屉** —— 把你装的那一堆工具收进抽屉，常用的留在台面，用哪个拉哪个。
+
 **On-demand tool groups for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness).**
 Hide heavy tool sets from every request; bring them back with one call when you actually need them.
 
 > 把「很重但平时不用」的工具组从上下文里收起来，需要时一条命令开回来。
 > 零运行时依赖、零代理进程、真实调用保持原生。
 
-**Status:** `0.8.0` — running daily on one DSH installation; the config surface may still change.
+**Status:** `0.8.2` — running daily on one DSH installation; the config surface may still change.
 Issues and PRs are welcome, but maintenance is **best-effort**: if you need something guaranteed,
 fork it. If DSH ships native on-demand tool loading, this project should retire (see [DESIGN.md](DESIGN.md)).
 
