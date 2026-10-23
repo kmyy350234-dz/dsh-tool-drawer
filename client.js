@@ -215,7 +215,7 @@ window.__ModuleLoader__.load({
           h(
             'span',
             { style: styles.hint },
-            '默认关闭：不给不懂的人看。勾选后需要切到另一个对话（或刷新页面）才会出现——那一行是按对话挂载的，不是坏了。',
+            '默认关闭。开启后可在每个对话里单独调档位；该控件按对话挂载，勾选后需要切换一次对话（或刷新页面）才会显示。',
           ),
         ),
 
@@ -274,7 +274,7 @@ h(
       }
 
       if (!sessionId) return null
-      // 控件默认关闭：想用的人去设置页打开（用户 2026-10-24 要求：别直接给小白）
+      // 控件默认关闭：在设置页勾选后打开，避免默认界面上多一个控件
       if (!state || state.showDock !== true) return null
       const current = (state && state.session && state.session.level) || 'global'
       const groups = (state && state.groups) || []
