@@ -502,6 +502,8 @@ async function main() {
     showClear: true,
   })
   assert.deepEqual(normalizePolicy({ level: 'turbo', idleDays: -1, minTools: 'x' }), {})
+  assert.deepEqual(normalizePolicy({ presets: { low: 10, medium: 5, high: 2 } }), { presets: { low: 10, medium: 5, high: 2 } })
+  assert.deepEqual(normalizePolicy({ presets: { low: 10, medium: 5 } }), {})
   assert.deepEqual(normalizePolicy(null), {})
   ok('非法的 level/天数/工具数被丢弃，字符串数组过滤干净')
 

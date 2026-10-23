@@ -6,9 +6,9 @@ window.__ModuleLoader__.load({
 
     const API = '/lazy-tools/api'
     const LEVEL_LABELS = {
-      low: '低（保守：14 天）',
-      medium: '中（默认：7 天）',
-      high: '高（激进：3 天）',
+      low: '低（保守）',
+      medium: '中（默认）',
+      high: '高（激进）',
     }
 
     async function request(path, body) {
@@ -83,6 +83,17 @@ window.__ModuleLoader__.load({
         cursor: 'pointer',
         marginLeft: 'auto',
       },
+      dockInput: {
+        width: '58px',
+        padding: '2px 6px',
+        borderRadius: '999px',
+        border: '1px solid color-mix(in srgb, currentColor 25%, transparent)',
+        background: 'transparent',
+        color: 'inherit',
+        fontSize: '12px',
+        fontFamily: 'inherit',
+        textAlign: 'center',
+      },
       dockHint: { opacity: 0.6 },
       groupList: { display: 'flex', flexWrap: 'wrap', gap: '6px' },
       chip: {
@@ -109,6 +120,9 @@ window.__ModuleLoader__.load({
               level: data.policy.level,
               idleDays: String(data.policy.idleDays),
               minTools: String(data.policy.minTools),
+              presetLow: String((data.policy.presets && data.policy.presets.low) || 14),
+              presetMedium: String((data.policy.presets && data.policy.presets.medium) || 7),
+              presetHigh: String((data.policy.presets && data.policy.presets.high) || 3),
               showDock: data.policy.showDock === true,
               showClear: data.policy.showClear === true,
             })
@@ -133,6 +147,7 @@ window.__ModuleLoader__.load({
             level: form.level,
             idleDays: Number(form.idleDays),
             minTools: Number(form.minTools),
+            presets: { low: Number(form.presetLow), medium: Number(form.presetMedium), high: Number(form.presetHigh) },
             showDock: form.showDock === true,
             showClear: form.showClear === true,
           })
@@ -178,7 +193,42 @@ window.__ModuleLoader__.load({
             value: form.idleDays,
             onChange: update('idleDays'),
           }),
-          h('span', { style: styles.hint }, '这里填多少天就是多少天；不填就跟随档位（低 14 / 中 7 / 高 3）；0 表示不按时间收敛'),
+          h('span', { style: styles.hint }, '这里填多少天就是多少天；不填就跟随档位；0 表示不按时间收敛'),
+        ),
+        h(
+          'div',
+          { style: styles.row },
+          h('label', { style: styles.label }, '三档各自的天数（可修改）'),
+          h(
+            'div',
+            { style: { display: 'flex', gap: '10px', alignItems: 'center' } },
+            h('span', { style: styles.hint }, '低'),
+            h('input', {
+              style: { ...styles.input, width: '84px' },
+              type: 'number',
+              min: 0,
+              value: form.presetLow,
+              onChange: update('presetLow'),
+            }),
+            h('span', { style: styles.hint }, '中'),
+            h('input', {
+              style: { ...styles.input, width: '84px' },
+              type: 'number',
+              min: 0,
+              value: form.presetMedium,
+              onChange: update('presetMedium'),
+            }),
+            h('span', { style: styles.hint }, '高'),
+            h('input', {
+              style: { ...styles.input, width: '84px' },
+              type: 'number',
+              min: 0,
+              value: form.presetHigh,
+              onChange: update('presetHigh'),
+            }),
+            h('span', { style: styles.hint }, '天'),
+          ),
+          h('span', { style: styles.hint }, '改了之后，档位按钮和斜杠命令都按新的天数算'),
         ),
         h(
           'div',
@@ -251,18 +301,20 @@ h(
     }
 
     // 输入框上方那一行：只改「这个对话」的抽屉，不碰全局设置。
-    const DOCK_LEVELS = [
-      { value: 'global', label: '跟随全局' },
-      { value: 'low', label: '省着点（14 天）' },
-      { value: 'medium', label: '中（7 天）' },
-      { value: 'high', label: '激进（3 天）' },
-    ]
+    const DOCK_LEVELS = ['global', 'low', 'medium', 'high']
 
     function LazyToolsDock(props) {
       const sessionId = props && props.sessionId ? String(props.sessionId) : ''
       const [state, setState] = React.useState(null)
       const [busy, setBusy] = React.useState(false)
       const [error, setError] = React.useState('')
+      const [customDaysText, setCustomDaysText] = React.useState('')
+
+      React.useEffect(() => {
+        if (!state) return
+        const snapshot = state.session || {}
+        setCustomDaysText(snapshot.source === 'session' && !snapshot.level ? String(snapshot.idleDays) : '')
+      }, [state])
 
       React.useEffect(() => {
         let alive = true
@@ -295,10 +347,12 @@ h(
       const current = (state && state.session && state.session.level) || 'global'
       const groups = (state && state.groups) || []
       const open = groups.filter((group) => group.on)
-      const levelLabel =
-        current === 'global' && state.session && state.session.source === 'session'
-          ? `抽屉：${state.session.idleDays} 天`
-          : `抽屉：${(DOCK_LEVELS.find((item) => item.value === current) || DOCK_LEVELS[0]).label}`
+      const presets = state.presets || { low: 14, medium: 7, high: 3 }
+      const isCustom = state.session && state.session.source === 'session' && !state.session.level
+      const levelName = current === 'low' ? '低' : current === 'high' ? '高' : '中'
+      const levelLabel = isCustom
+        ? `抽屉：${state.session.idleDays} 天`
+        : `抽屉：${current === 'global' ? '跟随全局' : `${levelName} ${presets[current]} 天`}`
 
       return h(
         'div',
@@ -320,6 +374,26 @@ h(
               },
               levelLabel,
             )
+          : null,
+        // 这个对话的自定义天数：填数字回车生效，只影响当前对话
+        state.showDock === true
+          ? h('input', {
+              type: 'number',
+              min: 0,
+              step: 1,
+              placeholder: '天',
+              style: styles.dockInput,
+              value: customDaysText,
+              disabled: busy,
+              title: '给这个对话单独设一个天数，回车生效',
+              onChange: (event) => setCustomDaysText(event.target.value),
+              onKeyDown: (event) => {
+                if (event.key !== 'Enter') return
+                const days = Number(customDaysText)
+                if (customDaysText === '' || !Number.isFinite(days) || days < 0) return
+                apply({ idleDays: Math.round(days) })
+              },
+            })
           : null,
         // 按钮二：只负责「立刻清空本对话的工具组」（独立开关，默认不显示）
         state.showClear === true ? h(
