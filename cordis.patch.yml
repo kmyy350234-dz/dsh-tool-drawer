@@ -1,0 +1,59 @@
+- insert:
+    - id: lazy-tools
+      name: dsh-lazy-tools
+      config:
+        level: medium
+        minTools: 3
+        neverAutoClose: []
+        groups:
+          - id: cua-screen
+            match:
+              [
+                're:^cua_driver_native__(get_|list_|check_permissions|health_report|debug_window_info|clipboard_read|verify_state)'
+              ]
+            title: 桌面·看
+            hint: 截图 / 窗口树 / 列应用 / 读剪贴板 —— 只读，先开这个
+            defaultOn: false
+            expect: 19
+            autoHints: [截图, 截个图, 截屏, 看窗口, 屏幕截图, 这个窗口]
+          - id: cua-input
+            match:
+              [
+                're:^cua_driver_native__(bring_to_front|browser_(click|dialog|download|navigate|pointer|prepare|set_input_files|type)|click|clipboard_write|double_click|drag|end_session|escalate_session|hotkey|install_ffmpeg|invoke_menu|kill_app|launch_app|move_cursor|page|press_key|replay_trajectory|right_click|scroll|set_(agent_cursor_(enabled|motion|theme)|config|value|window_frame)|start_(recording|session)|stop_recording|type_text|zoom)$'
+              ]
+            title: 桌面·点
+            hint: 点击 / 键盘 / 窗口与会话控制 —— 会改状态，确认要看再开
+            defaultOn: false
+            expect: 37
+          - id: browser-heavy
+            match: [ 're:^dsh_browser_(?!open$|content$|a11y$|click$|type$|wait$)' ]
+            keep:
+              [
+                dsh_browser_open,
+                dsh_browser_content,
+                dsh_browser_a11y,
+                dsh_browser_click,
+                dsh_browser_type,
+                dsh_browser_wait
+              ]
+            title: 浏览器·重
+            hint: 浏览器工具里不常用的那 28 个；open/content/a11y/click/type/wait 默认留着
+            defaultOn: false
+            expect: 28
+            autoHints: [打开网页, 这个网址, 浏览器打开, 访问这个链接, 爬一下]
+          - id: vision-heavy
+            match: [ 're:^vision_(?!describe$|ocr$|crop$|bootstrap$|materialize$|present$)' ]
+            keep:
+              [
+                vision_describe,
+                vision_ocr,
+                vision_crop,
+                vision_bootstrap,
+                vision_materialize,
+                vision_present
+              ]
+            title: 视觉·重
+            hint: 视觉工具里不常用的 8 个；describe/ocr/crop/bootstrap/materialize/present 默认留着
+            defaultOn: false
+            expect: 8
+            autoHints: [看图, 识别图片, 图里写的, 这张图, OCR]

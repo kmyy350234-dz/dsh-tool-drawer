@@ -6,7 +6,7 @@ Hide heavy tool sets from every request; bring them back with one call when you 
 > 把「很重但平时不用」的工具组从上下文里收起来，需要时一条命令开回来。
 > 零运行时依赖、零代理进程、真实调用保持原生。
 
-**Status:** `0.6.0` — running daily on one DSH installation; the config surface may still change.
+**Status:** `0.8.0` — running daily on one DSH installation; the config surface may still change.
 Issues and PRs are welcome, but maintenance is **best-effort**: if you need something guaranteed,
 fork it. If DSH ships native on-demand tool loading, this project should retire (see [DESIGN.md](DESIGN.md)).
 
@@ -35,28 +35,25 @@ Details + trade-offs: [DESIGN.md](DESIGN.md).
 
 ## Install
 
-DeepSeek Harness loads plugins from its profile's `cordis.patch.yml`. Add one row:
+This package is a **bundle** (host half + a `settings.section` client panel). Clone it anywhere, then
+install it into the profile with the plugin manager — do not hand-edit `cordis.patch.yml`:
 
-```yaml
-- insert:
-    - id: lazy-tools
-      name: file:///absolute/path/to/dsh-lazy-tools/lib/index.js
-      config:
-        groups:
-          - id: browser-heavy
-            match: ['re:^dsh_browser_(?!open$|content$|a11y$|click$|type$|wait$)']
-            keep: [dsh_browser_open, dsh_browser_content, dsh_browser_a11y, dsh_browser_click, dsh_browser_type, dsh_browser_wait]
-            title: 浏览器·重
-            defaultOn: false
-            expect: 28
-          - id: desktop
-            match: ['cua_driver_native__*']
-            title: 桌面自动化
-            defaultOn: false
+```
+plugin_manager install_bundle  target: /absolute/path/to/dsh-lazy-tools
 ```
 
-A fuller example lives in [examples/profile-patch.snippet.yml](examples/profile-patch.snippet.yml).
-Config changes apply on reload; **code changes need a process restart**.
+That links the checkout into the profile, selects the bundle, and starts the client half. The bundle
+patch already ships the four bundled groups (desktop-read 19, desktop-input 37, browser-heavy 28,
+vision-heavy 8) with `keep` lists and `autoHints`; edit `cordis.patch.yml` in the checkout (or override
+the row in the profile patch) to change members.
+
+Config changes apply on reload; **host code changes need a process restart**. The settings page
+(`Settings → On-demand Tool Groups`) is written by the client half and talks to the host over a
+loopback route.
+
+A manual `cordis.patch.yml` row is still possible (see
+[examples/profile-patch.snippet.yml](examples/profile-patch.snippet.yml)) but it gets you only the
+host half — no settings page.
 
 ## Config reference (per group)
 
@@ -79,8 +76,9 @@ Config changes apply on reload; **code changes need a process restart**.
 | `lazy_tools_disable {group \| groups}` | hide it again (also clears any `only` allow-list) |
 | `lazy_tools_list {group?}` | tool names in a group — including currently hidden ones, flagged by `visible` |
 | `lazy_tools_resolve {name, apply?}` | **one step**: find the group that owns a tool (exact name or fragment) and reveal just that one. Meant to be called right after an `unknown tool` error |
+| `lazy_tools_mode {level?, idleDays?, reset?}` | **this session only**: change the collapse threshold and recompute which groups start open (`reset: true` goes back to the global policy) |
 | `lazy_tools_scan` | every visible tool bucketed by name prefix, to help you write new group patterns |
-| `lazy_tools_health` | contract self-check (`register` / `schemas` / `restrict` / `agent/created`), `healthy`, `warnings`, `stray`, `usage`, recent errors |
+| `lazy_tools_health` | contract self-check (`register` / `schemas` / `restrict` / `agent/created`), `healthy`, `warnings`, `stray`, `usage`, `autoOpened`, `selfHealed`, recent errors |
 
 `healthy: true` means: four contracts OK **and** no errors **and** no warnings.
 
@@ -90,29 +88,38 @@ Config changes apply on reload; **code changes need a process restart**.
 
 | Field | Default | Meaning |
 |---|---|---|
-| `level` | `medium` | how aggressively groups collapse on their own: `low` 30 d / `medium` 14 d / `high` 7 d |
-| `idleDays` | `14` | override the day threshold (`0` = never collapse by time) |
+| `level` | `medium` | how aggressively groups collapse on their own: `low` 14 d / `medium` 7 d / `high` 3 d |
+| `idleDays` | (follows `level`) | override the day threshold (`0` = never collapse by time) |
 | `minTools` | `3` | don't bother collapsing groups smaller than this |
 | `neverAutoClose` | `[]` | group ids that must never collapse on their own |
 
-Group definitions (`groups:`) stay in the profile YAML — they are written once and rarely touched,
+Group definitions (`groups:`) stay in the bundle patch — they are written once and rarely touched,
 and a nested array renders poorly in a settings form. Everything else is safe to leave alone.
 
 The schema is resolved at runtime by scanning `%USERPROFILE%\.dsh\profiles\*\` for
 `@deepseek-ai/schemastery` (a package DSH already ships); it uses Node built-ins only. If the package
 can't be found, `Config` is `undefined` — **no settings page, plugin unaffected.**
 
+The panel writes `~/.dsh/lazy-tools.policy.json`, which overrides the YAML defaults. Delete that file
+to fall back to the bundle patch.
+
 ## Why it *feels* automatic (without a model in the loop)
 
 Most people install a pile of plugins and use each of them rarely — but when the moment comes, the
-tool has to be there. Two deterministic mechanisms cover that, and neither guesses:
+tool has to be there. Three deterministic mechanisms cover that, and none of them guesses:
 
+0. **Usage ledger + session-start decision** — every real tool call is recorded in
+   `~/.dsh/lazy-tools.usage.json` (timestamps only, no arguments). When a session starts, a group
+   stays open if it was used within `idleDays`, is listed in `neverAutoClose`, or has `defaultOn: true`;
+   everything else starts collapsed. The decision happens **once, at the session boundary**, so it
+   never invalidates an active prompt cache.
 1. **`autoHints`** — the host emits `agent/inbox/inserted` when a user message arrives. If the text
    contains a configured phrase, the group is revealed *before the model reads the message*, so the
    tool is simply there. It never auto-hides, and every auto-open is logged (`autoOpened` in
    `lazy_tools_health`) so you can audit false positives.
-2. **`lazy_tools_resolve`** — when a call fails with `unknown tool`, one call both finds the owner
-   group and reveals just that tool; the model retries instead of walking through status → list → enable.
+2. **`lazy_tools_resolve` / self-heal** — when a call fails with `unknown tool`, `resolve` both finds
+   the owner group and reveals just that tool; a dispatch guard also tries to reveal it *before* the
+   call is rejected, and the model simply retries (`selfHealed` counts both).
 
 No embeddings, no judge model, no proxy: the "intelligence" is just **acting on evidence the host
 already gives you** (a message, an error) instead of asking the model to remember.
@@ -131,7 +138,7 @@ already gives you** (a message, an error) instead of asking the model to remembe
 ## Tests
 
 ```bash
-node test/smoke.mjs   # 22 assertions against a fake host, no DSH required
+node test/smoke.mjs   # 30 assertions against a fake host, no DSH required
 ```
 
 The fake host implements exactly the four contracts this plugin depends on, so a contract change
@@ -144,7 +151,7 @@ breaks the test before it breaks your session.
 2. **Name-based grouping.** DSH's `ToolSchema` has no tags, so groups are globs/regexes over names.
 3. **Toggling invalidates the prompt cache.** Enable once and leave it; prefer `only:` over
    whole-group enables when you keep switching.
-4. **No TTL / auto-hide.** `usage` only records counts and timestamps so *you* can decide later.
+4. **Auto-collapse only at session start.** It never re-shuffles a running session, because that would invalidate the prompt cache mid-task.
 5. **Failure mode is fail-open**: if a contract breaks, tools come back and you spend tokens — it
    will not lock you out.
 

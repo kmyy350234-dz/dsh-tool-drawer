@@ -1,18 +1,47 @@
 {
   "name": "dsh-lazy-tools",
-  "version": "0.6.0",
-  "private": false,
+  "version": "0.8.0",
+  "private": true,
   "type": "module",
   "main": "lib/index.js",
-  "description": "On-demand tool groups for DeepSeek Harness: hide heavy tool sets from every request, bring them back with one call.",
-  "keywords": ["deepseek-harness", "dsh", "plugin", "tools", "context", "lazy-loading"],
+  "description": "On-demand tool groups for DeepSeek Harness: hide heavy tool sets from the context, open them on demand, by keyword, or automatically at session start.",
+  "keywords": ["deepseek-harness", "dsh", "plugin", "bundle", "tools", "context", "lazy-loading"],
   "license": "MIT",
-  "files": ["lib", "test", "DESIGN.md", "README.md", "LICENSE"],
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "client.js",
+    "cordis.patch.yml",
+    "locale/*.json",
+    "icon.svg",
+    "README.md",
+    "DESIGN.md",
+    "LICENSE",
+    "test"
+  ],
+  "dsh": {
+    "bundle": { "patch": "./cordis.patch.yml" },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": ["@deepseek-ai/dsh-client-ui-slots"]
+    }
+  },
   "scripts": {
     "test": "node test/smoke.mjs"
   },
-  "peerDependencies": { "@deepseek-ai/schemastery": "*" },
-  "peerDependenciesMeta": { "@deepseek-ai/schemastery": { "optional": true } },
+  "peerDependencies": {
+    "@deepseek-ai/schemastery": "*"
+  },
+  "peerDependenciesMeta": {
+    "@deepseek-ai/schemastery": { "optional": true }
+  },
   "engines": {
     "node": ">=20"
   },
@@ -25,4 +54,3 @@
   },
   "homepage": "https://github.com/kmyy350234-dz/dsh-lazy-tools#readme"
 }
-

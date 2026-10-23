@@ -8,6 +8,11 @@
 
 import assert from 'node:assert/strict'
 import { apply } from '../lib/index.js'
+import { normalizePolicy } from '../lib/api.js'
+import { isHot, recordUsage, LEVEL_DAYS, DAY } from '../lib/usage.js'
+import { readFileSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 
 let checks = 0
 function ok(label) {
@@ -41,6 +46,8 @@ function makeWorld() {
   const effects = [] // «ctx.effect(cb)» 收下的回调，插件卸载时 Cordis 会调用它们
   const toolsChangeListeners = []
   const inboxListeners = []
+  const preExecuteListeners = []
+  const guards = []
 
   const ctx = {
     logger: { info() {}, warn() {}, error() {} },
@@ -48,6 +55,7 @@ function makeWorld() {
       if (event === 'agent/created') createdListeners.push(handler)
       if (event === 'tools/change') toolsChangeListeners.push(handler)
       if (event === 'agent/inbox/inserted') inboxListeners.push(handler)
+      if (event === 'tools/pre-execute') preExecuteListeners.push(handler)
     },
     effect(callback) {
       effects.push(callback)
@@ -57,6 +65,11 @@ function makeWorld() {
       return key === 'agents' ? { list: () => living } : undefined
     },
     tools: {
+      guard(fn) {
+        guards.push(fn)
+        return () => {}
+      },
+
       register(definition) {
         registered.set(definition.name, definition)
         return () => registered.delete(definition.name)
@@ -103,8 +116,25 @@ function makeWorld() {
     }
   }
 
+  const firePreExecute = async (agent, name) => {
+    for (const listener of preExecuteListeners) {
+      await listener({ name, agent }, async () => ({ kind: 'allow' }))
+    }
+  }
+
+  const fireGuard = (agent, name) => {
+    let decision
+    for (const guard of guards) {
+      const result = guard({ name, agent })
+      if (result) decision = result
+    }
+    return decision
+  }
+
   return {
     ctx,
+    fireGuard,
+    firePreExecute,
     registered,
     denyByAgent,
     createAgent,
@@ -140,10 +170,10 @@ async function main() {
       { id: 'idle', match: ['other_tool'], title: '默认开', defaultOn: true },
     ],
   })
-  for (const name of ['lazy_tools_status', 'lazy_tools_enable', 'lazy_tools_disable', 'lazy_tools_scan', 'lazy_tools_list', 'lazy_tools_resolve', 'lazy_tools_health']) {
+  for (const name of ['lazy_tools_status', 'lazy_tools_enable', 'lazy_tools_disable', 'lazy_tools_scan', 'lazy_tools_list', 'lazy_tools_resolve', 'lazy_tools_mode', 'lazy_tools_health']) {
     assert.ok(world.registered.has(name), `缺工具 ${name}`)
   }
-  ok('七个工具都注册上了')
+  ok('八个工具都注册上了')
 
   console.log('[2] agent 创建时按 defaultOn 收起')
   const agent = world.createAgent('agent-1')
@@ -230,8 +260,8 @@ async function main() {
   console.log('[4] scan / health 的输出')
   const scan = await runTool(world, 'lazy_tools_scan', {}, agent)
   assertJsonSafe(scan, 'scan')
-  // 可见 = 插件自己的 7 个工具 + other_tool；两个 cua 工具此刻仍被收着
-  assert.equal(scan.total, 8, `可见数不对：${JSON.stringify(scan.buckets.map((b) => b.prefix))}`)
+  // 可见 = 插件自己的 8 个工具 + other_tool；两个 cua 工具此刻仍被收着
+  assert.equal(scan.total, 9, `可见数不对：${JSON.stringify(scan.buckets.map((b) => b.prefix))}`)
   assert.equal(scan.buckets.some((b) => b.prefix === 'cua_driver_native'), false)
   ok('scan 输出 JSON-safe，total 对得上当前可见数，且没有 cua 前缀')
 
@@ -452,6 +482,75 @@ async function main() {
   assert.equal(autoHealth.stats.userMessages, 1)
   ok('命中 autoHints → 自动开组，health 记 autoOpened=1 / userMessages=1')
 
+  console.log('[17] 设置页策略文件：只收认识的键')
+  assert.deepEqual(normalizePolicy({ level: 'high', idleDays: 7, minTools: 2, neverAutoClose: ['cua-input'] }), {
+    level: 'high',
+    idleDays: 7,
+    minTools: 2,
+    neverAutoClose: ['cua-input'],
+  })
+  assert.deepEqual(normalizePolicy({ level: 'turbo', idleDays: -1, minTools: 'x', neverAutoClose: ['', 3, 'ok'] }), {
+    neverAutoClose: ['ok'],
+  })
+  assert.deepEqual(normalizePolicy(null), {})
+  ok('非法的 level/天数/工具数被丢弃，字符串数组过滤干净')
+
+  console.log('[18] 用量账本：热/冷判定')
+  assert.deepEqual(LEVEL_DAYS, { low: 14, medium: 7, high: 3 })
+  const usage = { groups: {}, tools: {} }
+  const stamp = Date.now()
+  recordUsage(usage, 'vision_ocr', 'vision-heavy', new Date(stamp - 2 * DAY))
+  assert.equal(isHot(usage, 'vision-heavy', 7, stamp), true)
+  assert.equal(isHot(usage, 'vision-heavy', 1, stamp), false)
+  assert.equal(isHot(usage, 'browser-heavy', 7, stamp), false)
+  assert.equal(isHot(usage, 'browser-heavy', 0, stamp), true)
+  recordUsage(usage, 'dsh_browser_open', null, new Date(stamp))
+  assert.equal(typeof usage.tools.dsh_browser_open, 'string')
+  assert.equal(usage.groups.dsh_browser_open, undefined)
+  ok('7 天内用过=热、1 天阈值=冷、无记录=冷、阈值 0=恒热、无组工具只记工具名')
+
+  console.log('[19] 用量落盘：调用一次 → 账本有记录、组变热')
+  const usagePath = join(tmpdir(), `lazy-tools-usage-${process.pid}.json`)
+  process.env.LAZY_TOOLS_USAGE_FILE = usagePath
+  const worldF = makeWorld()
+  worldF.ctx.tools.register({ name: 'cua_driver_native__a', description: 'x', parameters: {}, output: {} })
+  apply(worldF.ctx, { groups: [{ id: 'cua', match: ['cua_driver_native__*'], defaultOn: false }] })
+  const agentF = worldF.createAgent('agent-usage')
+  await worldF.firePreExecute(agentF, 'cua_driver_native__a')
+  const rawUsage = JSON.parse(readFileSync(usagePath, 'utf8'))
+  assert.equal(typeof rawUsage.groups.cua, 'string')
+  assert.equal(typeof rawUsage.tools.cua_driver_native__a, 'string')
+  const statusF = await runTool(worldF, 'lazy_tools_status', {}, agentF)
+  assert.equal(statusF.groups.find((g) => g.id === 'cua').hot, true)
+  rmSync(usagePath, { force: true })
+  delete process.env.LAZY_TOOLS_USAGE_FILE
+  ok('pre-execute 记账 → usage 文件写出组时间戳、status.hot=true')
+  console.log('[20] 会话级覆盖：lazy_tools_mode 立刻重算默认开哪些组')
+  const worldG = makeWorld()
+  worldG.ctx.tools.register({ name: 'cua_driver_native__a', description: 'x', parameters: {}, output: {} })
+  apply(worldG.ctx, { groups: [{ id: 'cua', match: ['cua_driver_native__*'], defaultOn: false }] })
+  const agentG = worldG.createAgent('agent-mode')
+  assert.equal(worldG.denyByAgent.get(agentG).size, 1)
+  const modeAll = await runTool(worldG, 'lazy_tools_mode', { idleDays: 0 }, agentG)
+  assert.equal(modeAll.session.source, 'session')
+  assert.equal(worldG.denyByAgent.get(agentG).size, 0)
+  const modeReset = await runTool(worldG, 'lazy_tools_mode', { reset: true }, agentG)
+  assert.equal(modeReset.session.source, 'global')
+  assert.equal(worldG.denyByAgent.get(agentG).size, 1)
+  ok('idleDays:0 → 全开；reset → 回全局（无历史 ⇒ 又收起）')
+
+  console.log('[21] 自愈守卫：被藏工具的调用被拦下、自动补开')
+  const worldH = makeWorld()
+  worldH.ctx.tools.register({ name: 'cua_driver_native__a', description: 'x', parameters: {}, output: {} })
+  apply(worldH.ctx, { groups: [{ id: 'cua', match: ['cua_driver_native__*'], defaultOn: false }] })
+  const agentH = worldH.createAgent('agent-heal')
+  const decision = worldH.fireGuard(agentH, 'cua_driver_native__a')
+  assert.equal(decision.kind, 'deny')
+  assert.match(decision.reason, /已自动为你打开/)
+  assert.equal(worldH.denyByAgent.get(agentH).has('cua_driver_native__a'), false)
+  const healthH = await runTool(worldH, 'lazy_tools_health', {}, agentH)
+  assert.equal(healthH.stats.selfHealed, 1)
+  ok('守卫拦下 + 补开该工具 + health.selfHealed=1')
   console.log(`\nsmoke: ${checks} 项全过`)
 }
 

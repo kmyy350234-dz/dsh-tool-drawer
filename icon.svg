@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="按需工具组">
+  <rect width="64" height="64" rx="14" fill="#101722"/>
+  <rect x="14" y="16" width="26" height="8" rx="3" fill="#4ea1ff"/>
+  <rect x="14" y="28" width="26" height="8" rx="3" fill="#4ea1ff" opacity="0.55"/>
+  <rect x="14" y="40" width="26" height="8" rx="3" fill="#4ea1ff" opacity="0.25"/>
+  <path d="M44 20v24" stroke="#8ad1ff" stroke-width="3" stroke-linecap="round" stroke-dasharray="4 5"/>
+  <circle cx="44" cy="46" r="5" fill="#8ad1ff"/>
+</svg>
