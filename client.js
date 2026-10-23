@@ -94,6 +94,7 @@ window.__ModuleLoader__.load({
         fontFamily: 'inherit',
         textAlign: 'center',
       },
+      dockCustom: { display: 'flex', alignItems: 'center', gap: '4px', opacity: 0.85 },
       dockHint: { opacity: 0.6 },
       groupList: { display: 'flex', flexWrap: 'wrap', gap: '6px' },
       chip: {
@@ -352,7 +353,7 @@ h(
       const levelName = current === 'low' ? '低' : current === 'high' ? '高' : '中'
       const levelLabel = isCustom
         ? `抽屉：${state.session.idleDays} 天`
-        : `抽屉：${current === 'global' ? '跟随全局' : `${levelName} ${presets[current]} 天`}`
+        : `抽屉：${current === 'global' ? '用全局设置' : `${levelName} ${presets[current]} 天`}`
 
       return h(
         'div',
@@ -375,25 +376,31 @@ h(
               levelLabel,
             )
           : null,
-        // 这个对话的自定义天数：填数字回车生效，只影响当前对话
+        // 这个对话的自定义天数：带标签，填数字回车生效，只影响当前对话
         state.showDock === true
-          ? h('input', {
-              type: 'number',
-              min: 0,
-              step: 1,
-              placeholder: '天',
-              style: styles.dockInput,
-              value: customDaysText,
-              disabled: busy,
-              title: '给这个对话单独设一个天数，回车生效',
-              onChange: (event) => setCustomDaysText(event.target.value),
-              onKeyDown: (event) => {
-                if (event.key !== 'Enter') return
-                const days = Number(customDaysText)
-                if (customDaysText === '' || !Number.isFinite(days) || days < 0) return
-                apply({ idleDays: Math.round(days) })
-              },
-            })
+          ? h(
+              'span',
+              { style: styles.dockCustom, title: '只对当前对话生效；留空表示用上面的档位' },
+              '自定义',
+              h('input', {
+                type: 'number',
+                min: 0,
+                step: 1,
+                placeholder: '—',
+                style: styles.dockInput,
+                value: customDaysText,
+                disabled: busy,
+                'aria-label': '自定义天数（只对当前对话生效）',
+                onChange: (event) => setCustomDaysText(event.target.value),
+                onKeyDown: (event) => {
+                  if (event.key !== 'Enter') return
+                  const days = Number(customDaysText)
+                  if (customDaysText === '' || !Number.isFinite(days) || days < 0) return
+                  apply({ idleDays: Math.round(days) })
+                },
+              }),
+              '天',
+            )
           : null,
         // 按钮二：只负责「立刻清空本对话的工具组」（独立开关，默认不显示）
         state.showClear === true ? h(
