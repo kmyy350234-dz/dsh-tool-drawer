@@ -119,10 +119,10 @@ async function main() {
       { id: 'idle', match: ['other_tool'], title: '默认开', defaultOn: true },
     ],
   })
-  for (const name of ['lazy_tools_status', 'lazy_tools_enable', 'lazy_tools_disable', 'lazy_tools_scan', 'lazy_tools_list', 'lazy_tools_health']) {
+  for (const name of ['lazy_tools_status', 'lazy_tools_enable', 'lazy_tools_disable', 'lazy_tools_scan', 'lazy_tools_list', 'lazy_tools_resolve', 'lazy_tools_health']) {
     assert.ok(world.registered.has(name), `缺工具 ${name}`)
   }
-  ok('六个工具都注册上了')
+  ok('七个工具都注册上了')
 
   console.log('[2] agent 创建时按 defaultOn 收起')
   const agent = world.createAgent('agent-1')
@@ -209,8 +209,8 @@ async function main() {
   console.log('[4] scan / health 的输出')
   const scan = await runTool(world, 'lazy_tools_scan', {}, agent)
   assertJsonSafe(scan, 'scan')
-  // 可见 = 插件自己的 6 个工具 + other_tool；两个 cua 工具此刻仍被收着
-  assert.equal(scan.total, 7, `可见数不对：${JSON.stringify(scan.buckets.map((b) => b.prefix))}`)
+  // 可见 = 插件自己的 7 个工具 + other_tool；两个 cua 工具此刻仍被收着
+  assert.equal(scan.total, 8, `可见数不对：${JSON.stringify(scan.buckets.map((b) => b.prefix))}`)
   assert.equal(scan.buckets.some((b) => b.prefix === 'cua_driver_native'), false)
   ok('scan 输出 JSON-safe，total 对得上当前可见数，且没有 cua 前缀')
 
@@ -395,6 +395,26 @@ async function main() {
   const statusB = await runTool(worldB, 'lazy_tools_status', {}, agentB)
   assert.equal(statusB.groups.find((g) => g.id === 'cua').matched, 1)
   ok('重新 apply 时旧限制被收回再重建，state 能重新看见工具（matched=1）')
+
+  console.log('[15] resolve：按名字一步开启')
+  const worldC = makeWorld()
+  worldC.ctx.tools.register({ name: 'cua_driver_native__a', description: 'x', parameters: {}, output: {} })
+  worldC.ctx.tools.register({ name: 'cua_driver_native__b', description: 'x', parameters: {}, output: {} })
+  apply(worldC.ctx, { groups: [{ id: 'cua', match: ['cua_driver_native__*'], defaultOn: false }] })
+  const agentC = worldC.createAgent('agent-resolve')
+  assert.equal(worldC.denyByAgent.get(agentC).size, 2)
+  const r1 = await runTool(worldC, 'lazy_tools_resolve', { name: 'cua_driver_native__a' }, agentC)
+  assert.equal(r1.found, true)
+  assert.equal(r1.applied, true)
+  assert.equal(r1.group, 'cua')
+  assert.equal(worldC.denyByAgent.get(agentC).has('cua_driver_native__a'), false)
+  assert.equal(worldC.denyByAgent.get(agentC).has('cua_driver_native__b'), true)
+  const r2 = await runTool(worldC, 'lazy_tools_resolve', { name: 'native__b' }, agentC)
+  assert.equal(r2.found, true)
+  assert.equal(r2.tool, 'cua_driver_native__b')
+  const r3 = await runTool(worldC, 'lazy_tools_resolve', { name: 'nope_xyz' }, agentC)
+  assert.equal(r3.found, false)
+  ok('resolve：一步开一个（only 语义）、片段能匹配、找不到给提示')
 
   console.log(`\nsmoke: ${checks} 项全过`)
 }

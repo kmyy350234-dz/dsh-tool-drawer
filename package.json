@@ -1,6 +1,6 @@
-{
+﻿{
   "name": "dsh-lazy-tools",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": false,
   "type": "module",
   "main": "lib/index.js",
@@ -23,3 +23,4 @@
   },
   "homepage": "https://github.com/kmyy350234-dz/dsh-lazy-tools#readme"
 }
+
