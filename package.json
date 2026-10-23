@@ -21,6 +21,7 @@
     "locale/*.json",
     "icon.svg",
     "README.md",
+    "README.en.md",
     "DESIGN.md",
     "LICENSE",
     "test"
