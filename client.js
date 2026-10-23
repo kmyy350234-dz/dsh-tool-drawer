@@ -310,6 +310,7 @@ h(
       const [busy, setBusy] = React.useState(false)
       const [error, setError] = React.useState('')
       const [customDaysText, setCustomDaysText] = React.useState('')
+      const [customOpen, setCustomOpen] = React.useState(false)
 
       React.useEffect(() => {
         if (!state) return
@@ -370,37 +371,62 @@ h(
                 onClick: () => {
                   const order = ['global', 'low', 'medium', 'high']
                   const next = order[(order.indexOf(current) + 1) % order.length]
+                  setCustomOpen(false)
                   apply(next === 'global' ? { reset: true } : { level: next })
                 },
               },
               levelLabel,
             )
           : null,
-        // 这个对话的自定义天数：带标签，填数字回车生效，只影响当前对话
+        // 自定义天数默认收起：点「自定义」才展开输入框，避免和档位按钮同时出现、互相打架
         state.showDock === true
-          ? h(
-              'span',
-              { style: styles.dockCustom, title: '只对当前对话生效；留空表示用上面的档位' },
-              '自定义',
-              h('input', {
-                type: 'number',
-                min: 0,
-                step: 1,
-                placeholder: '—',
-                style: styles.dockInput,
-                value: customDaysText,
-                disabled: busy,
-                'aria-label': '自定义天数（只对当前对话生效）',
-                onChange: (event) => setCustomDaysText(event.target.value),
-                onKeyDown: (event) => {
-                  if (event.key !== 'Enter') return
-                  const days = Number(customDaysText)
-                  if (customDaysText === '' || !Number.isFinite(days) || days < 0) return
-                  apply({ idleDays: Math.round(days) })
-                },
-              }),
-              '天',
-            )
+          ? customOpen
+            ? h(
+                'span',
+                { style: styles.dockCustom, title: '只对当前对话生效；回车生效，Esc 取消' },
+                h('input', {
+                  type: 'number',
+                  min: 0,
+                  step: 1,
+                  placeholder: '天数',
+                  style: styles.dockInput,
+                  value: customDaysText,
+                  disabled: busy,
+                  autoFocus: true,
+                  'aria-label': '自定义天数（只对当前对话生效）',
+                  onChange: (event) => setCustomDaysText(event.target.value),
+                  onKeyDown: (event) => {
+                    if (event.key === 'Escape') {
+                      setCustomOpen(false)
+                      return
+                    }
+                    if (event.key !== 'Enter') return
+                    const days = Number(customDaysText)
+                    if (customDaysText === '' || !Number.isFinite(days) || days < 0) return
+                    apply({ idleDays: Math.round(days) })
+                    setCustomOpen(false)
+                  },
+                }),
+                '天',
+                h(
+                  'button',
+                  { type: 'button', style: styles.dockButton, disabled: busy, onClick: () => setCustomOpen(false) },
+                  '取消',
+                ),
+              )
+            : isCustom
+              ? null
+              : h(
+                  'button',
+                  {
+                    type: 'button',
+                    style: styles.dockButton,
+                    disabled: busy,
+                    title: '给这个对话单独设一个天数（不用三档）',
+                    onClick: () => setCustomOpen(true),
+                  },
+                  '自定义',
+                )
           : null,
         // 按钮二：只负责「立刻清空本对话的工具组」（独立开关，默认不显示）
         state.showClear === true ? h(
