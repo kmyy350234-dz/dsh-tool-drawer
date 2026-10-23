@@ -1,6 +1,6 @@
 {
-  "name": "dsh-lazy-tools",
-  "version": "0.11.1",
+  "name": "dsh-tool-drawer",
+  "version": "0.12.0",
   "private": true,
   "type": "module",
   "main": "lib/index.js",
