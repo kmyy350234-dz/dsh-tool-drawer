@@ -1,4 +1,4 @@
-# Tool Drawer · dsh-lazy-tools
+# Tool Drawer · dsh-tool-drawer
 
 [中文](README.md) | **English**
 
@@ -40,7 +40,7 @@ This package is a **bundle** (host half + a `settings.section` client panel). Cl
 install it with the plugin manager — do not hand-edit `cordis.patch.yml`:
 
 ```
-plugin_manager install_bundle  target: /absolute/path/to/dsh-lazy-tools
+plugin_manager install_bundle  target: /absolute/path/to/dsh-tool-drawer
 ```
 
 That links the checkout into the profile, selects the bundle, and starts the client half. The bundle

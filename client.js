@@ -1,5 +1,5 @@
 window.__ModuleLoader__.load({
-  id: 'dsh-lazy-tools',
+  id: 'dsh-tool-drawer',
   factory(require) {
     const React = require('react')
     const h = React.createElement

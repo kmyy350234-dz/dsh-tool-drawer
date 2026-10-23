@@ -1,4 +1,4 @@
-# 工具抽屉 · dsh-lazy-tools
+# 工具抽屉 · dsh-tool-drawer
 
 **中文** | [English](README.en.md)
 
@@ -39,7 +39,7 @@ DSH 的工具注册表支持按 agent 隐藏全局工具，接口是 `restrict({
 这是一个 bundle：宿主半边加一个设置页的客户端半边。clone 到任意位置，用插件管理器安装：
 
 ```
-plugin_manager install_bundle  target: /你的路径/dsh-lazy-tools
+plugin_manager install_bundle  target: /你的路径/dsh-tool-drawer
 ```
 
 不建议手改 `cordis.patch.yml`——手写也能运行，但只有宿主半边，**没有设置页**。

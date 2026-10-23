@@ -1,5 +1,5 @@
 {
-  "name": "dsh-lazy-tools",
+  "name": "dsh-tool-drawer",
   "version": "0.11.0",
   "private": true,
   "type": "module",
@@ -48,10 +48,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/kmyy350234-dz/dsh-lazy-tools.git"
+    "url": "git+https://github.com/kmyy350234-dz/dsh-tool-drawer.git"
   },
   "bugs": {
-    "url": "https://github.com/kmyy350234-dz/dsh-lazy-tools/issues"
+    "url": "https://github.com/kmyy350234-dz/dsh-tool-drawer/issues"
   },
-  "homepage": "https://github.com/kmyy350234-dz/dsh-lazy-tools#readme"
+  "homepage": "https://github.com/kmyy350234-dz/dsh-tool-drawer#readme"
 }

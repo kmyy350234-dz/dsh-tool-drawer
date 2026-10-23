@@ -1,6 +1,6 @@
 - insert:
     - id: lazy-tools
-      name: dsh-lazy-tools
+      name: dsh-tool-drawer
       config:
         level: medium
         minTools: 3
