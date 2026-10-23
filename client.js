@@ -5,10 +5,35 @@ window.__ModuleLoader__.load({
     const h = React.createElement
 
     const API = '/lazy-tools/api'
+
+// 语言：跟宿主 locale 服务走（不是猜浏览器）；拿不到就退回中文。
+    let localeService = null
+    function activeIsChinese() {
+      try {
+        const snapshot = localeService && typeof localeService.getLocale === 'function' ? localeService.getLocale() : null
+        const active = snapshot && snapshot.active ? String(snapshot.active) : ''
+        if (active) return active.toLowerCase().startsWith('zh')
+        return String((typeof navigator !== 'undefined' && navigator.language) || 'zh').toLowerCase().startsWith('zh')
+      } catch {
+        return true
+      }
+    }
+    const tr = (zh, en) => (activeIsChinese() ? zh : en)
+
+    /** 订阅语言变化：切换语言时让组件重渲染（返回值不用，只是触发）。 */
+    function useLocaleVersion() {
+      const [version, setVersion] = React.useState(0)
+      React.useEffect(() => {
+        const service = localeService
+        if (!service || typeof service.subscribe !== 'function') return undefined
+        return service.subscribe(() => setVersion((value) => value + 1))
+      }, [])
+      return version
+    }
     const LEVEL_LABELS = {
-      low: '低（保守）',
-      medium: '中（默认）',
-      high: '高（激进）',
+      low: tr('低（保守）', 'Low (conservative)'),
+      medium: tr('中（默认）', 'Medium (default)'),
+      high: tr('高（激进）', 'High (aggressive)'),
     }
 
     async function request(path, body) {
@@ -106,6 +131,7 @@ window.__ModuleLoader__.load({
     }
 
     function LazyToolsSettings() {
+      useLocaleVersion()
       const [state, setState] = React.useState(null)
       const [form, setForm] = React.useState(null)
       const [status, setStatus] = React.useState('')
@@ -142,7 +168,7 @@ window.__ModuleLoader__.load({
 
       const save = async () => {
         setError('')
-        setStatus('保存中…')
+        setStatus(tr('保存中…', 'Saving…'))
         try {
           const data = await request('/policy', {
             level: form.level,
@@ -153,15 +179,15 @@ window.__ModuleLoader__.load({
             showClear: form.showClear === true,
           })
           setState(data)
-          setStatus('已保存（下次会话开始时按新策略决定默认收起哪些组）')
+          setStatus(tr('已保存（下次会话开始时按新策略决定默认收起哪些组）', 'Saved. The new policy applies from the next session start.'))
         } catch (err) {
           setStatus('')
           setError(err.message)
         }
       }
 
-      if (error && !form) return h('p', { style: styles.error }, `读取设置失败：${error}`)
-      if (!form) return h('p', { style: styles.hint }, '读取中…')
+      if (error && !form) return h('p', { style: styles.error }, `${tr('读取设置失败：', 'Failed to load settings: ')}${error}`)
+      if (!form) return h('p', { style: styles.hint }, tr('读取中…', 'Loading…'))
 
       return h(
         'div',
@@ -169,12 +195,12 @@ window.__ModuleLoader__.load({
         h(
           'p',
           { style: styles.intro },
-          '重工具组默认收起，需要时由 AI 或关键词自动开回来。这里控制「自动收敛」的策略——它在每个会话开始时按历史使用决定默认开哪些组，不会在干活途中打断缓存。',
+          tr('重工具组默认收起，需要时由 AI 或关键词自动开回来。这里控制「自动收敛」的策略——它在每个会话开始时按历史使用决定默认开哪些组，不会在干活途中打断缓存。', 'Heavy tool groups stay collapsed and come back on demand. These settings control when groups collapse on their own: the decision is made once at session start, so it never breaks an active prompt cache.'),
         ),
         h(
           'div',
           { style: styles.row },
-          h('label', { style: styles.label }, '收敛档位'),
+          h('label', { style: styles.label }, tr('收敛档位', 'Collapse level')),
           h(
             'select',
             { style: styles.input, value: form.level, onChange: update('level') },
@@ -186,7 +212,7 @@ window.__ModuleLoader__.load({
         h(
           'div',
           { style: styles.row },
-          h('label', { style: styles.label }, '闲置天数（可自定义）'),
+          h('label', { style: styles.label }, tr('闲置天数（可自定义）', 'Idle days (custom)')),
           h('input', {
             style: styles.input,
             type: 'number',
@@ -194,16 +220,16 @@ window.__ModuleLoader__.load({
             value: form.idleDays,
             onChange: update('idleDays'),
           }),
-          h('span', { style: styles.hint }, '这里填多少天就是多少天；不填就跟随档位；0 表示不按时间收敛'),
+          h('span', { style: styles.hint }, tr('这里填多少天就是多少天；不填就跟随档位；0 表示不按时间收敛', 'Exact days. Empty = follow the level. 0 = never collapse by time.')),
         ),
         h(
           'div',
           { style: styles.row },
-          h('label', { style: styles.label }, '三档各自的天数（可修改）'),
+          h('label', { style: styles.label }, tr('三档各自的天数（可修改）', 'Days per level (editable)')),
           h(
             'div',
             { style: { display: 'flex', gap: '10px', alignItems: 'center' } },
-            h('span', { style: styles.hint }, '低'),
+            h('span', { style: styles.hint }, tr('低', 'Low')),
             h('input', {
               style: { ...styles.input, width: '84px' },
               type: 'number',
@@ -211,7 +237,7 @@ window.__ModuleLoader__.load({
               value: form.presetLow,
               onChange: update('presetLow'),
             }),
-            h('span', { style: styles.hint }, '中'),
+            h('span', { style: styles.hint }, tr('中', 'Mid')),
             h('input', {
               style: { ...styles.input, width: '84px' },
               type: 'number',
@@ -219,7 +245,7 @@ window.__ModuleLoader__.load({
               value: form.presetMedium,
               onChange: update('presetMedium'),
             }),
-            h('span', { style: styles.hint }, '高'),
+            h('span', { style: styles.hint }, tr('高', 'High')),
             h('input', {
               style: { ...styles.input, width: '84px' },
               type: 'number',
@@ -227,9 +253,9 @@ window.__ModuleLoader__.load({
               value: form.presetHigh,
               onChange: update('presetHigh'),
             }),
-            h('span', { style: styles.hint }, '天'),
+            h('span', { style: styles.hint }, tr('天', 'days')),
           ),
-          h('span', { style: styles.hint }, '改了之后，档位按钮和斜杠命令都按新的天数算'),
+          h('span', { style: styles.hint }, tr('改了之后，档位按钮和斜杠命令都按新的天数算', 'The drawer button and the slash command both use these numbers.')),
         ),
         h(
           'div',
@@ -258,12 +284,12 @@ window.__ModuleLoader__.load({
               checked: form.showDock === true,
               onChange: (event) => setForm((prev) => ({ ...prev, showDock: event.target.checked })),
             }),
-            '在输入框上方显示「工具抽屉」控件',
+            tr('在输入框上方显示「工具抽屉」控件', 'Show the drawer control above the composer'),
           ),
           h(
             'span',
             { style: styles.hint },
-            '默认关闭。开启后可在每个对话里单独调档位；该控件按对话挂载，勾选后需要切换一次对话（或刷新页面）才会显示。',
+            tr('默认关闭。开启后可在每个对话里单独调档位；该控件按对话挂载，勾选后需要切换一次对话（或刷新页面）才会显示。', 'Off by default. Once enabled, every conversation can pick its own level. The control is mounted per conversation, so switch to another conversation (or reload) before it appears.'),
           ),
         ),
         h(
@@ -277,26 +303,26 @@ window.__ModuleLoader__.load({
               checked: form.showClear === true,
               onChange: (event) => setForm((prev) => ({ ...prev, showClear: event.target.checked })),
             }),
-            '在输入框上方显示「立刻清空」按钮',
+            tr('在输入框上方显示「立刻清空」按钮', 'Show the clear-now button above the composer'),
           ),
           h(
             'span',
             { style: styles.hint },
-            '与档位按钮互相独立：只想要档位就不勾它；想一键把本对话的工具全收起来再勾。',
+            tr('与档位按钮互相独立：只想要档位就不勾它；想一键把本对话的工具全收起来再勾。', 'Independent of the level button. Leave it off unless you want a one-click clear for this conversation.'),
           ),
         ),
 
 h(
           'div',
           { style: styles.actions },
-          h('button', { style: styles.button, onClick: save, type: 'button' }, '保存'),
+          h('button', { style: styles.button, onClick: save, type: 'button' }, tr('保存', 'Save')),
           h('span', { style: status && status.includes('失败') ? styles.error : styles.status }, status),
           error ? h('span', { style: styles.error }, error) : null,
         ),
         h(
           'p',
           { style: styles.hint },
-          state && state.file ? `策略文件：${state.file}` : '',
+          state && state.file ? `${tr('策略文件：', 'Policy file: ')}${state.file}` : '',
         ),
       )
     }
@@ -305,6 +331,7 @@ h(
     const DOCK_LEVELS = ['global', 'low', 'medium', 'high']
 
     function LazyToolsDock(props) {
+      useLocaleVersion()
       const sessionId = props && props.sessionId ? String(props.sessionId) : ''
       const [state, setState] = React.useState(null)
       const [busy, setBusy] = React.useState(false)
@@ -354,7 +381,7 @@ h(
       const levelName = current === 'low' ? '低' : current === 'high' ? '高' : '中'
       const levelLabel = isCustom
         ? `抽屉：${state.session.idleDays} 天`
-        : `抽屉：${current === 'global' ? '用全局设置' : `${levelName} ${presets[current]} 天`}`
+        : `抽屉：${current === 'global' ? tr('用全局设置', 'Global') : `${levelName} ${presets[current]} 天`}`
 
       return h(
         'div',
@@ -367,7 +394,7 @@ h(
                 type: 'button',
                 style: styles.dockButton,
                 disabled: busy,
-                title: '只改这个对话的收敛档位',
+                title: tr('只改这个对话的收敛档位', 'Change the collapse level for this conversation'),
                 onClick: () => {
                   const order = ['global', 'low', 'medium', 'high']
                   const next = order[(order.indexOf(current) + 1) % order.length]
@@ -383,7 +410,7 @@ h(
           ? customOpen
             ? h(
                 'span',
-                { style: styles.dockCustom, title: '只对当前对话生效；回车生效，Esc 取消' },
+                { style: styles.dockCustom, title: tr('只对当前对话生效；回车生效，Esc 取消', 'Applies to this conversation only. Enter to apply, Esc to cancel.') },
                 h('input', {
                   type: 'number',
                   min: 0,
@@ -411,7 +438,7 @@ h(
                 h(
                   'button',
                   { type: 'button', style: styles.dockButton, disabled: busy, onClick: () => setCustomOpen(false) },
-                  '取消',
+                  tr('取消', 'Cancel'),
                 ),
               )
             : isCustom
@@ -422,10 +449,10 @@ h(
                     type: 'button',
                     style: styles.dockButton,
                     disabled: busy,
-                    title: '给这个对话单独设一个天数（不用三档）',
+                    title: tr('给这个对话单独设一个天数（不用三档）', 'Set a custom number of days for this conversation'),
                     onClick: () => setCustomOpen(true),
                   },
-                  '自定义',
+                  tr(tr('自定义', 'Custom'), 'Custom'),
                 )
           : null,
         // 按钮二：只负责「立刻清空本对话的工具组」（独立开关，默认不显示）
@@ -435,15 +462,15 @@ h(
             type: 'button',
             style: styles.dockButton,
             disabled: busy,
-            title: '立刻把本对话的所有工具组收起（可随时再开回来）',
+            title: tr('立刻把本对话的所有工具组收起（可随时再开回来）', 'Collapse every tool group in this conversation now. They can be reopened at any time.'),
             onClick: () => apply({ collapseAll: true }),
           },
-          '立刻清空',
+          tr(tr('立刻清空', 'Clear now'), 'Clear now'),
         ) : null,
         h(
           'span',
           { style: styles.dockHint },
-          error ? error : open.length ? `开着 ${open.length} 组` : '全部收起',
+          error ? error : open.length ? tr(`开着 ${open.length} 组`, `${open.length} open`)  : tr('全部收起', 'all collapsed'),
         ),
       )
     }
@@ -451,6 +478,7 @@ h(
     return {
       inject: ['slots'],
       apply(ctx) {
+        localeService = (typeof ctx.get === 'function' ? ctx.get('locale') : null) || ctx.locale || null
         const slots = ctx.slots || ctx.get('slots')
         if (!slots) return
         slots.inject('settings.section', () =>
