@@ -108,6 +108,7 @@ window.__ModuleLoader__.load({
               idleDays: String(data.policy.idleDays),
               minTools: String(data.policy.minTools),
               neverAutoClose: (data.policy.neverAutoClose || []).join(', '),
+              showDock: data.policy.showDock === true,
             })
           })
           .catch((err) => alive && setError(err.message))
@@ -130,6 +131,7 @@ window.__ModuleLoader__.load({
             level: form.level,
             idleDays: Number(form.idleDays),
             minTools: Number(form.minTools),
+            showDock: form.showDock === true,
             neverAutoClose: String(form.neverAutoClose || '')
               .split(',')
               .map((item) => item.trim())
@@ -215,6 +217,22 @@ window.__ModuleLoader__.load({
         ),
         h(
           'div',
+          { style: styles.row },
+          h(
+            'label',
+            { style: { ...styles.label, display: 'flex', alignItems: 'center', gap: '8px' } },
+            h('input', {
+              type: 'checkbox',
+              checked: form.showDock === true,
+              onChange: (event) => setForm((prev) => ({ ...prev, showDock: event.target.checked })),
+            }),
+            '在输入框上方显示「工具抽屉」控件',
+          ),
+          h('span', { style: styles.hint }, '默认关闭：不给不懂的人看；打开后每个对话可以单独调档位'),
+        ),
+
+h(
+          'div',
           { style: styles.actions },
           h('button', { style: styles.button, onClick: save, type: 'button' }, '保存'),
           h('span', { style: status && status.includes('失败') ? styles.error : styles.status }, status),
@@ -268,6 +286,8 @@ window.__ModuleLoader__.load({
       }
 
       if (!sessionId) return null
+      // 控件默认关闭：想用的人去设置页打开（用户 2026-10-24 要求：别直接给小白）
+      if (!state || state.showDock !== true) return null
       const current = (state && state.session && state.session.level) || 'global'
       const groups = (state && state.groups) || []
       const open = groups.filter((group) => group.on)
@@ -297,7 +317,7 @@ window.__ModuleLoader__.load({
             disabled: busy,
             onClick: () => apply({ collapseAll: true }),
           },
-          '全部收起',
+          '立刻清空',
         ),
         h(
           'span',

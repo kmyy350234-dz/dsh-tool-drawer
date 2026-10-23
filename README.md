@@ -8,7 +8,7 @@ Hide heavy tool sets from every request; bring them back with one call when you 
 > 把「很重但平时不用」的工具组从上下文里收起来，需要时一条命令开回来。
 > 零运行时依赖、零代理进程、真实调用保持原生。
 
-**Status:** `0.9.0` — running daily on one DSH installation; the config surface may still change.
+**Status:** `0.9.1` — running daily on one DSH installation; the config surface may still change.
 Issues and PRs are welcome, but maintenance is **best-effort**: if you need something guaranteed,
 fork it. If DSH ships native on-demand tool loading, this project should retire (see [DESIGN.md](DESIGN.md)).
 
