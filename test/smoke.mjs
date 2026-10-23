@@ -40,12 +40,14 @@ function makeWorld() {
   const living = [] // «ctx.get('agents').list()» 返回的东西
   const effects = [] // «ctx.effect(cb)» 收下的回调，插件卸载时 Cordis 会调用它们
   const toolsChangeListeners = []
+  const inboxListeners = []
 
   const ctx = {
     logger: { info() {}, warn() {}, error() {} },
     on(event, handler) {
       if (event === 'agent/created') createdListeners.push(handler)
       if (event === 'tools/change') toolsChangeListeners.push(handler)
+      if (event === 'agent/inbox/inserted') inboxListeners.push(handler)
     },
     effect(callback) {
       effects.push(callback)
@@ -95,7 +97,26 @@ function makeWorld() {
     for (const listener of toolsChangeListeners) listener()
   }
 
-  return { ctx, registered, denyByAgent, createAgent, makeAgent, living, createdListeners, effects, toolsChangeListeners, fireToolsChange }
+  const fireUserMessage = (agent, text) => {
+    for (const listener of inboxListeners) {
+      listener({ agent, message: { role: 'user', content: [{ type: 'text', text }] } })
+    }
+  }
+
+  return {
+    ctx,
+    registered,
+    denyByAgent,
+    createAgent,
+    makeAgent,
+    living,
+    createdListeners,
+    effects,
+    toolsChangeListeners,
+    inboxListeners,
+    fireToolsChange,
+    fireUserMessage,
+  }
 }
 
 async function runTool(world, name, args, agent) {
@@ -415,6 +436,21 @@ async function main() {
   const r3 = await runTool(worldC, 'lazy_tools_resolve', { name: 'nope_xyz' }, agentC)
   assert.equal(r3.found, false)
   ok('resolve：一步开一个（only 语义）、片段能匹配、找不到给提示')
+
+  console.log('[16] 关键词预开：用户说了 autoHints 里的词，工具自己出现')
+  const worldE = makeWorld()
+  worldE.ctx.tools.register({ name: 'cua_driver_native__a', description: 'x', parameters: {}, output: {} })
+  apply(worldE.ctx, {
+    groups: [{ id: 'desktop', match: ['cua_driver_native__*'], autoHints: ['截图', '看窗口'], defaultOn: false }],
+  })
+  const agentE = worldE.createAgent('agent-auto')
+  assert.equal(worldE.denyByAgent.get(agentE).size, 1)
+  worldE.fireUserMessage(agentE, '帮我截图看看这个窗口')
+  assert.equal(worldE.denyByAgent.get(agentE).size, 0)
+  const autoHealth = await runTool(worldE, 'lazy_tools_health', {}, agentE)
+  assert.equal(autoHealth.stats.autoOpened, 1)
+  assert.equal(autoHealth.stats.userMessages, 1)
+  ok('命中 autoHints → 自动开组，health 记 autoOpened=1 / userMessages=1')
 
   console.log(`\nsmoke: ${checks} 项全过`)
 }
