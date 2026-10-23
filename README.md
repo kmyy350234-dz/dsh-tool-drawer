@@ -2,138 +2,136 @@
 
 **中文** | [English](README.en.md)
 
-我装了两百来个工具。桌面自动化的、浏览器的、识图的，全都开着。
+装上两百来个工具之后，问题会变得很明显：模型每一轮都要把这些工具的说明读一遍——哪怕这次只需要改一个错别字。一晚上下来，真正被调用过的工具往往不到一半。
 
-问题在于：模型每一轮都要把这些工具的说明读一遍——哪怕我这次只是让它改个错别字。一晚上下来，真正碰过的工具不到一半。
+工具抽屉处理的就是这件事：平时用不上的工具组收起来，要用的时候再放出来。
 
-所以我写了个东西，把平时用不上的那几组收起来，要用的时候再放出来。
-
-**状态：0.11.0。** 在一台机器上每天用着。配置面还可能变。Issue 和 PR 都欢迎，但维护是尽力而为——需要稳定保证就自己 fork。DSH 哪天真做了原生按需加载，这东西就该退休。
+**状态：0.11.0。** 在一台机器上日常使用。配置面仍可能变化。Issue 和 PR 都欢迎，维护是尽力而为；需要稳定保证请自行 fork。DSH 若实现原生按需加载，这个项目应当退场。
 
 ---
 
-## 到底省了多少
+## 省了多少
 
-量出来的数字：**本机 181 个工具，四组一共收起 92 个。**
+实测：本机 181 个工具，四组共收起 92 个。
 
-92 × 220 ≈ **每轮省 2 万 token 左右**。
+92 × 220 ≈ **每轮约 2 万 token**。
 
-220 这个系数不是猜的：我拿一份 140 个工具的清单量过，约 31.1k token，折下来每个工具约 220 token，再按这个比例外推到 92 个。**这是外推，不是逐项精算**，量级可用，别当财务数字。
+220 的来源：一份 140 个工具的清单实测约 31.1k token，折算每个工具约 220 token，再按比例外推到 92 个。**属于外推值，可作量级参考，不宜当精确账目。**
 
-省下的是上下文占用和首字延迟。**账单上省多少我不敢承诺**——DSH 有前缀缓存，工具表稳定的时候大部分本来就命中缓存，真正省下来的钱比 2 万 token 的名义值小得多。
+省下来的是上下文占用和首字延迟。**账单收益受前缀缓存影响**：工具表稳定时大部分内容本来就命中缓存，实际省下的钱远小于 2 万 token 的名义值。
 
 ## 怎么做到「不读」
 
-DSH 的工具注册表允许按 agent 隐藏全局工具，接口是 `restrict({ deny: [...] })`。
+DSH 的工具注册表支持按 agent 隐藏全局工具，接口是 `restrict({ deny: [...] })`。
 
-我在每个 agent 创建时，把自己配好的组名下的工具填进 `deny`，它们就从模型看到的工具表里消失了。要开回来，就是解除这条限制。
+每个 agent 创建时，把配置组内的工具填进 `deny`，它们就从模型可见的工具表里消失；解除这条限制即恢复。
 
-整个过程里：
+整个过程不引入：
 
-- 没有代理进程，调用不经过任何中间层；
-- 没有向量检索，不额外跑模型判断你要什么；
-- 真实调用还是原生调用，参数校验一点没变。
+- 代理进程（调用不经过中间层）；
+- 向量检索（不额外跑模型判断意图）；
+- 包装器（真实调用仍是原生调用，参数校验不变）。
 
-为什么不用向量路由：路由错一次，你要的工具就被悄悄藏起来，模型只会说「我没有这个能力」；而且为了省 token 再引一个 90MB 的编码器，不划算。
+不用向量路由的原因：路由错一次，需要的工具会被静默藏掉，模型只会回「没有这个能力」；另外为省 token 引入一个 90MB 编码器并不划算。
 
 ## 装法
 
-这是个 bundle：宿主半边加上一个设置页的客户端半边。clone 到任意位置，然后用插件管理器装：
+这是一个 bundle：宿主半边加一个设置页的客户端半边。clone 到任意位置，用插件管理器安装：
 
 ```
 plugin_manager install_bundle  target: /你的路径/dsh-lazy-tools
 ```
 
-不要手改 `cordis.patch.yml`——手写也能跑，但只有宿主半边，**没有设置页**。
+不建议手改 `cordis.patch.yml`——手写也能运行，但只有宿主半边，**没有设置页**。
 
-bundle 自带的 patch 已经配好四组：
+bundle 自带的 patch 已配好四组：
 
-| 组 | 收起的工具数 | 留着的（永不收） |
+| 组 | 收起数量 | 保留（永不收起） |
 |---|---|---|
 | 桌面·看 | 19 | 无 |
 | 桌面·点 | 37 | 无 |
 | 浏览器·重 | 28 | open / content / a11y / click / type / wait |
 | 视觉·重 | 8 | describe / ocr / crop / bootstrap / materialize / present |
 
-要改组成员，改 checkout 里的 `cordis.patch.yml`。配置改动重载就生效；**改宿主代码要重启进程**。
+改组成员改 checkout 里的 `cordis.patch.yml`。配置改动重载生效；**改宿主代码需要重启进程**。
 
 ## 组怎么配
 
 | 字段 | 说明 |
 |---|---|
-| `id` | 组 id，工具调用里用它 |
-| `match` | 匹配式数组。普通字符串当 glob（`*` 通配、整串锚定），`re:` 开头当正则 |
-| `keep` | 故意留着的工具名。列在这里的不会被当成「漏网」 |
-| `expect` | 这一组应该有几个工具。数字对不上时 `health` 会警告 |
-| `defaultOn` | `false` 就是默认收起，一般都用这个 |
-| `autoHints` | 关键词表。用户消息里出现这些词，就在模型读到消息之前把组打开 |
-| `title` / `hint` | 给 `status` 看的标签 |
+| `id` | 组 id，工具调用时使用 |
+| `match` | 匹配式数组。普通字符串按 glob 处理（`*` 通配、整串锚定）；`re:` 开头按正则处理 |
+| `keep` | 有意保留可见的工具名，不会被判定为「漏网」 |
+| `expect` | 该组应有的工具数量；对不上时 `health` 会警告 |
+| `defaultOn` | `false` 表示默认收起 |
+| `autoHints` | 关键词表；用户消息中出现这些词时，在模型读取消息之前打开该组 |
+| `title` / `hint` | 供 `status` 展示的标签 |
 
-`autoHints` 有个坑要知道：**它是子串匹配**。配了 `截图`，用户打「截个图」就匹配不上。所以要把各种说法都列进去：截图、截个图、截屏、看窗口。
+`autoHints` 采用**子串匹配**，需要注意变体：配置 `截图` 时，用户输入「截个图」匹配不到。常见写法都应列入，例如 截图、截个图、截屏、看窗口。
 
 ## 八个工具
 
-| 工具 | 干什么 |
+| 工具 | 作用 |
 |---|---|
-| `lazy_tools_status` | 看每组的状态：开没开、模式、匹配到几个、可见几个、是不是「热的」、上次用是什么时候 |
-| `lazy_tools_enable` | 开一组。给 `only: ['名字']` 就只放这几个出来，其余仍然收着；给 `groups: [...]` 批量开 |
-| `lazy_tools_disable` | 关一组，顺便清掉 `only` 白名单 |
-| `lazy_tools_list` | 列出一组里有哪些工具，包括现在被藏着的 |
-| `lazy_tools_resolve` | 只知道工具名、不知道属于哪组时用这个：给名字或片段，它找到组、只放那一个出来 |
-| `lazy_tools_mode` | 只改当前会话的策略。`reset` 回全局，`collapse` 立刻清空 |
-| `lazy_tools_scan` | 把可见工具按名字前缀分组，写新组的时候用 |
-| `lazy_tools_health` | 自检四个宿主契约，顺便报 warnings、漏网工具、自动开过的次数、自愈过的次数 |
+| `lazy_tools_status` | 查看每组状态：开关、模式、匹配数量、可见数量、是否热、上次使用时间 |
+| `lazy_tools_enable` | 打开一组；`only: ['名字']` 只放指定工具，其余保持收起；`groups: [...]` 批量打开 |
+| `lazy_tools_disable` | 收起一组，同时清除 `only` 白名单 |
+| `lazy_tools_list` | 列出组内工具，包含当前被隐藏的 |
+| `lazy_tools_resolve` | 只知工具名时使用：按名称或片段定位所属组，只放出该工具 |
+| `lazy_tools_mode` | 仅修改当前会话策略；`reset` 回全局，`collapse` 立即清空 |
+| `lazy_tools_scan` | 按名字前缀对可见工具分桶，便于编写新的组匹配式 |
+| `lazy_tools_health` | 自检四个宿主契约，并输出 warnings、漏网工具、自动打开次数、自愈次数 |
 
-`healthy: true` 的意思是：四个契约都通，没有错误，没有警告。
+`healthy: true` 表示：四个契约均通过，无错误，无警告。
 
 ## 设置页
 
-`lib/config.js` 导出 schema，DSH 设置页会把这些字段画出来：
+`lib/config.js` 导出 schema，DSH 设置页据此渲染字段：
 
 | 字段 | 默认 | 说明 |
 |---|---|---|
 | `level` | `medium` | 收敛力度：低 14 天、中 7 天、高 3 天 |
-| `presets` | `{14,7,3}` | 三档各是多少天，按自己的节奏改 |
-| `idleDays` | 跟 `level` 走 | 手动指定天数，写 0 表示不按时间收 |
-| `minTools` | `3` | 少于这么多工具的组不动它 |
+| `presets` | `{14,7,3}` | 三档各自的天数，可修改 |
+| `idleDays` | 跟随 `level` | 手动指定天数；0 表示不按时间收敛 |
+| `minTools` | `3` | 工具数量少于此值的组不处理 |
 | `showDock` | `false` | 在输入框上方显示档位按钮 |
 | `showClear` | `false` | 在输入框上方显示独立的「立刻清空」按钮 |
 
-两个界面开关互相独立。控件是按对话挂载的，所以勾上之后要切一次对话（或者刷新页面）才会出现——不是没生效。
+两个界面开关互相独立。控件按对话挂载，勾选后需切换一次对话（或刷新页面）才会出现。
 
-组定义留在 bundle 的 patch 里。写一次就不常动，而且嵌套数组在表单里很难看。
+组定义保留在 bundle 的 patch 中：写一次后很少改动，且嵌套数组在表单中可读性差。
 
-schema 是运行时找的：扫 `%USERPROFILE%\.dsh\profiles\*\` 找 DSH 自带的 `@deepseek-ai/schemastery`，只用 Node 内置模块。找不到就让 `Config` 变成 undefined——没有设置页，插件本身照常跑。
+schema 在运行时解析：扫描 `%USERPROFILE%\.dsh\profiles\*\` 查找 DSH 自带的 `@deepseek-ai/schemastery`，只使用 Node 内置模块。未找到时 `Config` 为 undefined——没有设置页，插件本身正常运行。
 
-设置页写的策略存到 `~/.dsh/lazy-tools.policy.json`，优先级高于 YAML 默认值。删掉这个文件就回到默认。
+设置页写入的策略保存在 `~/.dsh/lazy-tools.policy.json`，优先级高于 YAML 默认值；删除该文件即回到默认。
 
-## 它为什么看起来像会自己判断
+## 为什么它表现得像会自己判断
 
-因为我没让它判断，我让它**按证据触发**。三个机制，都不猜：
+它不判断，只按证据触发。三个机制都不包含猜测：
 
-**一、用量账本。** 每次真实调用，记一条时间戳进 `~/.dsh/lazy-tools.usage.json`（只记时间和工具名，不记参数）。新会话开始时算一遍：某组在 `idleDays` 天内用过，就默认开着；没用过，就默认收着。
+**一、用量账本。** 每次真实调用记录一条时间戳到 `~/.dsh/lazy-tools.usage.json`（只记时间与工具名，不记参数）。新会话开始时计算：某组在 `idleDays` 内被使用过，则默认打开；否则默认收起。
 
-这个决策**只在会话开始做一次**，中途绝不动。因为中途改工具表会把前缀缓存打断——省下来的 token 还不够赔缓存。
+该决策**仅在会话开始时执行一次**，运行期间不改动。原因：中途修改工具表会使前缀缓存失效，省下的 token 不足以抵消损失。
 
-**二、关键词预开。** 用户消息进 inbox 时，宿主会发 `agent/inbox/inserted` 事件。我在那时候看一眼文本，命中配置的词就把组打开。
+**二、关键词预开。** 用户消息进入 inbox 时，宿主发出 `agent/inbox/inserted` 事件。此时检查文本，命中配置词即打开对应组。
 
-关键是时机：**模型还没读到这条消息，工具就已经在了。**
+关键在于时机：**模型读取消息之前，工具已经在工具表中。**
 
-它从不自动关，每次自动开都记一笔（`health` 里的 `autoOpened`），方便你事后查有没有误开。
+该机制从不自动关闭；每次自动打开都会计数（`health.autoOpened`），便于事后核查误开。
 
-**三、自愈。** 有些时候模型就是要调一个被藏起来的工具。这时有一个 dispatch 守卫在调用被拒之前拦住它：认出这个工具属于哪组，只把它放出来，然后回一句「已为你打开，请重新调用一次」。
+**三、自愈。** 当模型调用被隐藏的工具时，一个 dispatch 守卫会在调用被拒绝之前拦截：识别所属组，只放出该工具，并返回「已为你打开，请重新调用一次」。
 
-模型重试一次就成。用户那边什么都看不到。次数记在 `health` 的 `selfHealed` 里。
+模型重试即成功，用户侧无感知。次数记录在 `health.selfHealed`。
 
 ## 它防的是什么
 
-**漏网的。** 插件升级加了个新工具，你的组匹配式没覆盖到——它就会悄悄变回可见，安静烧 token。`health` 里的 `stray` 会推导每组的名字前缀，把「看起来像这一族、但没被任何组匹配」的工具点出来（`keep` 里的除外）。
+**漏网工具。** 插件升级新增工具而组匹配式未覆盖时，该工具会重新变为可见并持续占用 token。`health.stray` 会推导每组的名字前缀，列出「看起来属于该族、但未被任何组匹配」的可见工具（`keep` 中的除外）。
 
-**数字漂移的。** 我给每组写了 `expect`（应该有几个）。哪次工具数量变了，`health` 直接警告，不用我肉眼看。
+**数量漂移。** 每组配置 `expect`（应有数量）；工具数量变化时 `health` 直接告警。
 
-**竞态的。** 子 agent 可能在限制建到一半时被销毁。这种情况记成「agent 已销毁」，**不算失败**，不然体检结果会被这类噪音污染。
+**竞态。** 子 agent 可能在限制建立过程中被销毁，此类失败记为「agent 已销毁」，**不计入失败次数**，避免污染体检结果。
 
-**孤儿限制的。** 解除函数挂在 `ctx.effect` 上，热重载会把它解除掉，而不是留一条孤儿限制让 `enable` 假成功。
+**孤儿限制。** 解除函数挂在 `ctx.effect` 上，热重载时会被解除，不会残留限制导致 `enable` 假成功。
 
 ## 测试
 
@@ -141,45 +139,45 @@ schema 是运行时找的：扫 `%USERPROFILE%\.dsh\profiles\*\` 找 DSH 自带�
 node test/smoke.mjs
 ```
 
-32 项断言，跑在一个假宿主上，不需要装 DSH。
+32 项断言，运行在假宿主上，不需要安装 DSH。
 
-假宿主只实现本插件依赖的四个契约。所以宿主一改契约，测试先红，而不是你的会话先坏。
+假宿主只实现本插件依赖的四个契约。宿主契约变化时，测试先失败，而不是会话先出问题。
 
-## 局限（这部分请一定看）
+## 局限（请务必阅读）
 
-1. **只能藏全局工具。** 有些插件把工具注册在 agent 作用域里，那种藏不了，宿主会直接拒绝。
-2. **按名字分组。** DSH 的工具定义没有标签，只能对名字写 glob 或正则。改名就漏。
-3. **开关会打断前缀缓存。** 开一次就让它开着。非要反复切，优先用 `only:` 而不要整组开。
-4. **自动收敛只在会话开始。** 干活途中不会重排，理由同上：那会把当前会话的缓存打掉。
-5. **失败方向是放开。** 契约坏了、文件读不到，工具全部回到可见——多花 token，但不会让你少个能力。
-6. **自愈只对「存在但被隐藏」的工具有效。** 拼错的名字、还没加载的插件，修不了。那种情况用 `resolve` 给片段找。
-7. **界面双语，工具描述不是。** 设置面板和输入框那一行跟着宿主语言走；模型看到的工具描述是开机注册一次的，还是中文——宿主进程看不到界面语言。
+1. **只能隐藏全局工具。** 注册在 agent 作用域中的工具无法隐藏，宿主会拒绝。
+2. **按名字分组。** DSH 的工具定义没有标签，只能对名字写 glob 或正则；改名会导致漏配。
+3. **开关会打断前缀缓存。** 打开一次后尽量保持；需要反复切换时优先使用 `only:`，不要整组开关。
+4. **自动收敛只在会话开始。** 运行期间不重排，理由同上。
+5. **失败方向是放开。** 契约异常或文件不可读时，工具全部回到可见状态：多花 token，但不会减少能力。
+6. **自愈只对「存在但被隐藏」的工具有效。** 拼写错误、尚未加载的插件无法修复，这类情况使用 `resolve` 按片段查找。
+7. **界面双语，工具描述不是。** 设置面板和输入框那一行跟随宿主语言服务；模型读取的工具描述在启动时注册一次，仍为中文——宿主进程无法感知界面语言。
 
-## 什么时候它该退休
+## 退场条件
 
-DSH 已经在带 `deferLoading` 和工具增补消息了。哪天它做成原生的按需加载，这东西就该退出，而不是继续跟它抢活。
+DSH 已带有 `deferLoading` 与工具增补消息。若其实现原生按需加载，这个项目应当退场，而不是继续并行维护。
 
-## 借鉴了谁
+## 借鉴与参考
 
-这里没有原创的点子，只有取舍。前三个我仔细读过，后面几个主要看 README：
+这里没有原创机制，只有取舍。前三个项目阅读较深，其余主要参考 README：
 
-| 项目 | 它做的事 | 我取了什么，哪里不同 |
+| 项目 | 做法 | 取舍 |
 |---|---|---|
-| [tool-attention](https://github.com/asadani/tool-attention)（[论文](https://arxiv.org/abs/2604.21816)） | 每轮用 embedding 做意图路由，再分两段加载 schema | 它把「工具税」量清楚了；我没用 embedding，理由是路由错了会静默藏掉要用的工具 |
-| [mcp-lazy-load](https://github.com/PeterCha90/mcp-lazy-load) | MCP 代理，暴露 `search_tools` / `execute_tool` | 证明能省到很夸张的程度；我选择让调用保持原生，不过通用执行器 |
-| [dsh-mcp-loader](https://github.com/MikotoMyWife/dsh-mcp-loader) | DSH 插件，按服务器加载 + 按 agent 打 `restrict` 掩码 | 和我同一层。它也写过「`restrict` 只接受全局注册的名字」这条限制 |
-| [lazy-mcp](https://github.com/voicetreelab/lazy-mcp) | 代理层，按服务器分树 | 分组词汇的参考 |
-| [opencode-lazy-loading](https://github.com/omarwaly-ai/opencode-lazy-loading) | 请求层剥离 | 「大幅缩减」这个说法的参考 |
-| [dsh-sieve](https://github.com/Sev7eEn7/dsh-sieve) | DSH 上下文过滤，带裁判模型 | 我避开「模型在环」判断的理由 |
+| [tool-attention](https://github.com/asadani/tool-attention)（[论文](https://arxiv.org/abs/2604.21816)） | 每轮基于 embedding 的意图路由，两段式加载 schema | 量化了「工具税」；未采用 embedding，因为路由错误会静默隐藏所需工具 |
+| [mcp-lazy-load](https://github.com/PeterCha90/mcp-lazy-load) | MCP 代理，暴露 `search_tools` / `execute_tool` | 证明可大幅缩减；选择保持原生调用，不经过通用执行器 |
+| [dsh-mcp-loader](https://github.com/MikotoMyWife/dsh-mcp-loader) | DSH 插件，按服务器加载并对 agent 施加 `restrict` 掩码 | 同一机制层；本实现不绑定命名空间，并增加 `only:` |
+| [lazy-mcp](https://github.com/voicetreelab/lazy-mcp) | 代理层，按服务器分树 | 分组词汇参考 |
+| [opencode-lazy-loading](https://github.com/omarwaly-ai/opencode-lazy-loading) | 请求层剥离 | 大幅缩减说法的参考 |
+| [dsh-sieve](https://github.com/Sev7eEn7/dsh-sieve) | DSH 上下文过滤，带裁判模型 | 避免「模型在环」判断的理由 |
 | [microsoft/agent-framework 的 progressive disclosure 示例](https://github.com/microsoft/agent-framework/blob/e39a8a2e/python/samples/02-agents/mcp/mcp_progressive_disclosure.py) | 按需暴露 MCP 工具 | 术语参考 |
 
-如果哪个作者觉得我写错了他的项目，开个 Issue 说一声，我改。
+若相关作者认为描述有误，可开 Issue 指正。
 
 ## 它不是什么
 
-- **不是代理，不是网关，不是 MCP 客户端。** 不碰传输层，不加跳跃。
-- **不是自动路由。** 它从不猜你想要哪个工具。是你要，它才开。
-- **不是安全边界。** 藏起来只是从模型列表里拿掉，不代表不能执行。要拦权限请用宿主自己的机制。
+- **不是代理、网关或 MCP 客户端。** 不接触传输层，不增加跳跃。
+- **不是自动路由。** 不猜测用户意图，仅在明确请求时打开。
+- **不是安全边界。** 隐藏只是从模型列表中移除，不阻止执行；权限控制请使用宿主机制。
 
 ## 许可
 
@@ -189,7 +187,8 @@ MIT，见 [LICENSE](LICENSE)。
 
 ## English summary
 
-Tool Drawer for DeepSeek Harness: keeps heavy tool groups out of every request and brings them back
-on demand (one call, a keyword, or a dispatch guard). 181 tools, 92 hidden, ≈20k tokens per request
-avoided on one machine. No proxy, no embeddings, no judge model — real calls stay native. Install with
-`plugin_manager install_bundle`; configure in the DSH settings page. MIT, best-effort maintenance.
+Tool Drawer for DeepSeek Harness: keeps heavy tool groups out of every request and restores them on
+demand (one call, a keyword, or a dispatch guard). 181 tools, 92 hidden, ≈20k tokens per request
+avoided on one machine (extrapolated). No proxy, no embeddings, no judge model — real calls stay
+native. Install with `plugin_manager install_bundle`; configure in the DSH settings page. MIT,
+best-effort maintenance.
