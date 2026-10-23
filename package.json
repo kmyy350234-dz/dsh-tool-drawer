@@ -1,0 +1,25 @@
+{
+  "name": "dsh-lazy-tools",
+  "version": "0.3.0",
+  "private": false,
+  "type": "module",
+  "main": "lib/index.js",
+  "description": "On-demand tool groups for DeepSeek Harness: hide heavy tool sets from every request, bring them back with one call.",
+  "keywords": ["deepseek-harness", "dsh", "plugin", "tools", "context", "lazy-loading"],
+  "license": "MIT",
+  "files": ["lib", "test", "DESIGN.md", "README.md", "LICENSE"],
+  "scripts": {
+    "test": "node test/smoke.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kmyy350234-dz/dsh-lazy-tools.git"
+  },
+  "bugs": {
+    "url": "https://github.com/kmyy350234-dz/dsh-lazy-tools/issues"
+  },
+  "homepage": "https://github.com/kmyy350234-dz/dsh-lazy-tools#readme"
+}

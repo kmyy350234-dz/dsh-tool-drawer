@@ -1,0 +1,34 @@
+# Example wiring for a DSH profile's cordis.patch.yml
+#
+# Append this row to your profile patch (C:\Users\<you>\.dsh\profiles\<profile>\cordis.patch.yml),
+# replacing the absolute path with wherever you cloned this repo.
+#
+# `plugin_manager install_bundle` is meant for bundles that declare `dsh.bundle.patch`;
+# this single-file plugin is wired by one loader row instead.
+
+- insert:
+    - id: lazy-tools
+      name: file:///REPLACE/WITH/YOUR/PATH/dsh-lazy-tools/lib/index.js
+      config:
+        groups:
+          # Example 1: hide the rarely used half of a 34-tool browser plugin,
+          #        keep the six you use every day.
+          - id: browser-heavy
+            match: ['re:^dsh_browser_(?!open$|content$|a11y$|click$|type$|wait$)']
+            keep:
+              - dsh_browser_open
+              - dsh_browser_content
+              - dsh_browser_a11y
+              - dsh_browser_click
+              - dsh_browser_type
+              - dsh_browser_wait
+            title: Browser (heavy half)
+            defaultOn: false
+            expect: 28
+
+          # Example 2: a whole plugin namespace, plain glob, nothing kept visible.
+          - id: desktop
+            match: ['cua_driver_native__*']
+            title: Desktop automation
+            hint: enable when you actually need to see the screen or click native windows
+            defaultOn: false

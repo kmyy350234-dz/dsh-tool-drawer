@@ -1,0 +1,119 @@
+# dsh-lazy-tools
+
+**On-demand tool groups for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness).**
+Hide heavy tool sets from every request; bring them back with one call when you actually need them.
+
+> 把「很重但平时不用」的工具组从上下文里收起来，需要时一条命令开回来。
+> 零运行时依赖、零代理进程、真实调用保持原生。
+
+---
+
+## Why
+
+Every tool schema is tokens in *every* request. A desktop-automation plugin can carry 50+ tools,
+a browser plugin 30+, a vision plugin a dozen — hundreds of tool definitions that the model reads
+on each turn even when the task never needs them.
+
+Measured on one machine: **197 tools → 95 visible**, 102 hidden, ≈ **22k tokens per request** saved
+(≈220 tokens/tool, extrapolated from a 140-tool / 31.1k-token sample).
+
+## How it differs from a proxy or an embedding router
+
+| Approach | What it costs |
+|---|---|
+| MCP proxy (`search_tools` + `execute_tool`) | every real call goes through a generic wrapper — you lose the native schema validation of arguments |
+| Embedding router (intent → tool) | ~90 MB encoder, one retrieval per turn, and a mis-route silently hides the tool you needed |
+| **This plugin** | one `restrict({deny})` call on the agent's own scope — no process, no extra hop, no model, no dependency |
+
+The trick is simply **gating at the registry-scope layer instead of at the transport or
+serialization layer**. If your host exposes a per-agent "hide these global tools" primitive, use it.
+Details + trade-offs: [DESIGN.md](DESIGN.md).
+
+## Install
+
+DeepSeek Harness loads plugins from its profile's `cordis.patch.yml`. Add one row:
+
+```yaml
+- insert:
+    - id: lazy-tools
+      name: file:///absolute/path/to/dsh-lazy-tools/lib/index.js
+      config:
+        groups:
+          - id: browser-heavy
+            match: ['re:^dsh_browser_(?!open$|content$|a11y$|click$|type$|wait$)']
+            keep: [dsh_browser_open, dsh_browser_content, dsh_browser_a11y, dsh_browser_click, dsh_browser_type, dsh_browser_wait]
+            title: 浏览器·重
+            defaultOn: false
+            expect: 28
+          - id: desktop
+            match: ['cua_driver_native__*']
+            title: 桌面自动化
+            defaultOn: false
+```
+
+A fuller example lives in [examples/profile-patch.snippet.yml](examples/profile-patch.snippet.yml).
+Config changes apply on reload; **code changes need a process restart**.
+
+## Config reference (per group)
+
+| Field | Meaning |
+|---|---|
+| `id` | group id, used by every tool call |
+| `match` | array of patterns. Plain strings are globs (`*` wildcard, anchored). Prefix with `re:` for a raw regular expression. |
+| `keep` | tool names that must never be treated as "stray" — the ones you deliberately leave visible |
+| `expect` | expected number of tools in the group. A mismatch shows up as a `warnings[]` entry in `lazy_tools_health` |
+| `defaultOn` | `false` = hidden unless enabled (default behaviour you almost certainly want) |
+| `title`, `hint` | free-form labels shown by `lazy_tools_status` |
+
+## Tools
+
+| Tool | What it does |
+|---|---|
+| `lazy_tools_status` | per group: `on`, `mode` (`hide` / `only` / `all`), `matched`, `visible`, `expect*` |
+| `lazy_tools_enable {group \| groups, only?}` | show a group; `only: ['name']` shows exactly those tools and keeps the rest hidden; `groups: [...]` for batches |
+| `lazy_tools_disable {group \| groups}` | hide it again (also clears any `only` allow-list) |
+| `lazy_tools_list {group?}` | tool names in a group — including currently hidden ones, flagged by `visible` |
+| `lazy_tools_scan` | every visible tool bucketed by name prefix, to help you write new group patterns |
+| `lazy_tools_health` | contract self-check (`register` / `schemas` / `restrict` / `agent/created`), `healthy`, `warnings`, `stray`, `usage`, recent errors |
+
+`healthy: true` means: four contracts OK **and** no errors **and** no warnings.
+
+## What it protects you from
+
+- **Stray tools** — a plugin upgrade adds `vendor__new_tool`; if no group matches it, it silently
+  becomes visible again and quietly burns tokens. `stray` derives each group's name-family prefix
+  and reports visible tools that look like family members but are matched by nothing (`keep` excluded).
+- **Count drift** — `expect` turns "28 hidden" into a checked assertion.
+- **Zone races** — a sub-agent can be disposed while a `tools/change` handler is mid-flight; that
+  restriction failure is recorded as `agent 已销毁` and does **not** count as a failure.
+- **Reload orphans** — restriction disposers are owned through `ctx.effect`, so a hot reload lifts
+  them instead of leaving an orphan that makes `enable` silently succeed while nothing comes back.
+
+## Tests
+
+```bash
+node test/smoke.mjs   # 22 assertions against a fake host, no DSH required
+```
+
+The fake host implements exactly the four contracts this plugin depends on, so a contract change
+breaks the test before it breaks your session.
+
+## Limitations (please read)
+
+1. **Global tools only.** Tools registered inside an agent scope (some plugin families do this)
+   cannot be hidden — the host rejects it.
+2. **Name-based grouping.** DSH's `ToolSchema` has no tags, so groups are globs/regexes over names.
+3. **Toggling invalidates the prompt cache.** Enable once and leave it; prefer `only:` over
+   whole-group enables when you keep switching.
+4. **No TTL / auto-hide.** `usage` only records counts and timestamps so *you* can decide later.
+5. **Failure mode is fail-open**: if a contract breaks, tools come back and you spend tokens — it
+   will not lock you out.
+
+## Exit criteria
+
+If DSH ever ships native on-demand tool loading (it already carries `deferLoading` and
+tool-addition messages), this plugin should retire rather than compete.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
