@@ -51,6 +51,10 @@ profile patch) to change members.
 Config changes apply on reload; **host code changes need a process restart**. The settings page is
 drawn by the client half and talks to the host over a loopback route.
 
+> Note: the repository is named `dsh-tool-drawer`, while the package id is still `dsh-lazy-tools`
+> (renaming it touches the loader row, the client id and the bundle patch — do it in one pass next
+> release). Installation is path-based, so the mismatch does not affect usage.
+
 A manual `cordis.patch.yml` row is still possible (see
 [examples/profile-patch.snippet.yml](examples/profile-patch.snippet.yml)) but it gets you only the
 host half — no settings page.

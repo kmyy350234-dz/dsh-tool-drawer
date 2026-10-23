@@ -44,6 +44,8 @@ plugin_manager install_bundle  target: /你的路径/dsh-tool-drawer
 
 不建议手改 `cordis.patch.yml`——手写也能运行，但只有宿主半边，**没有设置页**。
 
+> 说明：仓库名是 `dsh-tool-drawer`，包 id 目前仍为 `dsh-lazy-tools`（改名会牵动安装行、客户端 id、bundle patch 三处，下个版本统一）。安装以目录为准，两者不一致不影响使用。
+
 bundle 自带的 patch 已配好四组：
 
 | 组 | 收起数量 | 保留（永不收起） |
