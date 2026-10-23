@@ -475,33 +475,52 @@ h(
       )
     }
 
+    // 把槽位注册抽成真正的局部函数：object 字面量里的方法名不是词法变量，
+    // 不能在 apply 里裸调（2026-10-24 调试时踩过，报 registerInto is not defined）。
+    function registerInto(ctx) {
+      const slots = ctx.slots || (typeof ctx.get === 'function' ? ctx.get('slots') : null)
+      if (!slots) {
+        console.error('[lazy-tools] client: no slots service')
+        return
+      }
+      slots.inject('settings.section', () =>
+        slots.register(
+          {
+            name: 'settings.section',
+            id: 'lazy-tools',
+            order: 70,
+            label: '工具抽屉',
+          },
+          LazyToolsSettings,
+        ),
+      )
+      slots.inject('conversation.composer.dock', () =>
+        slots.register(
+          {
+            name: 'conversation.composer.dock',
+            id: 'lazy-tools-dock',
+            order: 7,
+          },
+          LazyToolsDock,
+        ),
+      )
+    }
+
     return {
       inject: ['slots'],
       apply(ctx) {
-        localeService = (typeof ctx.get === 'function' ? ctx.get('locale') : null) || ctx.locale || null
-        const slots = ctx.slots || ctx.get('slots')
-        if (!slots) return
-        slots.inject('settings.section', () =>
-          slots.register(
-            {
-              name: 'settings.section',
-              id: 'lazy-tools',
-              order: 70,
-              label: '工具抽屉',
-            },
-            LazyToolsSettings,
-          ),
-        )
-        slots.inject('conversation.composer.dock', () =>
-          slots.register(
-            {
-              name: 'conversation.composer.dock',
-              id: 'lazy-tools-dock',
-              order: 7,
-            },
-            LazyToolsDock,
-          ),
-        )
+        try {
+          localeService = (typeof ctx.get === 'function' ? ctx.get('locale') : null) || ctx.locale || null
+        } catch (error) {
+          console.error('[lazy-tools] locale probe failed:', (error && error.stack) || error)
+          localeService = null
+        }
+        try {
+          registerInto(ctx)
+        } catch (error) {
+          console.error('[lazy-tools] client apply failed:', (error && error.stack) || error)
+          throw error
+        }
       },
     }
   },
