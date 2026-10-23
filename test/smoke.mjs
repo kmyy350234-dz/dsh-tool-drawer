@@ -382,6 +382,20 @@ async function main() {
   assert.ok(healthA.errors.some((e) => e.where.includes('agent 已销毁')), JSON.stringify(healthA.errors))
   ok('已销毁作用域的竞争不计失败，lastHidden.applied=false')
 
+  console.log('[14] 同一进程内重新 apply：先收回旧限制再重建（不留孤儿）')
+  const worldB = makeWorld()
+  worldB.ctx.tools.register({ name: 'cua_driver_native__a', description: 'x', parameters: {}, output: {} })
+  const reapplyCfg = { groups: [{ id: 'cua', match: ['cua_driver_native__*'], defaultOn: false }] }
+  apply(worldB.ctx, reapplyCfg)
+  const agentB = worldB.createAgent('agent-reapply')
+  assert.equal(worldB.denyByAgent.get(agentB).size, 1)
+  // 模拟「改配置 → 重新 apply」：模块没重载，但 apply 又跑了一次
+  apply(worldB.ctx, reapplyCfg)
+  assert.equal(worldB.denyByAgent.get(agentB).size, 1)
+  const statusB = await runTool(worldB, 'lazy_tools_status', {}, agentB)
+  assert.equal(statusB.groups.find((g) => g.id === 'cua').matched, 1)
+  ok('重新 apply 时旧限制被收回再重建，state 能重新看见工具（matched=1）')
+
   console.log(`\nsmoke: ${checks} 项全过`)
 }
 
