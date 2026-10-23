@@ -283,27 +283,30 @@ h(
       return h(
         'div',
         { style: styles.dock },
-        h('span', { style: styles.dockLabel }, '抽屉'),
-        h(
-          'select',
-          {
-            style: styles.dockSelect,
-            value: current,
-            disabled: busy,
-            onChange: (event) => {
-              const value = event.target.value
-              apply(value === 'global' ? { reset: true } : { level: value })
-            },
-          },
-          DOCK_LEVELS.map((item) => h('option', { key: item.value, value: item.value }, item.label)),
-        ),
-        h('span', { style: styles.dockDivider }, '·'),
+        // 按钮一：只负责「这个对话的档位」，点一下换下一档（跟随全局 → 低 → 中 → 高）
         h(
           'button',
           {
             type: 'button',
             style: styles.dockButton,
             disabled: busy,
+            title: '只改这个对话的收敛档位',
+            onClick: () => {
+              const order = ['global', 'low', 'medium', 'high']
+              const next = order[(order.indexOf(current) + 1) % order.length]
+              apply(next === 'global' ? { reset: true } : { level: next })
+            },
+          },
+          `抽屉：${(DOCK_LEVELS.find((item) => item.value === current) || DOCK_LEVELS[0]).label}`,
+        ),
+        // 按钮二：只负责「立刻清空本对话的工具组」
+        h(
+          'button',
+          {
+            type: 'button',
+            style: styles.dockButton,
+            disabled: busy,
+            title: '立刻把本对话的所有工具组收起（可随时再开回来）',
             onClick: () => apply({ collapseAll: true }),
           },
           '立刻清空',
