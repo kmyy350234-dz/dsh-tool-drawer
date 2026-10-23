@@ -290,31 +290,37 @@ h(
       }
 
       if (!sessionId) return null
-      // 控件默认关闭：在设置页勾选后打开，避免默认界面上多一个控件
-      if (!state || state.showDock !== true) return null
+      // 两个开关各自独立：只要有一个打开，这一行就渲染；里面每个按钮再由自己的开关控制。
+      if (!state || (state.showDock !== true && state.showClear !== true)) return null
       const current = (state && state.session && state.session.level) || 'global'
       const groups = (state && state.groups) || []
       const open = groups.filter((group) => group.on)
+      const levelLabel =
+        current === 'global' && state.session && state.session.source === 'session'
+          ? `抽屉：${state.session.idleDays} 天`
+          : `抽屉：${(DOCK_LEVELS.find((item) => item.value === current) || DOCK_LEVELS[0]).label}`
 
       return h(
         'div',
         { style: styles.dock },
         // 按钮一：只负责「这个对话的档位」，点一下换下一档（跟随全局 → 低 → 中 → 高）
-        h(
-          'button',
-          {
-            type: 'button',
-            style: styles.dockButton,
-            disabled: busy,
-            title: '只改这个对话的收敛档位',
-            onClick: () => {
-              const order = ['global', 'low', 'medium', 'high']
-              const next = order[(order.indexOf(current) + 1) % order.length]
-              apply(next === 'global' ? { reset: true } : { level: next })
-            },
-          },
-          `抽屉：${(DOCK_LEVELS.find((item) => item.value === current) || DOCK_LEVELS[0]).label}`,
-        ),
+        state.showDock === true
+          ? h(
+              'button',
+              {
+                type: 'button',
+                style: styles.dockButton,
+                disabled: busy,
+                title: '只改这个对话的收敛档位',
+                onClick: () => {
+                  const order = ['global', 'low', 'medium', 'high']
+                  const next = order[(order.indexOf(current) + 1) % order.length]
+                  apply(next === 'global' ? { reset: true } : { level: next })
+                },
+              },
+              levelLabel,
+            )
+          : null,
         // 按钮二：只负责「立刻清空本对话的工具组」（独立开关，默认不显示）
         state.showClear === true ? h(
           'button',
