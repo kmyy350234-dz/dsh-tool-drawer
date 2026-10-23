@@ -114,6 +114,28 @@ breaks the test before it breaks your session.
 If DSH ever ships native on-demand tool loading (it already carries `deferLoading` and
 tool-addition messages), this plugin should retire rather than compete.
 
+## Prior art & acknowledgements
+
+Nothing here is a new idea. These are the projects and papers that shaped it — I read 1–3 closely,
+4–7 mostly from their READMEs. If I've mischaracterised yours, open an issue and I'll fix it.
+
+| Project | Layer it works at | What I took / why I diverged |
+|---|---|---|
+| [tool-attention](https://github.com/asadani/tool-attention) — [arXiv:2604.21816](https://arxiv.org/abs/2604.21816) | per-turn intent routing over embeddings + two-phase schema loading | established the size of the "tools tax"; I skipped embeddings because a mis-route silently hides a tool you needed, and the encoder is a large dependency for a token saving |
+| [mcp-lazy-load](https://github.com/PeterCha90/mcp-lazy-load) | MCP proxy exposing `search_tools` / `execute_tool` | shows how far reduction can go; I kept real calls native rather than routing them through a generic executor |
+| [dsh-mcp-loader](https://github.com/MikotoMyWife/dsh-mcp-loader) | DSH plugin: per-server loaders + per-agent `restrict` masks | same mechanism layer as this repo (it also documents that `restrict` only accepts globally registered names); mine is namespace-agnostic and adds `only:` |
+| [lazy-mcp](https://github.com/voicetreelab/lazy-mcp) | proxy layer, tree per server | vocabulary for grouping servers/tools |
+| [opencode-lazy-loading](https://github.com/omarwaly-ai/opencode-lazy-loading) | request-layer stripping | reference for the large-reduction claim |
+| [dsh-sieve](https://github.com/Sev7eEn7/dsh-sieve) | DSH context filtering with a judge model | the reason I avoided model-in-the-loop gating |
+| [microsoft/agent-framework — progressive disclosure sample](https://github.com/microsoft/agent-framework/blob/e39a8a2e/python/samples/02-agents/mcp/mcp_progressive_disclosure.py) | on-demand MCP tool disclosure | terminology reference |
+
+## What this is not
+
+- **Not a proxy, gateway, or MCP client.** It does not touch transport and adds no hop.
+- **Not an auto-router.** It never guesses which tool you meant; you ask, explicitly.
+- **Not a security boundary.** A hidden tool is only hidden from the model's tool list — nothing here
+  sandboxes or denies execution. Use the host's permission system for that.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
