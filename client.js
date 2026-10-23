@@ -72,6 +72,7 @@ window.__ModuleLoader__.load({
         fontSize: '12px',
         fontFamily: 'inherit',
       },
+      dockDivider: { opacity: 0.35 },
       dockButton: {
         padding: '2px 10px',
         borderRadius: '999px',
@@ -80,6 +81,7 @@ window.__ModuleLoader__.load({
         color: 'inherit',
         fontSize: '12px',
         cursor: 'pointer',
+        marginLeft: 'auto',
       },
       dockHint: { opacity: 0.6 },
       groupList: { display: 'flex', flexWrap: 'wrap', gap: '6px' },
@@ -194,27 +196,9 @@ window.__ModuleLoader__.load({
           }),
           h('span', { style: styles.hint }, '少于这么多个工具的组不值得动它'),
         ),
-        h(
-          'div',
-          { style: styles.row },
-          h('label', { style: styles.label }, '永不自动收起'),
-          h('input', {
-            style: styles.input,
-            type: 'text',
-            value: form.neverAutoClose,
-            onChange: update('neverAutoClose'),
-            placeholder: '用逗号分隔组 id，例如 cua-input',
-          }),
-          state && Array.isArray(state.groups) && state.groups.length
-            ? h(
-                'div',
-                { style: styles.groupList },
-                state.groups.map((group) =>
-                  h('span', { key: group.id, style: styles.chip }, group.title || group.id),
-                ),
-              )
-            : null,
-        ),
+        // 「永不自动收起」从界面上拿掉了（2026-10-24 用户觉得麻烦）：
+        // 默认值已经在代码里钉死是 ['cua-input']（动手组永不自动收），
+        // 还想细调的人去 ~/.dsh/lazy-tools.policy.json 或 bundle 配置里写。
         h(
           'div',
           { style: styles.row },
@@ -228,7 +212,11 @@ window.__ModuleLoader__.load({
             }),
             '在输入框上方显示「工具抽屉」控件',
           ),
-          h('span', { style: styles.hint }, '默认关闭：不给不懂的人看；打开后每个对话可以单独调档位'),
+          h(
+            'span',
+            { style: styles.hint },
+            '默认关闭：不给不懂的人看。勾选后需要切到另一个对话（或刷新页面）才会出现——那一行是按对话挂载的，不是坏了。',
+          ),
         ),
 
 h(
@@ -309,6 +297,7 @@ h(
           },
           DOCK_LEVELS.map((item) => h('option', { key: item.value, value: item.value }, item.label)),
         ),
+        h('span', { style: styles.dockDivider }, '·'),
         h(
           'button',
           {
