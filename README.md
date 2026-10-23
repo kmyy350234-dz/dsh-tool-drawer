@@ -8,7 +8,7 @@ Hide heavy tool sets from every request; bring them back with one call when you 
 > 把「很重但平时不用」的工具组从上下文里收起来，需要时一条命令开回来。
 > 零运行时依赖、零代理进程、真实调用保持原生。
 
-**Status:** `0.9.1` — running daily on one DSH installation; the config surface may still change.
+**Status:** `0.10.0` — running daily on one DSH installation; the config surface may still change.
 Issues and PRs are welcome, but maintenance is **best-effort**: if you need something guaranteed,
 fork it. If DSH ships native on-demand tool loading, this project should retire (see [DESIGN.md](DESIGN.md)).
 
@@ -93,7 +93,6 @@ host half — no settings page.
 | `level` | `medium` | how aggressively groups collapse on their own: `low` 14 d / `medium` 7 d / `high` 3 d |
 | `idleDays` | (follows `level`) | override the day threshold (`0` = never collapse by time) |
 | `minTools` | `3` | don't bother collapsing groups smaller than this |
-| `neverAutoClose` | `[]` | group ids that must never collapse on their own |
 
 Group definitions (`groups:`) stay in the bundle patch — they are written once and rarely touched,
 and a nested array renders poorly in a settings form. Everything else is safe to leave alone.
@@ -112,7 +111,7 @@ tool has to be there. Three deterministic mechanisms cover that, and none of the
 
 0. **Usage ledger + session-start decision** — every real tool call is recorded in
    `~/.dsh/lazy-tools.usage.json` (timestamps only, no arguments). When a session starts, a group
-   stays open if it was used within `idleDays`, is listed in `neverAutoClose`, or has `defaultOn: true`;
+   stays open if it was used within `idleDays` or has `defaultOn: true`;
    everything else starts collapsed. The decision happens **once, at the session boundary**, so it
    never invalidates an active prompt cache.
 1. **`autoHints`** — the host emits `agent/inbox/inserted` when a user message arrives. If the text

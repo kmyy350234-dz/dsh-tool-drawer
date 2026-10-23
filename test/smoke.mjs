@@ -494,15 +494,12 @@ async function main() {
   ok('命中 autoHints → 自动开组，health 记 autoOpened=1 / userMessages=1')
 
   console.log('[17] 设置页策略文件：只收认识的键')
-  assert.deepEqual(normalizePolicy({ level: 'high', idleDays: 7, minTools: 2, neverAutoClose: ['cua-input'] }), {
+  assert.deepEqual(normalizePolicy({ level: 'high', idleDays: 7, minTools: 2 }), {
     level: 'high',
     idleDays: 7,
     minTools: 2,
-    neverAutoClose: ['cua-input'],
   })
-  assert.deepEqual(normalizePolicy({ level: 'turbo', idleDays: -1, minTools: 'x', neverAutoClose: ['', 3, 'ok'] }), {
-    neverAutoClose: ['ok'],
-  })
+  assert.deepEqual(normalizePolicy({ level: 'turbo', idleDays: -1, minTools: 'x' }), {})
   assert.deepEqual(normalizePolicy(null), {})
   ok('非法的 level/天数/工具数被丢弃，字符串数组过滤干净')
 

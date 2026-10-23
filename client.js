@@ -109,7 +109,6 @@ window.__ModuleLoader__.load({
               level: data.policy.level,
               idleDays: String(data.policy.idleDays),
               minTools: String(data.policy.minTools),
-              neverAutoClose: (data.policy.neverAutoClose || []).join(', '),
               showDock: data.policy.showDock === true,
             })
           })
@@ -134,10 +133,6 @@ window.__ModuleLoader__.load({
             idleDays: Number(form.idleDays),
             minTools: Number(form.minTools),
             showDock: form.showDock === true,
-            neverAutoClose: String(form.neverAutoClose || '')
-              .split(',')
-              .map((item) => item.trim())
-              .filter(Boolean),
           })
           setState(data)
           setStatus('已保存（下次会话开始时按新策略决定默认收起哪些组）')

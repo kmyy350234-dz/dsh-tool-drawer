@@ -4,7 +4,6 @@
       config:
         level: medium
         minTools: 3
-        neverAutoClose: []
         groups:
           - id: cua-screen
             match:
