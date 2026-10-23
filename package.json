@@ -1,6 +1,6 @@
 {
   "name": "dsh-lazy-tools",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "private": false,
   "type": "module",
   "main": "lib/index.js",
@@ -11,6 +11,8 @@
   "scripts": {
     "test": "node test/smoke.mjs"
   },
+  "peerDependencies": { "@deepseek-ai/schemastery": "*" },
+  "peerDependenciesMeta": { "@deepseek-ai/schemastery": { "optional": true } },
   "engines": {
     "node": ">=20"
   },

@@ -6,7 +6,7 @@ Hide heavy tool sets from every request; bring them back with one call when you 
 > 把「很重但平时不用」的工具组从上下文里收起来，需要时一条命令开回来。
 > 零运行时依赖、零代理进程、真实调用保持原生。
 
-**Status:** `0.5.0` — running daily on one DSH installation; the config surface may still change.
+**Status:** `0.6.0` — running daily on one DSH installation; the config surface may still change.
 Issues and PRs are welcome, but maintenance is **best-effort**: if you need something guaranteed,
 fork it. If DSH ships native on-demand tool loading, this project should retire (see [DESIGN.md](DESIGN.md)).
 
@@ -27,7 +27,7 @@ Measured on one machine: **197 tools → 95 visible**, 102 hidden, ≈ **22k tok
 |---|---|
 | MCP proxy (`search_tools` + `execute_tool`) | every real call goes through a generic wrapper — you lose the native schema validation of arguments |
 | Embedding router (intent → tool) | ~90 MB encoder, one retrieval per turn, and a mis-route silently hides the tool you needed |
-| **This plugin** | one `restrict({deny})` call on the agent's own scope — no process, no extra hop, no model, no dependency |
+| **This plugin** | one `restrict({deny})` call on the agent's own scope — no process, no extra hop, no model, no third-party package. (The single import is the host's own `@deepseek-ai/schemastery`, used only to render the settings form, resolved at runtime and optional — see *Settings*.) |
 
 The trick is simply **gating at the registry-scope layer instead of at the transport or
 serialization layer**. If your host exposes a per-agent "hide these global tools" primitive, use it.
@@ -83,6 +83,24 @@ Config changes apply on reload; **code changes need a process restart**.
 | `lazy_tools_health` | contract self-check (`register` / `schemas` / `restrict` / `agent/created`), `healthy`, `warnings`, `stray`, `usage`, recent errors |
 
 `healthy: true` means: four contracts OK **and** no errors **and** no warnings.
+
+## Settings
+
+`lib/config.js` exports a `Config` schema, so DSH renders these four fields in its own settings page:
+
+| Field | Default | Meaning |
+|---|---|---|
+| `level` | `medium` | how aggressively groups collapse on their own: `low` 30 d / `medium` 14 d / `high` 7 d |
+| `idleDays` | `14` | override the day threshold (`0` = never collapse by time) |
+| `minTools` | `3` | don't bother collapsing groups smaller than this |
+| `neverAutoClose` | `[]` | group ids that must never collapse on their own |
+
+Group definitions (`groups:`) stay in the profile YAML — they are written once and rarely touched,
+and a nested array renders poorly in a settings form. Everything else is safe to leave alone.
+
+The schema is resolved at runtime by scanning `%USERPROFILE%\.dsh\profiles\*\` for
+`@deepseek-ai/schemastery` (a package DSH already ships); it uses Node built-ins only. If the package
+can't be found, `Config` is `undefined` — **no settings page, plugin unaffected.**
 
 ## Why it *feels* automatic (without a model in the loop)
 
