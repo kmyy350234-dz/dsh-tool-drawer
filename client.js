@@ -110,6 +110,7 @@ window.__ModuleLoader__.load({
               idleDays: String(data.policy.idleDays),
               minTools: String(data.policy.minTools),
               showDock: data.policy.showDock === true,
+              showClear: data.policy.showClear === true,
             })
           })
           .catch((err) => alive && setError(err.message))
@@ -133,6 +134,7 @@ window.__ModuleLoader__.load({
             idleDays: Number(form.idleDays),
             minTools: Number(form.minTools),
             showDock: form.showDock === true,
+            showClear: form.showClear === true,
           })
           setState(data)
           setStatus('已保存（下次会话开始时按新策略决定默认收起哪些组）')
@@ -168,7 +170,7 @@ window.__ModuleLoader__.load({
         h(
           'div',
           { style: styles.row },
-          h('label', { style: styles.label }, '闲置天数'),
+          h('label', { style: styles.label }, '闲置天数（可自定义）'),
           h('input', {
             style: styles.input,
             type: 'number',
@@ -176,7 +178,7 @@ window.__ModuleLoader__.load({
             value: form.idleDays,
             onChange: update('idleDays'),
           }),
-          h('span', { style: styles.hint }, '多少天没被调用就默认收起；0 表示不按时间收敛'),
+          h('span', { style: styles.hint }, '这里填多少天就是多少天；不填就跟随档位（低 14 / 中 7 / 高 3）；0 表示不按时间收敛'),
         ),
         h(
           'div',
@@ -211,6 +213,25 @@ window.__ModuleLoader__.load({
             'span',
             { style: styles.hint },
             '默认关闭。开启后可在每个对话里单独调档位；该控件按对话挂载，勾选后需要切换一次对话（或刷新页面）才会显示。',
+          ),
+        ),
+        h(
+          'div',
+          { style: styles.row },
+          h(
+            'label',
+            { style: { ...styles.label, display: 'flex', alignItems: 'center', gap: '8px' } },
+            h('input', {
+              type: 'checkbox',
+              checked: form.showClear === true,
+              onChange: (event) => setForm((prev) => ({ ...prev, showClear: event.target.checked })),
+            }),
+            '在输入框上方显示「立刻清空」按钮',
+          ),
+          h(
+            'span',
+            { style: styles.hint },
+            '与档位按钮互相独立：只想要档位就不勾它；想一键把本对话的工具全收起来再勾。',
           ),
         ),
 
@@ -294,8 +315,8 @@ h(
           },
           `抽屉：${(DOCK_LEVELS.find((item) => item.value === current) || DOCK_LEVELS[0]).label}`,
         ),
-        // 按钮二：只负责「立刻清空本对话的工具组」
-        h(
+        // 按钮二：只负责「立刻清空本对话的工具组」（独立开关，默认不显示）
+        state.showClear === true ? h(
           'button',
           {
             type: 'button',
@@ -305,7 +326,7 @@ h(
             onClick: () => apply({ collapseAll: true }),
           },
           '立刻清空',
-        ),
+        ) : null,
         h(
           'span',
           { style: styles.dockHint },
