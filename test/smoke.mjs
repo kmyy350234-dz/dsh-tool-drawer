@@ -48,6 +48,7 @@ function makeWorld() {
   const inboxListeners = []
   const preExecuteListeners = []
   const guards = []
+  const commands = []
 
   const ctx = {
     logger: { info() {}, warn() {}, error() {} },
@@ -62,7 +63,16 @@ function makeWorld() {
       return () => {}
     },
     get(key) {
-      return key === 'agents' ? { list: () => living } : undefined
+      if (key === 'agents') return { list: () => living, get: (id) => living.find((a) => a && a.id === id) }
+      if (key === 'commands') {
+        return {
+          register(definition) {
+            commands.push(definition)
+            return () => {}
+          },
+        }
+      }
+      return undefined
     },
     tools: {
       guard(fn) {
@@ -134,6 +144,7 @@ function makeWorld() {
   return {
     ctx,
     fireGuard,
+    commands,
     firePreExecute,
     registered,
     denyByAgent,
@@ -551,6 +562,21 @@ async function main() {
   const healthH = await runTool(worldH, 'lazy_tools_health', {}, agentH)
   assert.equal(healthH.stats.selfHealed, 1)
   ok('守卫拦下 + 补开该工具 + health.selfHealed=1')
+  console.log('[22] 斜杠命令 /lazy-tools：改当前会话、乱输入报错')
+  const worldI = makeWorld()
+  worldI.ctx.tools.register({ name: 'cua_driver_native__a', description: 'x', parameters: {}, output: {} })
+  apply(worldI.ctx, { groups: [{ id: 'cua', match: ['cua_driver_native__*'], defaultOn: false }] })
+  const agentI = worldI.createAgent('agent-cmd')
+  const command = worldI.commands.find((item) => item.name === 'lazy-tools')
+  assert.ok(command, '斜杠命令没注册')
+  const okResult = command.handler({ agent: agentI, rawInput: 'high' })
+  assert.equal(okResult.kind, 'success')
+  assert.match(okResult.text, /档位 high/)
+  const stateResult = command.handler({ agent: agentI, rawInput: '' })
+  assert.match(stateResult.text, /工具抽屉/)
+  const badResult = command.handler({ agent: agentI, rawInput: 'bogus' })
+  assert.equal(badResult.kind, 'error')
+  ok('/lazy-tools high 生效；无参数读状态；乱输入报错')
   console.log(`\nsmoke: ${checks} 项全过`)
 }
 

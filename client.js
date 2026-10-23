@@ -54,6 +54,34 @@ window.__ModuleLoader__.load({
       },
       status: { fontSize: '12px', opacity: 0.7 },
       error: { fontSize: '12px', color: '#d9534f' },
+      dock: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px',
+        fontSize: '12px',
+        padding: '2px 4px',
+        opacity: 0.9,
+      },
+      dockLabel: { fontWeight: 600 },
+      dockSelect: {
+        padding: '2px 6px',
+        borderRadius: '999px',
+        border: '1px solid color-mix(in srgb, currentColor 25%, transparent)',
+        background: 'transparent',
+        color: 'inherit',
+        fontSize: '12px',
+        fontFamily: 'inherit',
+      },
+      dockButton: {
+        padding: '2px 10px',
+        borderRadius: '999px',
+        border: '1px solid color-mix(in srgb, currentColor 25%, transparent)',
+        background: 'transparent',
+        color: 'inherit',
+        fontSize: '12px',
+        cursor: 'pointer',
+      },
+      dockHint: { opacity: 0.6 },
       groupList: { display: 'flex', flexWrap: 'wrap', gap: '6px' },
       chip: {
         padding: '2px 8px',
@@ -200,6 +228,85 @@ window.__ModuleLoader__.load({
       )
     }
 
+    // 输入框上方那一行：只改「这个对话」的抽屉，不碰全局设置。
+    const DOCK_LEVELS = [
+      { value: 'global', label: '跟随全局' },
+      { value: 'low', label: '省着点（14 天）' },
+      { value: 'medium', label: '中（7 天）' },
+      { value: 'high', label: '激进（3 天）' },
+    ]
+
+    function LazyToolsDock(props) {
+      const sessionId = props && props.sessionId ? String(props.sessionId) : ''
+      const [state, setState] = React.useState(null)
+      const [busy, setBusy] = React.useState(false)
+      const [error, setError] = React.useState('')
+
+      React.useEffect(() => {
+        let alive = true
+        if (!sessionId) return undefined
+        request('/session?id=' + encodeURIComponent(sessionId))
+          .then((data) => alive && (setState(data), setError('')))
+          .catch((err) => alive && setError(err.message))
+        return () => {
+          alive = false
+        }
+      }, [sessionId])
+
+      const apply = async (spec) => {
+        if (!sessionId || busy) return
+        setBusy(true)
+        try {
+          const data = await request('/session', { id: sessionId, ...spec })
+          setState(data)
+          setError('')
+        } catch (err) {
+          setError(err.message)
+        } finally {
+          setBusy(false)
+        }
+      }
+
+      if (!sessionId) return null
+      const current = (state && state.session && state.session.level) || 'global'
+      const groups = (state && state.groups) || []
+      const open = groups.filter((group) => group.on)
+
+      return h(
+        'div',
+        { style: styles.dock },
+        h('span', { style: styles.dockLabel }, '抽屉'),
+        h(
+          'select',
+          {
+            style: styles.dockSelect,
+            value: current,
+            disabled: busy,
+            onChange: (event) => {
+              const value = event.target.value
+              apply(value === 'global' ? { reset: true } : { level: value })
+            },
+          },
+          DOCK_LEVELS.map((item) => h('option', { key: item.value, value: item.value }, item.label)),
+        ),
+        h(
+          'button',
+          {
+            type: 'button',
+            style: styles.dockButton,
+            disabled: busy,
+            onClick: () => apply({ collapseAll: true }),
+          },
+          '全部收起',
+        ),
+        h(
+          'span',
+          { style: styles.dockHint },
+          error ? error : open.length ? `开着 ${open.length} 组` : '全部收起',
+        ),
+      )
+    }
+
     return {
       inject: ['slots'],
       apply(ctx) {
@@ -214,6 +321,16 @@ window.__ModuleLoader__.load({
               label: '工具抽屉',
             },
             LazyToolsSettings,
+          ),
+        )
+        slots.inject('conversation.composer.dock', () =>
+          slots.register(
+            {
+              name: 'conversation.composer.dock',
+              id: 'lazy-tools-dock',
+              order: 7,
+            },
+            LazyToolsDock,
           ),
         )
       },
