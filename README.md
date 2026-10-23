@@ -1,188 +1,164 @@
-# dsh-lazy-tools
+# 工具抽屉 · dsh-lazy-tools
 
-**中文名：工具抽屉** —— 把你装的那一堆工具收进抽屉，常用的留在台面，用哪个拉哪个。
+> 你装了一堆插件，工具表越堆越长，每一轮请求都在为「永远用不到」的工具付 token。
+> **工具抽屉**把重工具组收起来；常用的留在台面，一周没碰的自己沉底；真要用的时候，一句话、一步调用、或者它自己拦下来补开。
 
-**On-demand tool groups for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness).**
-Hide heavy tool sets from every request; bring them back with one call when you actually need them.
-
-> 把「很重但平时不用」的工具组从上下文里收起来，需要时一条命令开回来。
-> 零运行时依赖、零代理进程、真实调用保持原生。
-
-**Status:** `0.10.0` — running daily on one DSH installation; the config surface may still change.
-Issues and PRs are welcome, but maintenance is **best-effort**: if you need something guaranteed,
-fork it. If DSH ships native on-demand tool loading, this project should retire (see [DESIGN.md](DESIGN.md)).
+**状态：** `0.11.0` — 在一台 DSH 上每天使用中；配置面仍可能变。
+Issue / PR 都欢迎，但维护是**尽力而为**：需要稳定保证的请自行 fork。
+如果 DSH 将来原生支持按需加载，这个项目应当退场（见[退场条件](#退场条件)）。
 
 ---
 
-## Why
+## 为什么需要它
 
-Every tool schema is tokens in *every* request. A desktop-automation plugin can carry 50+ tools,
-a browser plugin 30+, a vision plugin a dozen — hundreds of tool definitions that the model reads
-on each turn even when the task never needs them.
+每一条工具定义，都在**每一次请求**里占 token。一个桌面自动化插件能带 50+ 个工具，浏览器插件 30+，视觉插件十几个——几百条定义，模型每轮都要读，哪怕这次的任务根本用不到。
 
-Measured on one machine: **197 tools → 95 visible**, 102 hidden, ≈ **22k tokens per request** saved
-(≈220 tokens/tool, extrapolated from a 140-tool / 31.1k-token sample).
+本机实测：**181 个工具里有 92 个被四组收起**，按 220 token/工具折算，**每轮少约 2 万 token**（数据来源：140 个工具 ≈ 31.1k token 的实测样本，按比例外推）。
 
-## How it differs from a proxy or an embedding router
+## 和其他做法的区别
 
-| Approach | What it costs |
+| 做法 | 代价 |
 |---|---|
-| MCP proxy (`search_tools` + `execute_tool`) | every real call goes through a generic wrapper — you lose the native schema validation of arguments |
-| Embedding router (intent → tool) | ~90 MB encoder, one retrieval per turn, and a mis-route silently hides the tool you needed |
-| **This plugin** | one `restrict({deny})` call on the agent's own scope — no process, no extra hop, no model, no third-party package. (The single import is the host's own `@deepseek-ai/schemastery`, used only to render the settings form, resolved at runtime and optional — see *Settings*.) |
+| MCP 代理（`search_tools` + `execute_tool`） | 每次真实调用都过一层通用包装，参数校验不再是原生的 |
+| 向量路由（意图 → 工具） | 约 90 MB 编码器 + 每轮一次检索；**而且路由错了会悄悄把你要的工具藏起来** |
+| **本插件** | 在 agent 自己的作用域上调一次 `restrict({deny})`——没有进程、没有额外跳转、没有模型、没有第三方包（唯一的 import 是宿主自带的 `@deepseek-ai/schemastery`，只用来画设置页，运行时解析，拿不到就降级） |
 
-The trick is simply **gating at the registry-scope layer instead of at the transport or
-serialization layer**. If your host exposes a per-agent "hide these global tools" primitive, use it.
-Details + trade-offs: [DESIGN.md](DESIGN.md).
+核心就一句话：**把门控放在「注册表作用域层」，而不是传输层或序列化层。** 如果你的宿主提供「按 agent 隐藏全局工具」的能力，就该用它。设计与取舍见 [DESIGN.md](DESIGN.md)。
 
-## Install
+## 安装
 
-This package is a **bundle** (host half + a `settings.section` client panel). Clone it anywhere, then
-install it into the profile with the plugin manager — do not hand-edit `cordis.patch.yml`:
+这是一个 **bundle**（宿主半边 + 一个设置页客户端半边）。把仓库 clone 到任意位置，然后用插件管理器安装——**不要手改 `cordis.patch.yml`**：
 
 ```
-plugin_manager install_bundle  target: /absolute/path/to/dsh-lazy-tools
+plugin_manager install_bundle  target: /你的路径/dsh-lazy-tools
 ```
 
-That links the checkout into the profile, selects the bundle, and starts the client half. The bundle
-patch already ships the four bundled groups (desktop-read 19, desktop-input 37, browser-heavy 28,
-vision-heavy 8) with `keep` lists and `autoHints`; edit `cordis.patch.yml` in the checkout (or override
-the row in the profile patch) to change members.
+它会把 checkout 链接进 profile、选中 bundle、并启动客户端半边。bundle 的 patch 已经带了四组（桌面·看 19 / 桌面·点 37 / 浏览器·重 28 / 视觉·重 8）以及 `keep` 列表和 `autoHints`；改组成员就改 checkout 里的 `cordis.patch.yml`（或在 profile patch 里覆盖那一行）。
 
-Config changes apply on reload; **host code changes need a process restart**. The settings page
-(`Settings → On-demand Tool Groups`) is written by the client half and talks to the host over a
-loopback route.
+配置改动重载即生效；**宿主代码改动需要重启进程**。设置页由客户端半边绘制，通过 loopback 路由和宿主通信。
 
-A manual `cordis.patch.yml` row is still possible (see
-[examples/profile-patch.snippet.yml](examples/profile-patch.snippet.yml)) but it gets you only the
-host half — no settings page.
+手写 `cordis.patch.yml` 那一行仍然可行（见 [examples/profile-patch.snippet.yml](examples/profile-patch.snippet.yml)），但只能拿到宿主半边，**没有设置页**。
 
-## Config reference (per group)
+## 配置（每组）
 
-| Field | Meaning |
+| 字段 | 含义 |
 |---|---|
-| `id` | group id, used by every tool call |
-| `match` | array of patterns. Plain strings are globs (`*` wildcard, anchored). Prefix with `re:` for a raw regular expression. |
-| `keep` | tool names that must never be treated as "stray" — the ones you deliberately leave visible |
-| `expect` | expected number of tools in the group. A mismatch shows up as a `warnings[]` entry in `lazy_tools_health` |
-| `defaultOn` | `false` = hidden unless enabled (default behaviour you almost certainly want) |
-| `autoHints` | optional phrases; when a user message contains one, the group is revealed before the model reads it (substring, case-insensitive). List the variants people actually type — `截图` does **not** match `截个图` |
-| `title`, `hint` | free-form labels shown by `lazy_tools_status` |
+| `id` | 组 id，所有工具调用都用它 |
+| `match` | 匹配式数组。普通字符串是 glob（`*` 通配、整串锚定）；`re:` 前缀表示直接用正则 |
+| `keep` | 永不当作「漏网」的工具名——你故意留着可见的那些 |
+| `expect` | 这一组应该有多少个工具。数字对不上会在 `lazy_tools_health` 的 `warnings[]` 里报 |
+| `defaultOn` | `false` = 默认收起（几乎总是你想要的） |
+| `autoHints` | 可选词组：用户消息里出现就在模型读到之前把这一组打开（子串匹配、忽略大小写）。**把用户实际会打的变体都列上**——`截图` 匹配不到 `截个图` |
+| `title`、`hint` | 给 `lazy_tools_status` 看的自由文本标签 |
 
-## Tools
+## 八个工具
 
-| Tool | What it does |
+| 工具 | 做什么 |
 |---|---|
-| `lazy_tools_status` | per group: `on`, `mode` (`hide` / `only` / `all`), `matched`, `visible`, `expect*` |
-| `lazy_tools_enable {group \| groups, only?}` | show a group; `only: ['name']` shows exactly those tools and keeps the rest hidden; `groups: [...]` for batches |
-| `lazy_tools_disable {group \| groups}` | hide it again (also clears any `only` allow-list) |
-| `lazy_tools_list {group?}` | tool names in a group — including currently hidden ones, flagged by `visible` |
-| `lazy_tools_resolve {name, apply?}` | **one step**: find the group that owns a tool (exact name or fragment) and reveal just that one. Meant to be called right after an `unknown tool` error |
-| `lazy_tools_mode {level?, idleDays?, reset?}` | **this session only**: change the collapse threshold and recompute which groups start open (`reset: true` goes back to the global policy) |
-| `lazy_tools_scan` | every visible tool bucketed by name prefix, to help you write new group patterns |
-| `lazy_tools_health` | contract self-check (`register` / `schemas` / `restrict` / `agent/created`), `healthy`, `warnings`, `stray`, `usage`, `autoOpened`, `selfHealed`, recent errors |
+| `lazy_tools_status` | 每组：`on`、`mode`（`hide`/`only`/`all`）、`matched`、`visible`、`expect*`、`hot`、`lastUsed` |
+| `lazy_tools_enable {group \| groups, only?}` | 开启一组；`only: ['名字']` 只放这几个（其余仍收起）；`groups: [...]` 批量 |
+| `lazy_tools_disable {group \| groups}` | 重新收起（同时清掉 `only` 白名单） |
+| `lazy_tools_list {group?}` | 列出组内工具名（包括当前被隐藏的，用 `visible` 标注） |
+| `lazy_tools_resolve {name, apply?}` | **一步**：按名字或片段找到所属组，只放它一个出来。适合在 `unknown tool` 报错之后立刻用 |
+| `lazy_tools_mode {level?, idleDays?, reset?, collapse?}` | **只对当前会话**：改收敛阈值并重算默认开关；`reset:true` 回全局；`collapse:true` 立刻清空本会话 |
+| `lazy_tools_scan` | 把当前可见工具按名字前缀分桶，方便你写新的组匹配式 |
+| `lazy_tools_health` | 契约自检（`register`/`schemas`/`restrict`/`agent/created`）、`healthy`、`warnings`、`stray`、`usage`、`autoOpened`、`selfHealed`、最近的错误 |
 
-`healthy: true` means: four contracts OK **and** no errors **and** no warnings.
+`healthy: true` 的含义是：四个契约都通 **且** 没有错误 **且** 没有警告。
 
-## Settings
+## 设置项
 
-`lib/config.js` exports a `Config` schema, so DSH renders these four fields in its own settings page:
+`lib/config.js` 导出一份 `Config`，DSH 会在自己的设置页里渲染这些字段：
 
-| Field | Default | Meaning |
+| 字段 | 默认 | 含义 |
 |---|---|---|
-| `level` | `medium` | how aggressively groups collapse on their own: `low` 14 d / `medium` 7 d / `high` 3 d |
-| `idleDays` | (follows `level`) | override the day threshold (`0` = never collapse by time) |
-| `minTools` | `3` | don't bother collapsing groups smaller than this |
+| `level` | `medium` | 自动收敛的力度：`low` 14 天 / `medium` 7 天 / `high` 3 天 |
+| `presets` | `{14,7,3}` | 三档各自多少天——按你自己的节奏改 |
+| `idleDays` | 跟随 `level` | 手动覆盖天数（`0` = 不按时间收敛） |
+| `minTools` | `3` | 小于这个数量的组不值得动 |
+| `showDock` | `false` | 在输入框上方显示档位控件 |
+| `showClear` | `false` | 在输入框上方显示独立的「立刻清空」按钮 |
 
-Group definitions (`groups:`) stay in the bundle patch — they are written once and rarely touched,
-and a nested array renders poorly in a settings form. Everything else is safe to leave alone.
+两个界面开关**互相独立**；控件按对话挂载，所以勾选后要切一次对话（或刷新页面）才会出现。设置面板是双语的，跟随宿主语言服务。
 
-The schema is resolved at runtime by scanning `%USERPROFILE%\.dsh\profiles\*\` for
-`@deepseek-ai/schemastery` (a package DSH already ships); it uses Node built-ins only. If the package
-can't be found, `Config` is `undefined` — **no settings page, plugin unaffected.**
+组定义（`groups:`）留在 bundle patch 里——写一次就不常动，而且嵌套数组在表单里很难看。其余字段可以放着自己用。
 
-The panel writes `~/.dsh/lazy-tools.policy.json`, which overrides the YAML defaults. Delete that file
-to fall back to the bundle patch.
+`Config` 的 schema 是运行时解析的：扫 `%USERPROFILE%\.dsh\profiles\*\` 找 `@deepseek-ai/schemastery`（DSH 自带的包），只用 Node 内置模块。找不到就让 `Config = undefined`——**没有设置页，插件本身不受影响。**
 
-## Why it *feels* automatic (without a model in the loop)
+设置面板会写 `~/.dsh/lazy-tools.policy.json`，它优先于 YAML 默认值。删掉该文件即回到 bundle patch 的默认。
 
-Most people install a pile of plugins and use each of them rarely — but when the moment comes, the
-tool has to be there. Three deterministic mechanisms cover that, and none of them guesses:
+## 为什么它「像是有智能」（但里面没有模型）
 
-0. **Usage ledger + session-start decision** — every real tool call is recorded in
-   `~/.dsh/lazy-tools.usage.json` (timestamps only, no arguments). When a session starts, a group
-   stays open if it was used within `idleDays` or has `defaultOn: true`;
-   everything else starts collapsed. The decision happens **once, at the session boundary**, so it
-   never invalidates an active prompt cache.
-1. **`autoHints`** — the host emits `agent/inbox/inserted` when a user message arrives. If the text
-   contains a configured phrase, the group is revealed *before the model reads the message*, so the
-   tool is simply there. It never auto-hides, and every auto-open is logged (`autoOpened` in
-   `lazy_tools_health`) so you can audit false positives.
-2. **`lazy_tools_resolve` / self-heal** — when a call fails with `unknown tool`, `resolve` both finds
-   the owner group and reveals just that tool; a dispatch guard also tries to reveal it *before* the
-   call is rejected, and the model simply retries (`selfHealed` counts both).
+大多数人是装一堆插件、每个都很少用——但真到要用的时候，工具必须在。
 
-No embeddings, no judge model, no proxy: the "intelligence" is just **acting on evidence the host
-already gives you** (a message, an error) instead of asking the model to remember.
+三个确定性机制覆盖这件事，**没有一个在猜**：
 
-## What it protects you from
+0. **用量账本 + 会话开始决策** —— 每次真实调用都记进 `~/.dsh/lazy-tools.usage.json`（只存时间戳，不存参数）。会话开始时：`idleDays` 内用过的组、或 `defaultOn: true` 的组保持打开，其余收起。**决策只发生在会话边界**，所以永远不会打掉正在命中的前缀缓存。
+1. **`autoHints`** —— 用户消息进来时宿主会发 `agent/inbox/inserted`；文本里含配置的词，就在**模型读到消息之前**把组打开，工具就是「本来就在」。它从不自动关，每次自动开都记账（`health` 里的 `autoOpened`），方便事后查误开。
+2. **`lazy_tools_resolve` / 自愈** —— 调用失败（`unknown tool`）时，`resolve` 找到所属组并只放出那一个；另有一个 dispatch 守卫会在调用被拒**之前**尝试放出来，让模型直接重试（`selfHealed` 计这两个）。
 
-- **Stray tools** — a plugin upgrade adds `vendor__new_tool`; if no group matches it, it silently
-  becomes visible again and quietly burns tokens. `stray` derives each group's name-family prefix
-  and reports visible tools that look like family members but are matched by nothing (`keep` excluded).
-- **Count drift** — `expect` turns "28 hidden" into a checked assertion.
-- **Zone races** — a sub-agent can be disposed while a `tools/change` handler is mid-flight; that
-  restriction failure is recorded as `agent 已销毁` and does **not** count as a failure.
-- **Reload orphans** — restriction disposers are owned through `ctx.effect`, so a hot reload lifts
-  them instead of leaving an orphan that makes `enable` silently succeed while nothing comes back.
+没有 embedding、没有裁判模型、没有代理：所谓的「智能」只是**利用宿主本来就给出的证据**（一条消息、一个报错），而不是要求模型记住规则。
 
-## Tests
+## 它帮你防住什么
+
+- **漏网工具** —— 插件升级新增了 `vendor__new_tool`，如果没有任何组匹配它，它会悄悄变回可见、安静烧 token。`stray` 会推导每组的前缀家族，把「看起来像这一族、但没有任何组匹配」的可见工具点出来（`keep` 里排除）。
+- **计数漂移** —— `expect` 把「该藏 28 个」变成一条会检查的断言。
+- **作用域竞争** —— 子 agent 可能在 `tools/change` 处理器跑到一半时被销毁；这种限制失败记为 `agent 已销毁`，**不算失败**。
+- **重载孤儿** —— 限制的解除函数通过 `ctx.effect` 挂生命周期，热重载会把它解除掉，而不是留下孤儿让 `enable` 假成功。
+
+## 测试
 
 ```bash
-node test/smoke.mjs   # 30 assertions against a fake host, no DSH required
+node test/smoke.mjs   # 32 项断言，跑在假宿主上，不需要 DSH
 ```
 
-The fake host implements exactly the four contracts this plugin depends on, so a contract change
-breaks the test before it breaks your session.
+假宿主只实现本插件依赖的四个契约，所以契约一变，测试会先红，而不是你的会话先坏。
 
-## Limitations (please read)
+## 局限（请务必读）
 
-1. **Global tools only.** Tools registered inside an agent scope (some plugin families do this)
-   cannot be hidden — the host rejects it.
-2. **Name-based grouping.** DSH's `ToolSchema` has no tags, so groups are globs/regexes over names.
-3. **Toggling invalidates the prompt cache.** Enable once and leave it; prefer `only:` over
-   whole-group enables when you keep switching.
-4. **Auto-collapse only at session start.** It never re-shuffles a running session, because that would invalidate the prompt cache mid-task.
-5. **Failure mode is fail-open**: if a contract breaks, tools come back and you spend tokens — it
-   will not lock you out.
+1. **只能藏全局工具**。注册在 agent 作用域里的工具（有些插件家族这么干）藏不了——宿主会拒绝。
+2. **按名字分组**。DSH 的 `ToolSchema` 没有标签，所以组只能是对名字的 glob/正则。
+3. **开关会打断前缀缓存**。开一次就让它开着；需要反复切换时，优先用 `only:` 而不是整组开。
+4. **自动收敛只在会话开始**。它不会在干活途中重排，因为那会打掉当前任务的前缀缓存。
+5. **失败方向是放开**：契约坏了，工具就都回来、多花点 token——不会把你锁在外面。
+6. **自愈只对「存在但被隐藏」的工具有效**。拼错的名字、还没加载的插件修不了；那种情况用 `lazy_tools_resolve` 给片段找。
+7. **界面双语，工具描述不是**。设置面板和输入框那一行跟随宿主语言服务；模型看到的工具描述是开机注册一次的，仍是中文——宿主进程看不到界面语言。
 
-## Exit criteria
+## 退场条件
 
-If DSH ever ships native on-demand tool loading (it already carries `deferLoading` and
-tool-addition messages), this plugin should retire rather than compete.
+如果 DSH 哪天原生支持按需加载（它已经带着 `deferLoading` 和工具增补消息），这个项目应当退场，而不是去竞争。
 
-## Prior art & acknowledgements
+## 先行工作与致谢
 
-Nothing here is a new idea. These are the projects and papers that shaped it — I read 1–3 closely,
-4–7 mostly from their READMEs. If I've mischaracterised yours, open an issue and I'll fix it.
+这里没有新点子。下面是塑造过它的项目和论文——前三个我仔细读过，4–7 主要看 README。如果我曲解了你的项目，开个 Issue，我改。
 
-| Project | Layer it works at | What I took / why I diverged |
+| 项目 | 它在哪一层 | 我取了什么 / 为什么不同 |
 |---|---|---|
-| [tool-attention](https://github.com/asadani/tool-attention) — [arXiv:2604.21816](https://arxiv.org/abs/2604.21816) | per-turn intent routing over embeddings + two-phase schema loading | established the size of the "tools tax"; I skipped embeddings because a mis-route silently hides a tool you needed, and the encoder is a large dependency for a token saving |
-| [mcp-lazy-load](https://github.com/PeterCha90/mcp-lazy-load) | MCP proxy exposing `search_tools` / `execute_tool` | shows how far reduction can go; I kept real calls native rather than routing them through a generic executor |
-| [dsh-mcp-loader](https://github.com/MikotoMyWife/dsh-mcp-loader) | DSH plugin: per-server loaders + per-agent `restrict` masks | same mechanism layer as this repo (it also documents that `restrict` only accepts globally registered names); mine is namespace-agnostic and adds `only:` |
-| [lazy-mcp](https://github.com/voicetreelab/lazy-mcp) | proxy layer, tree per server | vocabulary for grouping servers/tools |
-| [opencode-lazy-loading](https://github.com/omarwaly-ai/opencode-lazy-loading) | request-layer stripping | reference for the large-reduction claim |
-| [dsh-sieve](https://github.com/Sev7eEn7/dsh-sieve) | DSH context filtering with a judge model | the reason I avoided model-in-the-loop gating |
-| [microsoft/agent-framework — progressive disclosure sample](https://github.com/microsoft/agent-framework/blob/e39a8a2e/python/samples/02-agents/mcp/mcp_progressive_disclosure.py) | on-demand MCP tool disclosure | terminology reference |
+| [tool-attention](https://github.com/asadani/tool-attention) — [arXiv:2604.21816](https://arxiv.org/abs/2604.21816) | 每轮基于 embedding 的意图路由 + 两段式 schema 加载 | 它量化了「工具税」有多大；我不用 embedding，因为路由错了会悄悄藏掉你要的工具，而且为了省 token 引入一个大编码器不划算 |
+| [mcp-lazy-load](https://github.com/PeterCha90/mcp-lazy-load) | MCP 代理，暴露 `search_tools` / `execute_tool` | 它展示了能省到什么程度；我选择让真实调用保持原生，而不是过一层通用执行器 |
+| [dsh-mcp-loader](https://github.com/MikotoMyWife/dsh-mcp-loader) | DSH 插件：按服务器的 loader + 按 agent 的 `restrict` 掩码 | 和我同一层机制（它也记录了 `restrict` 只接受全局注册的名字）；我这份不绑命名空间，并且多了 `only:` |
+| [lazy-mcp](https://github.com/voicetreelab/lazy-mcp) | 代理层，按服务器分树 | 分组词汇的参考 |
+| [opencode-lazy-loading](https://github.com/omarwaly-ai/opencode-lazy-loading) | 请求层剥离 | 「大幅缩减」这一说法的参考 |
+| [dsh-sieve](https://github.com/Sev7eEn7/dsh-sieve) | DSH 上下文过滤，带裁判模型 | 我避开「模型在环」判断的理由 |
+| [microsoft/agent-framework — progressive disclosure 示例](https://github.com/microsoft/agent-framework/blob/e39a8a2e/python/samples/02-agents/mcp/mcp_progressive_disclosure.py) | 按需暴露 MCP 工具 | 术语参考 |
 
-## What this is not
+## 它不是什么
 
-- **Not a proxy, gateway, or MCP client.** It does not touch transport and adds no hop.
-- **Not an auto-router.** It never guesses which tool you meant; you ask, explicitly.
-- **Not a security boundary.** A hidden tool is only hidden from the model's tool list — nothing here
-  sandboxes or denies execution. Use the host's permission system for that.
+- **不是代理、不是网关、不是 MCP 客户端**：不碰传输层，不加跳跃。
+- **不是自动路由**：它从不猜你想要哪个工具；是你要，它才开。
+- **不是安全边界**：把工具从模型列表里藏起来而已，不会阻止执行。权限请用宿主自己的机制。
 
-## License
+## 许可
 
-MIT — see [LICENSE](LICENSE).
+MIT — 见 [LICENSE](LICENSE)。
+
+---
+
+## English summary
+
+**On-demand tool groups for DeepSeek Harness.** Hide heavy tool groups from every request; bring
+them back with one call, a keyword, or a dispatch guard that self-heals. 181 tools → 89 visible,
+≈20k tokens per request avoided on one machine. No proxy, no embeddings, no judge model: gating
+happens at the registry-scope layer, so real calls stay native. Install with
+`plugin_manager install_bundle`, configure in the DSH settings page. MIT licensed; maintenance is
+best-effort. Full rationale and trade-offs: [DESIGN.md](DESIGN.md).
