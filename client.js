@@ -504,6 +504,18 @@ h(
           LazyToolsDock,
         ),
       )
+      // 告诉宿主「浏览器这边真的挂上了」。宿主正常 ≠ 面板挂上，
+      // 这条心跳让 lazy_tools_health 能直接看出面板有没有挂（失败一律忽略，不影响功能）。
+      try {
+        const ping = fetch(`${API}/client`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ panels: ['settings.section', 'conversation.composer.dock'] }),
+        })
+        if (ping && typeof ping.catch === 'function') ping.catch(() => {})
+      } catch {
+        /* 心跳失败不影响任何功能 */
+      }
     }
 
     return {

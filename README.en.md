@@ -130,6 +130,7 @@ already gives you** (a message, an error) instead of asking the model to remembe
   becomes visible and burns tokens. `stray` reports visible tools that look like a group's family but
   are matched by nothing (`keep` excluded).
 - **Count drift** — `expect` turns "28 hidden" into a checked assertion.
+- **Client half not mounted** — `health.client` records the last report from the browser side (`seen` / `at` / `agoSeconds` / which panels). A healthy host does not imply the settings page mounted: on 2026-10-24 all four host contracts were green while the client entry failed to load and the Web UI dropped into recovery mode. This field turns that class of failure into a readable number instead of something you only discover on restart.
 - **Zone races** — a sub-agent disposed mid-flight is recorded as `agent 已销毁` and does **not**
   count as a failure.
 - **Reload orphans** — restriction disposers are owned through `ctx.effect`, so a hot reload lifts

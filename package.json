@@ -1,12 +1,10 @@
 {
   "name": "dsh-tool-drawer",
-  "version": "0.12.0",
+  "version": "0.12.1",
   "private": true,
   "type": "module",
   "main": "lib/index.js",
-  "description": "On-demand tool groups for DeepSeek Harness: hide heavy tool sets from the context, open them on demand, by keyword, or automatically at session start.",
-  "keywords": ["deepseek-harness", "dsh", "plugin", "bundle", "tools", "context", "lazy-loading"],
-  "license": "MIT",
+  "description": "On-demand tool groups for DeepSeek Harness: hide heavy tool sets from the context, open them on demand.",
   "exports": {
     ".": "./lib/index.js",
     "./client": "./client.js",
@@ -21,7 +19,6 @@
     "locale/*.json",
     "icon.svg",
     "README.md",
-    "README.en.md",
     "DESIGN.md",
     "LICENSE",
     "test"
@@ -36,22 +33,5 @@
   },
   "scripts": {
     "test": "node test/smoke.mjs"
-  },
-  "peerDependencies": {
-    "@deepseek-ai/schemastery": "*"
-  },
-  "peerDependenciesMeta": {
-    "@deepseek-ai/schemastery": { "optional": true }
-  },
-  "engines": {
-    "node": ">=20"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/kmyy350234-dz/dsh-tool-drawer.git"
-  },
-  "bugs": {
-    "url": "https://github.com/kmyy350234-dz/dsh-tool-drawer/issues"
-  },
-  "homepage": "https://github.com/kmyy350234-dz/dsh-tool-drawer#readme"
+  }
 }
