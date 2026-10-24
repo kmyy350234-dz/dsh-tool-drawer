@@ -1,0 +1,21 @@
+name: test
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: 语法检查（宿主 + 客户端）
+        run: |
+          node --check client.js
+          for f in lib/*.js; do node --check "$f"; done
+      - name: 冒烟测试
+        run: node test/smoke.mjs

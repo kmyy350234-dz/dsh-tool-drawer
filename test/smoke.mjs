@@ -594,7 +594,20 @@ async function main() {
   await runTool(worldJ, 'lazy_tools_enable', { group: 'cua' }, agentJ)
   assert.equal(worldJ.denyByAgent.get(agentJ).size, 0)
   ok('立刻清空 → resolve 单个 / enable 整组 都能捞回')
-  console.log(`\nsmoke: ${checks} 项全过`)
+  console.log('[24] 三处名字必须一致（2026-10-24 五次恢复模式的根因）')
+    const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
+    const clientSrc = readFileSync(new URL('../client.js', import.meta.url), 'utf8')
+    const patchSrc = readFileSync(new URL('../cordis.patch.yml', import.meta.url), 'utf8')
+    const clientId = (clientSrc.match(/__ModuleLoader__[\s\S]{0,60}?id:\s*'([^']+)'/) || [])[1]
+    const rowName = (patchSrc.match(/^\s*name:\s*(\S+)\s*$/m) || [])[1]
+    assert.ok(clientId, 'client.js 里找不到 __ModuleLoader__.load 的 id')
+    assert.ok(rowName, 'cordis.patch.yml 里找不到行名 name')
+    assert.equal(clientId, pkg.name, `客户端 id(${clientId}) ≠ 包名(${pkg.name})：改名必须三处同改`)
+    assert.equal(rowName, pkg.name, `patch 行名(${rowName}) ≠ 包名(${pkg.name})：改名必须三处同改`)
+    assert.match(pkg.version, /^\d+\.\d+\.\d+$/, '版本号不是 x.y.z')
+    assert.ok(pkg.dsh && pkg.dsh.bundle && pkg.dsh.bundle.patch, 'package.json 缺 dsh.bundle.patch，装不上')
+    ok('包名 / 客户端 id / patch 行名三处一致；版本号合法；bundle 声明在')
+    console.log(`\nsmoke: ${checks} 项全过`)
 }
 
 main().catch((error) => {
