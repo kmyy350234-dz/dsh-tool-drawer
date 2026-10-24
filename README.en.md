@@ -145,6 +145,8 @@ node test/smoke.mjs   # 32 assertions against a fake host, no DSH required
 The fake host implements exactly the four contracts this plugin depends on, so a contract change
 breaks the test before it breaks your session.
 
+> Changing this plugin? Read [MAINTAINING.md](MAINTAINING.md) first: any client-side change requires a cold boot, and recovery mode leaves the user unable to operate the UI.
+
 ## Limitations (please read)
 
 1. **Global tools only.** Tools registered inside an agent scope cannot be hidden — the host rejects it.
