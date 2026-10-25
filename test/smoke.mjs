@@ -607,6 +607,68 @@ async function main() {
     assert.match(pkg.version, /^\d+\.\d+\.\d+$/, '版本号不是 x.y.z')
     assert.ok(pkg.dsh && pkg.dsh.bundle && pkg.dsh.bundle.patch, 'package.json 缺 dsh.bundle.patch，装不上')
     ok('包名 / 客户端 id / patch 行名三处一致；版本号合法；bundle 声明在')
+    console.log('[25] 自动分组：切分、白名单、80% 规则、上限')
+    const { tokenize, suggestGroups, matchPattern, normalizeAutoMode } = await import('../lib/autogroups.js')
+    assert.deepEqual(tokenize('cua_driver_native__list_apps'), ['cua_driver_native'])
+    assert.deepEqual(tokenize('mnemon_view_route'), ['mnemon', 'view', 'route'])
+    assert.deepEqual(tokenize('read'), ['read'])
+    assert.equal(matchPattern(['mnemon']), 're:^mnemon(_|__|$)')
+    assert.equal(normalizeAutoMode('bogus', 'on'), 'on')
+    assert.equal(normalizeAutoMode(undefined, undefined), 'suggest')
+
+    const many = (prefix, n) => Array.from({ length: n }, (_, i) => `${prefix}_t${i}`)
+    const names = [
+      ...many('mnemon', 17),
+      ...many('schedule', 4),
+      ...many('job', 3),
+      ...many('lazy_tools', 8),      // 核心（自救工具）→ 白名单
+      'read', 'read_page', 'read_image', // read 是核心 → 只剩 2 个，不足数
+      ...many('dsh_browser', 5),     // 已被现有组覆盖
+      ...many('mix', 4),             // 一半会被"现有组"吃掉 → 80% 规则淘汰
+    ]
+    const covered = (name) => name.startsWith('dsh_browser_') || name === 'mix_t0' || name === 'mix_t1'
+    const report = suggestGroups(names, covered, { minTools: 3 })
+    const ids = report.suggestions.map((item) => item.id)
+    assert.ok(ids.includes('auto-mnemon'), 'mnemon 应被识别')
+    assert.ok(ids.includes('auto-schedule'), 'schedule 应被识别')
+    assert.ok(ids.includes('auto-job'), 'job 应被识别')
+    assert.ok(!ids.includes('auto-lazy-tools'), '核心工具族不该入组')
+    assert.ok(!ids.includes('auto-read'), '核心 read 占掉名额后不足数，不该入组')
+    assert.ok(!ids.includes('auto-dsh-browser'), '已被覆盖的族不该重复建组')
+    assert.ok(!ids.includes('auto-mix'), '覆盖比例过高的族应被 80% 规则淘汰')
+    const mnemon = report.suggestions.find((item) => item.id === 'auto-mnemon')
+    assert.equal(mnemon.expect, 17)
+    assert.deepEqual(mnemon.tools.slice(0, 2), ['mnemon_t0', 'mnemon_t1'])
+    const capped = suggestGroups(names, covered, { minTools: 3, maxGroups: 1 })
+    assert.equal(capped.suggestions.length, 1, 'maxGroups 应生效')
+    ok('切分 / 白名单 / 覆盖淘汰 / 数量上限 都对')
+    console.log('[26] 自动分组：子族覆盖不足时不许拆大族（mnemon 17 不该碎成两个 3）')
+    const realish = [
+      'mnemon_memory_body_create', 'mnemon_memory_body_merge', 'mnemon_memory_body_update',
+      'mnemon_document_create', 'mnemon_document_manage', 'mnemon_document_search',
+      'mnemon_view_route', 'mnemon_view_action', 'mnemon_recall', 'mnemon_remember',
+      'mnemon_related', 'mnemon_forget', 'mnemon_status', 'mnemon_memory_bodies',
+      'mnemon_subagent_result', 'mnemon_link', 'mnemon_view_action_extra',
+    ]
+    const collapsed = suggestGroups(realish, () => false, { minTools: 3 })
+    const mn = collapsed.suggestions.find((item) => item.id === 'auto-mnemon')
+    assert.ok(mn, 'mnemon 应作为一整族出现')
+    assert.equal(mn.expect, 17, '整族数量应为 17')
+    assert.ok(!collapsed.suggestions.some((item) => item.id.startsWith('auto-mnemon-')), '不该碎成子族')
+    ok('子族覆盖不足 80% 时保留整族')
+    console.log('[27] autoGroups=on：真的建组并按规则收起')
+    const worldAuto = makeWorld()
+    for (const name of ['mnemon_alpha', 'mnemon_beta', 'mnemon_gamma', 'mnemon_delta']) {
+      worldAuto.ctx.tools.register({ name, description: 'x', parameters: {}, output: {} })
+    }
+    apply(worldAuto.ctx, { groups: [], autoGroups: 'on' })
+    const agentAuto = worldAuto.createAgent('agent-auto')
+    const statusAuto = await runTool(worldAuto, 'lazy_tools_status', {}, agentAuto)
+    const autoGroup = statusAuto.groups.find((group) => group.id === 'auto-mnemon')
+    assert.ok(autoGroup, '应自动创建 auto-mnemon')
+    assert.equal(autoGroup.matched, 4)
+    assert.equal(worldAuto.denyByAgent.get(agentAuto).has('mnemon_alpha'), true, '应默认收起')
+    ok('自动组已创建且默认收起')
     console.log(`\nsmoke: ${checks} 项全过`)
 }
 

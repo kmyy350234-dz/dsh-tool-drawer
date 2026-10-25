@@ -152,6 +152,7 @@ window.__ModuleLoader__.load({
               presetHigh: String((data.policy.presets && data.policy.presets.high) || 3),
               showDock: data.policy.showDock === true,
               showClear: data.policy.showClear === true,
+              autoGroups: data.policy.autoGroups || 'suggest',
             })
           })
           .catch((err) => alive && setError(err.message))
@@ -177,6 +178,7 @@ window.__ModuleLoader__.load({
             presets: { low: Number(form.presetLow), medium: Number(form.presetMedium), high: Number(form.presetHigh) },
             showDock: form.showDock === true,
             showClear: form.showClear === true,
+            autoGroups: form.autoGroups || 'suggest',
           })
           setState(data)
           setStatus(tr('已保存（下次会话开始时按新策略决定默认收起哪些组）', 'Saved. The new policy applies from the next session start.'))
@@ -206,6 +208,28 @@ window.__ModuleLoader__.load({
             { style: styles.input, value: form.level, onChange: update('level') },
             ['low', 'medium', 'high'].map((level) =>
               h('option', { key: level, value: level }, LEVEL_LABELS[level]),
+            ),
+          ),
+        ),
+        h(
+          'div',
+          { style: styles.row },
+          h('label', { style: styles.label }, tr('自动分组', 'Auto groups')),
+          h(
+            'select',
+            { style: styles.input, value: form.autoGroups || 'suggest', onChange: update('autoGroups') },
+            [
+              h('option', { key: 'off', value: 'off' }, tr('关闭', 'Off')),
+              h('option', { key: 'suggest', value: 'suggest' }, tr('只建议（在 scan 里）', 'Suggest (in scan)')),
+              h('option', { key: 'on', value: 'on' }, tr('自动建组并收起', 'Auto-create and collapse')),
+            ],
+          ),
+          h(
+            'span',
+            { style: styles.hint },
+            tr(
+              '按工具名前缀识别家族，核心工具永不入组；选「只建议」不会改动任何东西。',
+              'Groups tool families by name prefix; core tools are never included. "Suggest" changes nothing.',
             ),
           ),
         ),

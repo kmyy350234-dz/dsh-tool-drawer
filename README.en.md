@@ -59,6 +59,34 @@ profile patch) to change members.
 Config changes apply on reload; **host code changes need a process restart**. The settings page is
 drawn by the client half and talks to the host over a loopback route.
 
+## Auto groups
+
+The more plugins you install, the more unmanaged tools appear and keep paying tokens every request.
+`autoGroups` recognises tool families by **name prefix** and groups them for you:
+
+| Mode | Behaviour |
+|---|---|
+| `off` | Do nothing |
+| `suggest` (default) | Only report suggestions in `lazy_tools_scan`; change nothing |
+| `on` | Create the groups and collapse them by the usual rules |
+
+The rules are fixed in code, not guessed:
+
+- Split on `__` or `_`; **descend only when child families cover ≥80%** of the parent, otherwise keep
+  the whole family (`mnemon`'s 17 tools are not split into two groups of 3);
+- A prefix needs ≥ `minTools` (default 3) tools;
+- Prefixes already ≥80% covered by existing groups are skipped;
+- **Core tools are never grouped** (`read`, `write`, `edit`, `pwsh`, `grep`, `glob`, `skill`,
+  `todo_write`, `lazy_tools_*` …);
+- Computed once at session start and frozen for the session (never breaks the prefix cache);
+- Auto groups are prefixed `auto-`, visible in `lazy_tools_status`, and removable with
+  `lazy_tools_disable auto-xxx`.
+
+**Built-in tools are out of scope**: `read`, `schedule`, `job` and friends are not in the plugin
+registry, so auto grouping never touches them.
+
+Custom match patterns or `keep` lists still go in the config — see the next section.
+
 A manual `cordis.patch.yml` row is still possible (see
 [examples/profile-patch.snippet.yml](examples/profile-patch.snippet.yml)) but it gets you only the
 host half — no settings page.
