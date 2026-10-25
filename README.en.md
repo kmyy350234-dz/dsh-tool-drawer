@@ -36,8 +36,16 @@ Details and trade-offs: [DESIGN.md](DESIGN.md).
 
 ## Install
 
-This package is a **bundle** (host half + a `settings.section` client panel). Clone it anywhere, then
-install it with the plugin manager — do not hand-edit `cordis.patch.yml`:
+This package is a **bundle** (host half + a `settings.section` client panel). Two ways to install,
+pick one — and do not hand-edit `cordis.patch.yml`:
+
+**Straight from GitHub (the command the plugin directory shows):**
+
+```
+dsh plugin --profile web add github:kmyy350234-dz/dsh-tool-drawer
+```
+
+**Or clone it anywhere and install with the plugin manager:**
 
 ```
 plugin_manager install_bundle  target: /absolute/path/to/dsh-tool-drawer

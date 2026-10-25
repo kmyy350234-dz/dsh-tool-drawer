@@ -36,7 +36,15 @@ DSH 的工具注册表支持按 agent 隐藏全局工具，接口是 `restrict({
 
 ## 装法
 
-这是一个 bundle：宿主半边加一个设置页的客户端半边。clone 到任意位置，用插件管理器安装：
+这是一个 bundle：宿主半边加一个设置页的客户端半边。两种装法，任选其一。
+
+**从 GitHub 直接装（插件市场显示的就是这条）：**
+
+```
+dsh plugin --profile web add github:kmyy350234-dz/dsh-tool-drawer
+```
+
+**或者 clone 到任意位置，用插件管理器装：**
 
 ```
 plugin_manager install_bundle  target: /你的路径/dsh-tool-drawer
