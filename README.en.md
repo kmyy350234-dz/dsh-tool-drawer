@@ -64,6 +64,11 @@ drawn by the client half and talks to the host over a loopback route.
 The more plugins you install, the more unmanaged tools appear and keep paying tokens every request.
 `autoGroups` recognises tool families by **name prefix** and groups them for you:
 
+The directory listing notes that the shipped groups only cover `cua_driver_native` / `dsh_browser` /
+`vision`, and that every other family has to be added by hand. **`autoGroups` closes exactly that
+gap**: the remaining families are recognised and grouped for you — drop back to the config only when
+you want to change the pattern or add a `keep` list.
+
 | Mode | Behaviour |
 |---|---|
 | `off` | Do nothing |
