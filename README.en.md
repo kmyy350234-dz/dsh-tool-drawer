@@ -125,6 +125,11 @@ host half — no settings page.
 
 ## Settings
 
+The settings page is drawn by the client half and talks to the host half over a **loopback route**
+(`127.0.0.1`); it never connects to an external address. The plugin directory's capability scan
+labels such calls as "connects to servers" — that label refers to this local HTTP call, not to any
+upload.
+
 `lib/config.js` exports a `Config` schema, so DSH renders these fields in its own settings page:
 
 | Field | Default | Meaning |
