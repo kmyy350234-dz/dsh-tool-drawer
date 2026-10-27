@@ -548,7 +548,8 @@ h(
         try {
           localeService = (typeof ctx.get === 'function' ? ctx.get('locale') : null) || ctx.locale || null
         } catch (error) {
-          console.error('[lazy-tools] locale probe failed:', (error && error.stack) || error)
+          // 冷启动时 locale 服务可能还没就绪，属于预期内的先后顺序：不刷错误。
+      console.log('[lazy-tools] locale not ready yet (cold start):', (error && error.message) || error)
           localeService = null
         }
         try {

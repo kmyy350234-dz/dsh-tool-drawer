@@ -1,6 +1,6 @@
 {
   "name": "dsh-tool-drawer",
-  "version": "0.13.2",
+  "version": "0.13.3",
   "private": true,
   "type": "module",
   "main": "lib/index.js",
