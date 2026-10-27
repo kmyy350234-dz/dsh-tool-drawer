@@ -669,6 +669,18 @@ async function main() {
     assert.equal(autoGroup.matched, 4)
     assert.equal(worldAuto.denyByAgent.get(agentAuto).has('mnemon_alpha'), true, '应默认收起')
     ok('自动组已创建且默认收起')
+    console.log('[28] 冷启动顺序：apply 时没工具，会话开始才注册 → 仍要建出自动组')
+    const worldLate = makeWorld()
+    apply(worldLate.ctx, { groups: [], autoGroups: 'on' })   // 此刻一个工具都没有
+    for (const name of ['latefam_a', 'latefam_b', 'latefam_c']) {
+      worldLate.ctx.tools.register({ name, description: 'x', parameters: {}, output: {} })
+    }
+    const agentLate = worldLate.createAgent('agent-late')      // 会话开始，工具已就位
+    const statusLate = await runTool(worldLate, 'lazy_tools_status', {}, agentLate)
+    const lateGroup = statusLate.groups.find((group) => group.id === 'auto-latefam')
+    assert.ok(lateGroup, '延迟注册的工具族也要能建组')
+    assert.equal(lateGroup.matched, 3)
+    ok('会话开始时补算生效')
     console.log(`\nsmoke: ${checks} 项全过`)
 }
 
