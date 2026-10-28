@@ -7,9 +7,39 @@
 > actually use on the bench, lets stale ones sink on their own — and brings a tool back with one call,
 > one keyword, or a guard that catches the call and reopens it.
 
-**Status:** `0.11.0` — used daily on one DSH installation; the config surface may still change.
+**Status:** `0.14.x` — used daily on one DSH installation; the config surface may still change.
 Issues and PRs are welcome, but maintenance is **best-effort**. If DSH ships native on-demand tool
 loading, this project should retire (see *Exit criteria*).
+
+---
+
+## Works out of the box
+
+The defaults are the whole feature set. **No settings page, no config file, nothing to write:**
+
+- Four groups ship ready (desktop·read / desktop·act / browser·heavy / vision·heavy), and they collapse by recent use;
+- A collapsed tool **comes back the moment you call it** (a guard catches the call and reopens it) — you never need to know which group it belongs to;
+- Saying "screenshot" or "look at that window" opens the matching group on its own;
+- To look around: `lazy_tools_status`; to bring everything back: `lazy_tools_enable` or the settings-page button.
+
+Install it, keep working.
+
+## If you want to tune it
+
+Lightest first — all four places are plain text:
+
+| What you want | Where to change it |
+|---|---|
+| Level / idle days / dock visibility / classification nudge | the settings page, or `~/.dsh/lazy-tools.policy.json` |
+| Groups for tools with a shared prefix (`dsh_browser_*` …) | `groups` in the package `cordis.patch.yml`, or config `extraGroups` (**appends**, never replaces the defaults) |
+| Tools with no shared prefix (`click`, `type_text` …) | `~/.dsh/lazy-tools.groups.json`; or let the agent run `lazy_tools_classify` then `lazy_tools_save_groups` |
+| Read-only inspection | `lazy_tools_status` / `lazy_tools_scan` / `lazy_tools_list` / `lazy_tools_health` |
+| `lazy_tools_classify` | Lists unnamed, ungrouped tools with their descriptions so the agent can decide how to group them |
+| `lazy_tools_save_groups` | Writes the chosen groups to `~/.dsh/lazy-tools.groups.json`; takes effect next session unless `applyNow: true` |
+
+Match patterns accept `*` globs and `re:` regexes; each group may carry `keep` (never collapse), `expect` (count assertion) and `autoHints` (keywords that open it).
+
+**Three red lines** (this project holds itself to them too): never change the tool table mid-session · recovery tools never go into a group · failures must be reported. Details in [DESIGN.md](DESIGN.md).
 
 ---
 
