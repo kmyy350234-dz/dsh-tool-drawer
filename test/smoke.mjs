@@ -658,16 +658,16 @@ async function main() {
     ok('子族覆盖不足 80% 时保留整族')
     console.log('[27] autoGroups=on：真的建组并按规则收起')
     const worldAuto = makeWorld()
-    for (const name of ['mnemon_alpha', 'mnemon_beta', 'mnemon_gamma', 'mnemon_delta']) {
+    for (const name of ['smokefam_alpha', 'smokefam_beta', 'smokefam_gamma', 'smokefam_delta']) {
       worldAuto.ctx.tools.register({ name, description: 'x', parameters: {}, output: {} })
     }
     apply(worldAuto.ctx, { groups: [], autoGroups: 'on' })
     const agentAuto = worldAuto.createAgent('agent-auto')
     const statusAuto = await runTool(worldAuto, 'lazy_tools_status', {}, agentAuto)
-    const autoGroup = statusAuto.groups.find((group) => group.id === 'auto-mnemon')
-    assert.ok(autoGroup, '应自动创建 auto-mnemon')
+    const autoGroup = statusAuto.groups.find((group) => group.id === 'auto-smokefam')
+    assert.ok(autoGroup, '应自动创建 auto-smokefam')
     assert.equal(autoGroup.matched, 4)
-    assert.equal(worldAuto.denyByAgent.get(agentAuto).has('mnemon_alpha'), true, '应默认收起')
+    assert.equal(worldAuto.denyByAgent.get(agentAuto).has('smokefam_alpha'), true, '应默认收起')
     ok('自动组已创建且默认收起')
     console.log('[28] 冷启动顺序：apply 时没工具，会话开始才注册 → 仍要建出自动组')
     const worldLate = makeWorld()
@@ -681,6 +681,25 @@ async function main() {
     assert.ok(lateGroup, '延迟注册的工具族也要能建组')
     assert.equal(lateGroup.matched, 3)
     ok('会话开始时补算生效')
+    console.log('[29] extraGroups：追加而不替换默认四组')
+    const worldExtra = makeWorld()
+    for (const name of ['list_windows', 'get_window_state', 'click', 'type_text', 'launch_app']) {
+      worldExtra.ctx.tools.register({ name, description: 'x', parameters: {}, output: {} })
+    }
+    apply(worldExtra.ctx, {
+      extraGroups: [
+        { id: 'cu-observe', match: ['list_windows', 'get_window_state'], title: '电脑·看', defaultOn: false },
+        { id: 'cu-act', match: ['click', 'type_text', 'launch_app'], title: '电脑·动', defaultOn: false },
+      ],
+    })
+    const agentExtra = worldExtra.createAgent('agent-extra')
+    const statusExtra = await runTool(worldExtra, 'lazy_tools_status', {}, agentExtra)
+    const extraIds = statusExtra.groups.map((g) => g.id)
+    assert.ok(extraIds.includes('cu-observe') && extraIds.includes('cu-act'), '追加组应在列表里')
+    assert.ok(extraIds.includes('cua-screen') && extraIds.includes('cua-input'), '内置默认组不该被冲掉')
+    const observe = statusExtra.groups.find((g) => g.id === 'cu-observe')
+    assert.equal(observe.matched, 2)
+    ok('extraGroups 追加成功、默认组保留')
     console.log(`\nsmoke: ${checks} 项全过`)
 }
 

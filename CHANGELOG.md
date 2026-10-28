@@ -4,6 +4,15 @@
 
 ## [未发布]
 
+## [0.13.5] - 2026-10-28
+
+### 新增
+- **用户组文件** ~/.dsh/lazy-tools.groups.json：手写组放这里，和 cordis.patch.yml 解耦（loader 里写 extraGroups 会整体替换 bundle 的默认四组，实测把 browser-heavy / vision-heavy 冲掉了）。文件不存在或写坏都当空数组，不影响启动。
+- 配置层也接受 extraGroups（追加语义，不动默认组）。
+
+### 修复
+- extraGroups 的运算符优先级 bug： ? b : c.filter(...) 只对 else 分支做过滤，导致追加组缺少 es 字段直接崩。
+- 冒烟 38 项（新增 extraGroups 追加用例）。
 ## [0.13.4] - 2026-10-28
 
 ### 改进（学自 dsh-ops 的两条工程实践）
