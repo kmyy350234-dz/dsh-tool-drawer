@@ -692,13 +692,13 @@ async function main() {
     assert.equal(worldAuto.denyByAgent.get(agentAuto).has('smokefam_alpha'), true, '应默认收起')
     ok('自动组已创建且默认收起')
     console.log('[28] 冷启动顺序：apply 时没工具，会话开始才注册 → 仍要建出自动组')
-    const worldLate = makeWorld()
-    apply(worldLate.ctx, { groups: [], autoGroups: 'on' })   // 此刻一个工具都没有
+    const worldRace = makeWorld()
+    apply(worldRace.ctx, { groups: [], autoGroups: 'on' })   // 此刻一个工具都没有
     for (const name of ['latefam_a', 'latefam_b', 'latefam_c']) {
-      worldLate.ctx.tools.register({ name, description: 'x', parameters: {}, output: {} })
+      worldRace.ctx.tools.register({ name, description: 'x', parameters: {}, output: {} })
     }
-    const agentLate = worldLate.createAgent('agent-late')      // 会话开始，工具已就位
-    const statusLate = await runTool(worldLate, 'lazy_tools_status', {}, agentLate)
+    const agentRace = worldRace.createAgent('agent-late')      // 会话开始，工具已就位
+    const statusLate = await runTool(worldRace, 'lazy_tools_status', {}, agentRace)
     const lateGroup = statusLate.groups.find((group) => group.id === 'auto-latefam')
     assert.ok(lateGroup, '延迟注册的工具族也要能建组')
     assert.equal(lateGroup.matched, 3)
@@ -829,6 +829,31 @@ async function main() {
     assert.equal(benchB.visibleInRegistry, benchB.tools - 3)
     assert.equal(benchB.visibleInRegistry + benchB.hidden + benchB.absent, benchB.tools, '三态必须能对上账')
     ok('bench：收起 2 + absent 1 + 注册内可见 (tools-3) = 注册总数，账能对上')
+
+    console.log('[36] tools/change 冷却：先检查再盖章，3 秒内新注册的工具不能漏')
+    const worldLeak = makeWorld()
+    worldLeak.ctx.tools.register({ name: 'late_one', description: 'x', parameters: {}, output: {} })
+    apply(worldLeak.ctx, { groups: [{ id: 'late', match: ['late_*'], title: 'late', defaultOn: false }], autoGroups: 'off' })
+    const agentLeak = worldLeak.createAgent('agent-leak')
+    // 第一发：此刻没有漏网（late_one 已经被收起）——旧实现在这里就盖了时间戳
+    worldLeak.fireToolsChange()
+    // 3 秒内上游又注册了一个本该收起的新工具，再来一发
+    worldLeak.ctx.tools.register({ name: 'late_two', description: 'x', parameters: {}, output: {} })
+    worldLeak.fireToolsChange()
+    const denyLeak = worldLeak.denyByAgent.get(agentLeak)
+    assert.ok(denyLeak.has('late_two'), `3 秒内新增的 late_two 也必须被收起；实际 deny=${[...denyLeak].join(',')}`)
+    ok('冷启动 3 秒内新增的工具仍被收起（冷却只限重建频率，不吞检查）')
+
+    console.log('[37] 设置页只改档位时，生效天数跟着档位走')
+    const { applyPolicyPatch } = await import('../lib/api.js')
+    const pol = { level: 'high', idleDays: 3, presets: { low: 14, medium: 7, high: 3 } }
+    applyPolicyPatch(pol, { level: 'low' })
+    assert.equal(pol.idleDays, 14, '改成 low 后 idleDays 应为 14')
+    applyPolicyPatch(pol, { idleDays: 5 })
+    assert.equal(pol.idleDays, 5, '显式给天数要用它，不能被档位覆盖')
+    applyPolicyPatch(pol, { level: 'medium', idleDays: null })
+    assert.equal(pol.idleDays, 7, 'idleDays 为 null 视为没碰，跟着档位重新算')
+    ok('档位→天数跟随；显式天数优先')
 
     console.log(`\nsmoke: ${checks} 项全过`)
 }

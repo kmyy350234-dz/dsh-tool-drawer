@@ -71,8 +71,9 @@ Every tool schema is tokens in *every* request. A desktop-automation plugin can 
 browser plugin 30+, a vision plugin a dozen — hundreds of definitions the model reads on each turn,
 even when the task never needs them.
 
-Measured on one machine: **181 tools, 92 hidden by four groups** — roughly **20k tokens per request**
-avoided (≈220 tokens/tool, extrapolated from a 140-tool / 31.1k-token sample).
+Measured on one machine: 168 registered tools, 48 of them kept out of every request by the default
+groups — **94,792 characters per request**. (The table above explains the caveat: 19 tools this host
+never mounts are counted separately, and a machine where everything mounts collapses 67.)
 
 ## How it differs from a proxy or an embedding router
 
@@ -100,7 +101,7 @@ dsh plugin --profile web add github:kmyy350234-dz/dsh-tool-drawer
 **Or use the prebuilt tarball attached to the release (no npm account needed):**
 
 ```
-dsh plugin --profile web add https://github.com/kmyy350234-dz/dsh-tool-drawer/releases/download/v0.14.5/dsh-tool-drawer-0.14.5.tgz
+dsh plugin --profile web add https://github.com/kmyy350234-dz/dsh-tool-drawer/releases/latest/download/dsh-tool-drawer.tgz
 ```
 
 **Or clone it anywhere and install with the plugin manager:**

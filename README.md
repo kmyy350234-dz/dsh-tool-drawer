@@ -91,7 +91,7 @@ dsh plugin --profile web add github:kmyy350234-dz/dsh-tool-drawer
 **或者用仓库里的 Release 包（不依赖 npm）：**
 
 ```
-dsh plugin --profile web add https://github.com/kmyy350234-dz/dsh-tool-drawer/releases/download/v0.14.5/dsh-tool-drawer-0.14.5.tgz
+dsh plugin --profile web add https://github.com/kmyy350234-dz/dsh-tool-drawer/releases/latest/download/dsh-tool-drawer.tgz
 ```
 
 **或者 clone 到任意位置，用插件管理器装：**
@@ -279,7 +279,7 @@ MIT，见 [LICENSE](LICENSE)。
 ## English summary
 
 Tool Drawer for DeepSeek Harness: keeps heavy tool groups out of every request and restores them on
-demand (one call, a keyword, or a dispatch guard). 181 tools, 92 hidden, ≈20k tokens per request
-avoided on one machine (extrapolated). No proxy, no embeddings, no judge model — real calls stay
+demand (one call, a keyword, or a dispatch guard). 168 registered tools, 48 collapsed by the default
+groups (94,792 characters) on one machine, measured. No proxy, no embeddings, no judge model — real calls stay
 native. Install with `plugin_manager install_bundle`; configure in the DSH settings page. MIT,
 best-effort maintenance.
