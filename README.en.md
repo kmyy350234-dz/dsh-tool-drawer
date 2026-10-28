@@ -1,4 +1,4 @@
-# Tool Drawer · dsh-tool-drawer
+﻿# Tool Drawer · dsh-tool-drawer
 
 [中文](README.md) | **English**
 
@@ -48,10 +48,17 @@ Match patterns accept `*` globs and `re:` regexes; each group may carry `keep` (
 **Measured** (2026-10-28, 168 registered tools on one machine):
 
 ```
-all tool definitions   202,339 chars
-collapsed (67 tools)   118,429 chars  (58%)
-visible  (135 tools)    83,910 chars
+all tool definitions   178,702 chars   # only tools this session can actually see
+collapsed (48 tools)    94,792 chars   (53%)
+visible  (101 tools)    83,910 chars
+not mounted (19 tools)  23,637 chars   # never entered context — not counted as savings
 ```
+
+> 19 tools here (`cua_driver_native__*`) are never mounted into the session by the host, so they
+> never cost a token; they are listed separately instead of being folded into "how much it saves".
+> On a machine where every tool mounts, that row is 0 and the figures become
+> "collapsed 67 / 118,429 chars / 58%".
+> Another 34 visible tools come from other registries and are outside this table.
 
 Convert to tokens with your own provider's tokenizer — only character counts are reported here, because description density differs too much between languages for a fixed ratio to be honest.
 
