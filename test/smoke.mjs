@@ -1,6 +1,8 @@
-// 测试隔离：不要让真实用户组文件影响断言
-process.env.LAZY_TOOLS_GROUPS_FILE = 'C:/Users/14092/.dsh/lazy-tools.groups.DOES-NOT-EXIST.json'
-process.env.LAZY_TOOLS_POLICY_FILE = 'C:/Users/14092/.dsh/lazy-tools.policy.DOES-NOT-EXIST.json'
+// 测试隔离：不要让真实用户组文件影响断言。
+// 用 tmpdir 拼一个必然不存在的名字 —— 不写死 Windows 用户名（这是公开仓）。
+const NO_SUCH = join(tmpdir(), 'lazy-tools.DOES-NOT-EXIST')
+process.env.LAZY_TOOLS_GROUPS_FILE = `${NO_SUCH}.groups.json`
+process.env.LAZY_TOOLS_POLICY_FILE = `${NO_SUCH}.policy.json`
 // 冒烟测试：不依赖 DSH，把 apply() 在一个假宿主上真跑一遍。
 //
 // 为什么要它：`node --check` 只证明「语法没说错」，证明不了「跑起来对」。
