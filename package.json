@@ -1,7 +1,7 @@
 {
   "name": "dsh-tool-drawer",
   "version": "0.14.5",
-  "private": true,
+  "private": false,
   "type": "module",
   "main": "lib/index.js",
   "description": "On-demand tool groups for DeepSeek Harness: hide heavy tool sets from the context, open them on demand.",
@@ -25,14 +25,36 @@
     "test"
   ],
   "dsh": {
-    "bundle": { "patch": "./cordis.patch.yml" },
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
     "client": {
       "platform": "web",
       "immediately": true,
-      "inject": ["@deepseek-ai/dsh-client-ui-slots"]
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-slots"
+      ]
     }
   },
   "scripts": {
     "test": "node test/smoke.mjs"
-  }
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kmyy350234-dz/dsh-tool-drawer.git"
+  },
+  "homepage": "https://github.com/kmyy350234-dz/dsh-tool-drawer#readme",
+  "bugs": {
+    "url": "https://github.com/kmyy350234-dz/dsh-tool-drawer/issues"
+  },
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "tool-groups",
+    "context",
+    "tokens",
+    "lazy-loading"
+  ],
+  "author": "kmyy350234-dz"
 }
