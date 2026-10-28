@@ -1,4 +1,4 @@
-﻿# 维护者须知 / Maintainer notes
+# 维护者须知 / Maintainer notes
 
 写给要改这个插件的人（包括下一个我）。这不是功能文档，是**工序**——今天踩过的坑都在这里。
 
@@ -22,6 +22,11 @@ For whoever changes this plugin (including future me). Not feature docs — **pr
 1. 启动不进恢复模式；
 2. 设置页「工具抽屉」在、输入框上方控件在；
 3. `lazy_tools_health` 的 `client.seen === true`（这一条只有冷启动才可能是 true）。
+
+⚠️ **重启 App ≠ 换掉页面里的模块（2026-10-29 实测）**：重启 DSH 后 `client.seen` 已经是 `true`、
+桥接口 200、槽位 `lazy-tools-dock` 也 `active`，但输入框上方那一行**照样不渲染** —— 浏览器里还挂着
+旧的 client 模块。**再刷新一次页面**才出现。所以第 2 步要用眼睛（或截图）看，别拿 `client.seen`
+当「界面真的换了」的证据；看到「宿主全绿、UI 没有」时，先刷新页面再怀疑代码。
 
 ---
 
