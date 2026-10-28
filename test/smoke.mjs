@@ -1,8 +1,3 @@
-// 测试隔离：不要让真实用户组文件影响断言。
-// 用 tmpdir 拼一个必然不存在的名字 —— 不写死 Windows 用户名（这是公开仓）。
-const NO_SUCH = join(tmpdir(), 'lazy-tools.DOES-NOT-EXIST')
-process.env.LAZY_TOOLS_GROUPS_FILE = `${NO_SUCH}.groups.json`
-process.env.LAZY_TOOLS_POLICY_FILE = `${NO_SUCH}.policy.json`
 // 冒烟测试：不依赖 DSH，把 apply() 在一个假宿主上真跑一遍。
 //
 // 为什么要它：`node --check` 只证明「语法没说错」，证明不了「跑起来对」。
@@ -18,6 +13,12 @@ import { isHot, recordUsage, LEVEL_DAYS, DAY } from '../lib/usage.js'
 import { readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+
+// 测试隔离：不要让真实用户组文件影响断言。
+// 用 tmpdir 拼一个必然不存在的名字 —— 不写死 Windows 用户名（公开仓 + 发布包里都不该出现）。
+const NO_SUCH = join(tmpdir(), 'lazy-tools.DOES-NOT-EXIST')
+process.env.LAZY_TOOLS_GROUPS_FILE = `${NO_SUCH}.groups.json`
+process.env.LAZY_TOOLS_POLICY_FILE = `${NO_SUCH}.policy.json`
 
 let checks = 0
 function ok(label) {
@@ -54,6 +55,7 @@ function makeWorld() {
   const preExecuteListeners = []
   const guards = []
   const commands = []
+  const unmounted = new Map() // agent -> Set(name)：宿主没挂到该会话的工具（不是我们 restrict 的）
 
   const ctx = {
     logger: { info() {}, warn() {}, error() {} },
@@ -91,7 +93,8 @@ function makeWorld() {
       },
       schemas(agent) {
         const deny = (agent && denyByAgent.get(agent)) || new Set()
-        return [...registered.keys()].filter((name) => !deny.has(name)).map((name) => ({ name }))
+        const miss = (agent && unmounted.get(agent)) || new Set()
+        return [...registered.keys()].filter((name) => !deny.has(name) && !miss.has(name)).map((name) => ({ name }))
       },
     },
   }
@@ -114,9 +117,11 @@ function makeWorld() {
     return agent
   }
 
-  const createAgent = (id) => {
+  const createAgent = (id, setup) => {
     const agent = makeAgent(id)
     living.push(agent)
+    // setup 在「第一次 rebuild 之前」跑：用来模拟创建那一刻宿主就没挂载某些工具
+    if (typeof setup === 'function') setup(agent)
     for (const listener of createdListeners) listener({ agent })
     return agent
   }
@@ -146,9 +151,21 @@ function makeWorld() {
     return decision
   }
 
+  // 模拟「宿主没把这个工具挂到该会话」：和「我们 restrict 掉」不是一回事 ——
+  // 前者从来没进过工具表（如 cua_driver_native__* 自 DSH 2.0.20 起），后者是我们收的。
+  const unmount = (agent, names) => {
+    if (!unmounted.has(agent)) unmounted.set(agent, new Set())
+    const miss = unmounted.get(agent)
+    for (const name of names) miss.add(name)
+    return () => {
+      for (const name of names) miss.delete(name)
+    }
+  }
+
   return {
     ctx,
     fireGuard,
+    unmount,
     commands,
     firePreExecute,
     registered,
@@ -749,6 +766,70 @@ async function main() {
     assert.ok(!offText.includes('没归组'), '关闭时提示段不该出现分类提醒')
     assert.ok(offText.includes('lazy_tools_status'), '关闭后基础提示还在')
     ok('分类提示默认开、可关，关掉不影响基础提示')
+
+    console.log('[32] 宿主没挂载的组：静音待命，不拉低 healthy')
+    const worldNM = makeWorld()
+    worldNM.ctx.tools.register({ name: 'cua_driver_native__a', description: 'x', parameters: {}, output: {} })
+    worldNM.ctx.tools.register({ name: 'cua_driver_native__b', description: 'x', parameters: {}, output: {} })
+    apply(worldNM.ctx, { groups: [{ id: 'cua', match: ['cua_driver_native__*'], title: '桌面自动化', defaultOn: true }], autoGroups: 'off' })
+    // 创建这一刻就没挂载：相当于 DSH 2.0.20 上 cua_driver_native__* 的真实处境
+    let remountCua = () => {}
+    const agentNM = worldNM.createAgent('agent-nm', (a) => {
+      remountCua = worldNM.unmount(a, ['cua_driver_native__a', 'cua_driver_native__b'])
+    })
+    const hNM = await runTool(worldNM, 'lazy_tools_health', {}, agentNM)
+    assertJsonSafe(hNM, 'health-nm')
+    const gNM = hNM.groups.find((g) => g.id === 'cua')
+    assert.equal(gNM.on, true)
+    assert.equal(gNM.matched, 2)
+    assert.equal(gNM.visible, 0)
+    assert.equal(gNM.blocked, 'host-not-mounted')
+    assert.deepEqual(hNM.warnings, [], `宿主没挂载不该算 warning：${JSON.stringify(hNM.warnings)}`)
+    assert.equal(hNM.healthy, true, '静音待命不能让 healthy 变 false —— 否则每轮都在替宿主挨刀')
+    assert.ok(hNM.notes.some((n) => n.includes('静音待命')), `notes 要写明原因：${JSON.stringify(hNM.notes)}`)
+    ok('从未挂载 → 不报警、healthy 仍 true、组标 blocked:host-not-mounted、notes 有说明')
+
+    console.log('[33] 宿主修好了：监控自动恢复，不用做任何事')
+    remountCua()
+    const hNM2 = await runTool(worldNM, 'lazy_tools_health', {}, agentNM)
+    const gNM2 = hNM2.groups.find((g) => g.id === 'cua')
+    assert.equal(gNM2.visible, 2)
+    assert.equal(gNM2.blocked, undefined)
+    assert.equal(hNM2.healthy, true)
+    ok('挂回来后 blocked 消失、visible=2 —— 监控自己恢复')
+
+    console.log('[34] 挂过又消失：这个必须响')
+    const unmountAgain = worldNM.unmount(agentNM, ['cua_driver_native__a', 'cua_driver_native__b'])
+    const hNM3 = await runTool(worldNM, 'lazy_tools_health', {}, agentNM)
+    const gNM3 = hNM3.groups.find((g) => g.id === 'cua')
+    assert.equal(gNM3.visible, 0)
+    assert.equal(gNM3.blocked, undefined, '挂载过的工具不见了不是「宿主没挂载」，不许静音')
+    assert.ok(hNM3.warnings.some((w) => w.includes('出现过') && w.includes('不见了')), `要报「挂过又消失」：${JSON.stringify(hNM3.warnings)}`)
+    assert.equal(hNM3.healthy, false)
+    unmountAgain()
+    ok('出现过又消失 → 报警、healthy=false（静音没有把真异常一起吞掉）')
+
+    console.log('[35] bench 口径：可见 + 收起 + 宿主没挂 === 注册总数')
+    const worldBench = makeWorld()
+    // 两组：gg 关着（它的 2 个工具是我们收的）／hh 开着（其中 h_two 宿主没挂）
+    for (const n of ['g_one', 'g_two', 'h_one', 'h_two', 'keep_one']) worldBench.ctx.tools.register({ name: n, description: 'x'.repeat(20), parameters: {}, output: {} })
+    apply(worldBench.ctx, {
+      groups: [
+        { id: 'gg', match: ['g_*'], title: 'g', defaultOn: false },
+        { id: 'hh', match: ['h_*'], title: 'h', defaultOn: true },
+      ],
+      autoGroups: 'off',
+    })
+    const agentBench = worldBench.createAgent('agent-b', (a) => worldBench.unmount(a, ['h_two']))
+    const benchB = await runTool(worldBench, 'lazy_tools_bench', {}, agentBench)
+    assertJsonSafe(benchB, 'bench-b')
+    assert.equal(benchB.hidden, 2, 'g_one / g_two 是抽屉收起的')
+    assert.equal(benchB.absent, 1, 'h_two 是宿主没挂的，不算在收起里（组开着不该被算成我们收的）')
+    // tools 里还包含插件自己的 11 个 lazy_tools_*，所以只对「差值」下断言
+    assert.equal(benchB.visibleInRegistry, benchB.tools - 3)
+    assert.equal(benchB.visibleInRegistry + benchB.hidden + benchB.absent, benchB.tools, '三态必须能对上账')
+    ok('bench：收起 2 + absent 1 + 注册内可见 (tools-3) = 注册总数，账能对上')
+
     console.log(`\nsmoke: ${checks} 项全过`)
 }
 

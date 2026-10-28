@@ -1,4 +1,4 @@
-# 维护者须知 / Maintainer notes
+﻿# 维护者须知 / Maintainer notes
 
 写给要改这个插件的人（包括下一个我）。这不是功能文档，是**工序**——今天踩过的坑都在这里。
 
@@ -69,6 +69,10 @@ Remove-Item "$env:USERPROFILE\.dsh\profiles\<profile>\node_modules\dsh-tool-draw
 ## 5. 发布前 / Before a release
 
 - 三处版本一致（`package.json`、Release tag、README 若提到版本）；
+- **Release 必须同时传一个不带版本号的资产 `dsh-tool-drawer.tgz`**（和带版本号的那个字节相同）。市场条目用
+  `https://github.com/kmyy350234-dz/dsh-tool-drawer/releases/latest/download/dsh-tool-drawer.tgz` 指向它；
+  `latest/download/` 只解析 `latest`、文件名照字面取 —— 资产名带版本号的话，这个链接在你下一次发版当天就 404，
+  而且不会有人告诉你。2026-10-28 补，起因是审计市场条目时发现 `tarball:` 缺失。
 - `node test/smoke.mjs` → 32 项全过；
 - 中英 README 同步（英文不是翻译腔，是独立写的）；
 - Release 说明写「改了什么 / 为什么 / 怎么验证」，不要只写「修复若干问题」；
