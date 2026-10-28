@@ -58,7 +58,8 @@ not mounted (19 tools)  23,637 chars   # never entered context — not counted a
 > never cost a token; they are listed separately instead of being folded into "how much it saves".
 > On a machine where every tool mounts, that row is 0 and the figures become
 > "collapsed 67 / 118,429 chars / 58%".
-> Another 34 visible tools come from other registries and are outside this table.
+> Another 34 **core tools** (`read` / `write` / `pwsh` / `glob` / `web_fetch`, …) come straight from
+> the host rather than the tool registry — they are outside this table and are never collapsed.
 
 Convert to tokens with your own provider's tokenizer — only character counts are reported here, because description density differs too much between languages for a fixed ratio to be honest.
 

@@ -63,6 +63,7 @@
 ## 边界（别把它当万灵药）
 
 1. **只能藏全局注册的工具**。agent scope 内注册的（本机 `dsh-ops` 的 `ops_*` 就是）宿主明确拒绝，藏不了。
+   实测（2026-10-28）：一个会话的 135 个可见工具里，**34 个不归工具注册表** —— 33 个是宿主内核自带的（`read` / `write` / `pwsh` / `glob` / `web_fetch` / `schedule_*` …），1 个是 `dsh-ops` 的 agent 作用域工具 `ops_discover_tools`。所以 `lazy_tools_bench` 的 `visible` 会大于它在注册表里能统计到的 `visibleInRegistry`；这两个数对不上不是 bug，是这一条边界。`bench` 现在会把这些名字逐个放进 `outsideRegistryNames`，不用再猜。
 2. **分组只能按名字**。宿主的 `ToolSchema` 只有 name/description/parameters，**没有 tags**，所以命名没规律就只能手写白名单。
 3. **开关会打断前缀缓存**。工具表一变，那一轮 cache 就未命中——所以纪律是「一次开、别反复切」，`only` 优于整组开。
 4. **不做自动回收**。TTL 与关键词触发都容易误判，先记用量（`health.usage`），攒够数据再决定。
