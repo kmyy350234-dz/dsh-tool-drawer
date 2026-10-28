@@ -183,10 +183,10 @@ async function main() {
       { id: 'idle', match: ['other_tool'], title: '默认开', defaultOn: true },
     ],
   })
-  for (const name of ['lazy_tools_status', 'lazy_tools_enable', 'lazy_tools_disable', 'lazy_tools_scan', 'lazy_tools_list', 'lazy_tools_resolve', 'lazy_tools_mode', 'lazy_tools_health']) {
+  for (const name of ['lazy_tools_status', 'lazy_tools_enable', 'lazy_tools_disable', 'lazy_tools_scan', 'lazy_tools_list', 'lazy_tools_resolve', 'lazy_tools_mode', 'lazy_tools_health', 'lazy_tools_classify', 'lazy_tools_save_groups']) {
     assert.ok(world.registered.has(name), `缺工具 ${name}`)
   }
-  ok('八个工具都注册上了')
+  ok('十个工具都注册上了')
 
   console.log('[2] agent 创建时按 defaultOn 收起')
   const agent = world.createAgent('agent-1')
@@ -273,8 +273,8 @@ async function main() {
   console.log('[4] scan / health 的输出')
   const scan = await runTool(world, 'lazy_tools_scan', {}, agent)
   assertJsonSafe(scan, 'scan')
-  // 可见 = 插件自己的 8 个工具 + other_tool；两个 cua 工具此刻仍被收着
-  assert.equal(scan.total, 9, `可见数不对：${JSON.stringify(scan.buckets.map((b) => b.prefix))}`)
+  // 可见 = 插件自己的 10 个工具 + other_tool；两个 cua 工具此刻仍被收着
+  assert.equal(scan.total, 11, `可见数不对：${JSON.stringify(scan.buckets.map((b) => b.prefix))}`)
   assert.equal(scan.buckets.some((b) => b.prefix === 'cua_driver_native'), false)
   ok('scan 输出 JSON-safe，total 对得上当前可见数，且没有 cua 前缀')
 
@@ -702,6 +702,20 @@ async function main() {
     const observe = statusExtra.groups.find((g) => g.id === 'cu-observe')
     assert.equal(observe.matched, 2)
     ok('extraGroups 追加成功、默认组保留')
+    console.log('[30] 分类交接：save_groups 必须拒绝常驻工具')
+    const worldCls = makeWorld()
+    apply(worldCls.ctx, { groups: [], autoGroups: 'off' })
+    const agentCls = worldCls.createAgent('agent-cls')
+    const material = await runTool(worldCls, 'lazy_tools_classify', {}, agentCls)
+    assert.ok(Array.isArray(material.tools), 'classify 要返回 tools 数组')
+    assert.ok(typeof material.instructions === 'string' && material.instructions.length > 20, '要给分组说明')
+    const badSave = await runTool(worldCls, 'lazy_tools_save_groups', { groups: [{ id: 'nope', match: ['pwsh', 'read'] }] }, agentCls)
+    assert.equal(badSave.saved, 0)
+    assert.ok(badSave.issues.some((s) => s.includes('常驻')), '必须拒绝含常驻工具的组')
+    const smallSave = await runTool(worldCls, 'lazy_tools_save_groups', { groups: [{ id: 'tiny', match: ['only_one'] }] }, agentCls)
+    assert.equal(smallSave.saved, 0)
+    assert.ok(smallSave.issues.some((s) => s.includes('少于 2')), '必须拒绝单工具组')
+    ok('classify 给材料、save_groups 拒绝常驻与单工具组')
     console.log(`\nsmoke: ${checks} 项全过`)
 }
 
