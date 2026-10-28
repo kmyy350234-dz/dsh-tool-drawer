@@ -1,6 +1,6 @@
 {
   "name": "dsh-tool-drawer",
-  "version": "0.14.4",
+  "version": "0.14.5",
   "private": true,
   "type": "module",
   "main": "lib/index.js",
@@ -20,6 +20,7 @@
     "icon.svg",
     "README.md",
     "DESIGN.md",
+    "INTEROP.md",
     "LICENSE",
     "test"
   ],

@@ -43,6 +43,20 @@ Match patterns accept `*` globs and `re:` regexes; each group may carry `keep` (
 
 ---
 
+## How much it saves
+
+**Measured** (2026-10-28, 168 registered tools on one machine):
+
+```
+all tool definitions   202,339 chars
+collapsed (67 tools)   118,429 chars  (58%)
+visible  (135 tools)    83,910 chars
+```
+
+Convert to tokens with your own provider's tokenizer — only character counts are reported here, because description density differs too much between languages for a fixed ratio to be honest.
+
+Reproduce it anytime with `lazy_tools_bench`; every number in this README comes from that command.
+
 ## Why
 
 Every tool schema is tokens in *every* request. A desktop-automation plugin can carry 50+ tools, a
