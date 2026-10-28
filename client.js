@@ -152,6 +152,7 @@ window.__ModuleLoader__.load({
               presetHigh: String((data.policy.presets && data.policy.presets.high) || 3),
               showDock: data.policy.showDock === true,
               showClear: data.policy.showClear === true,
+                classifyNudge: data.policy.classifyNudge !== false,
               autoGroups: data.policy.autoGroups || 'suggest',
             })
           })
@@ -178,6 +179,7 @@ window.__ModuleLoader__.load({
             presets: { low: Number(form.presetLow), medium: Number(form.presetMedium), high: Number(form.presetHigh) },
             showDock: form.showDock === true,
             showClear: form.showClear === true,
+            classifyNudge: form.classifyNudge !== false,
             autoGroups: form.autoGroups || 'suggest',
           })
           setState(data)
@@ -297,6 +299,28 @@ window.__ModuleLoader__.load({
         // 「永不自动收起」从界面上拿掉了（2026-10-24 用户觉得麻烦）：
         // 默认值已经在代码里钉死是 ['cua-input']（动手组永不自动收），
         // 还想细调的人去 ~/.dsh/lazy-tools.policy.json 或 bundle 配置里写。
+        h(
+          'div',
+          { style: styles.row },
+          h(
+            'label',
+            { style: { ...styles.label, display: 'flex', alignItems: 'center', gap: '8px' } },
+            h('input', {
+              type: 'checkbox',
+              checked: form.classifyNudge !== false,
+              onChange: (event) => setForm((prev) => ({ ...prev, classifyNudge: event.target.checked })),
+            }),
+            tr('没归组的裸名工具，让 AI 顺手分一次组', 'Let the agent group unnamed tools once'),
+          ),
+          h(
+            'span',
+            { style: styles.hint },
+            tr(
+              '默认开启。当有新插件的工具既没有共同前缀、又不属于任何组时，会在系统提示里提醒 AI 花一点 token 分组，结果写进 ~/.dsh/lazy-tools.groups.json，之后长期生效、不再重复。反感多这一句的人可以关掉（关掉后仍可手动让 AI 调 lazy_tools_classify）。',
+              'On by default. When a new plugin registers tools with no shared prefix and no group, the agent is reminded once to group them (a small token cost); the result is stored in ~/.dsh/lazy-tools.groups.json and reused afterwards. Turn it off if you dislike the extra line — lazy_tools_classify still works manually.',
+            ),
+          ),
+        ),
         h(
           'div',
           { style: styles.row },

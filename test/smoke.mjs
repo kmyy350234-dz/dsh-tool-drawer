@@ -716,6 +716,36 @@ async function main() {
     assert.equal(smallSave.saved, 0)
     assert.ok(smallSave.issues.some((s) => s.includes('少于 2')), '必须拒绝单工具组')
     ok('classify 给材料、save_groups 拒绝常驻与单工具组')
+    console.log('[31] 分类提示开关：默认开，关掉后提示段里不出现')
+    const mkWorldWithPrompt = () => {
+      const world = makeWorld()
+      const sections = []
+      world.ctx.inject = (deps, callback) => {
+        callback({
+          effect: (make) => make(),
+          systemPrompt: {
+            section(section) {
+              sections.push(section)
+              return () => {}
+            },
+          },
+        })
+      }
+      return { world, sections }
+    }
+    const bare = ['bareclick', 'baretype', 'barescroll']
+    const on = mkWorldWithPrompt()
+    for (const name of bare) on.world.ctx.tools.register({ name, description: 'bare ' + name, parameters: { type: 'object', properties: {} }, output: {} })
+    apply(on.world.ctx, { groups: [], classifyNudge: true })
+    const onText = typeof on.sections[0].text === 'function' ? on.sections[0].text() : String(on.sections[0].text)
+    assert.ok(onText.includes('没归组'), '开启时提示段应提到未归组工具')
+    const off = mkWorldWithPrompt()
+    for (const name of bare) off.world.ctx.tools.register({ name, description: 'bare ' + name, parameters: { type: 'object', properties: {} }, output: {} })
+    apply(off.world.ctx, { groups: [], classifyNudge: false })
+    const offText = typeof off.sections[0].text === 'function' ? off.sections[0].text() : String(off.sections[0].text)
+    assert.ok(!offText.includes('没归组'), '关闭时提示段不该出现分类提醒')
+    assert.ok(offText.includes('lazy_tools_status'), '关闭后基础提示还在')
+    ok('分类提示默认开、可关，关掉不影响基础提示')
     console.log(`\nsmoke: ${checks} 项全过`)
 }
 
