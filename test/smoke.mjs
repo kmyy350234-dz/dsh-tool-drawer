@@ -1,5 +1,6 @@
 // 测试隔离：不要让真实用户组文件影响断言
 process.env.LAZY_TOOLS_GROUPS_FILE = 'C:/Users/14092/.dsh/lazy-tools.groups.DOES-NOT-EXIST.json'
+process.env.LAZY_TOOLS_POLICY_FILE = 'C:/Users/14092/.dsh/lazy-tools.policy.DOES-NOT-EXIST.json'
 // 冒烟测试：不依赖 DSH，把 apply() 在一个假宿主上真跑一遍。
 //
 // 为什么要它：`node --check` 只证明「语法没说错」，证明不了「跑起来对」。
