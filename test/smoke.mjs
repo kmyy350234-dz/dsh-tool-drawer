@@ -10,7 +10,7 @@ import assert from 'node:assert/strict'
 import { apply } from '../lib/index.js'
 import { normalizePolicy } from '../lib/api.js'
 import { isHot, recordUsage, LEVEL_DAYS, DAY } from '../lib/usage.js'
-import { readFileSync, rmSync } from 'node:fs'
+import { readFileSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -19,6 +19,9 @@ import { join } from 'node:path'
 const NO_SUCH = join(tmpdir(), 'lazy-tools.DOES-NOT-EXIST')
 process.env.LAZY_TOOLS_GROUPS_FILE = `${NO_SUCH}.groups.json`
 process.env.LAZY_TOOLS_POLICY_FILE = `${NO_SUCH}.policy.json`
+// 用量账本也必须隔离：2026-10-29 单工具热度上线后，[12] 因为读到真机账本
+// （vision_describe 真的热）而少收了一个工具、断言失败 —— 测试不能看用户的历史。
+process.env.LAZY_TOOLS_USAGE_FILE = `${NO_SUCH}.usage.json`
 
 let checks = 0
 function ok(label) {
@@ -557,7 +560,7 @@ async function main() {
   const statusF = await runTool(worldF, 'lazy_tools_status', {}, agentF)
   assert.equal(statusF.groups.find((g) => g.id === 'cua').hot, true)
   rmSync(usagePath, { force: true })
-  delete process.env.LAZY_TOOLS_USAGE_FILE
+  process.env.LAZY_TOOLS_USAGE_FILE = `${NO_SUCH}.usage.json`
   ok('pre-execute 记账 → usage 文件写出组时间戳、status.hot=true')
   console.log('[20] 会话级覆盖：lazy_tools_mode 立刻重算默认开哪些组')
   const worldG = makeWorld()
@@ -636,7 +639,9 @@ async function main() {
     assert.deepEqual(tokenize('read'), ['read'])
     assert.equal(matchPattern(['mnemon']), 're:^mnemon(_|__|$)')
     assert.equal(normalizeAutoMode('bogus', 'on'), 'on')
-    assert.equal(normalizeAutoMode(undefined, undefined), 'suggest')
+    // 2026-10-29 改：兜底从 'suggest' 变 'on'（'suggest' 等于功能不存在）
+    assert.equal(normalizeAutoMode(undefined, undefined), 'on')
+    assert.equal(normalizeAutoMode('suggest'), 'suggest', '显式 suggest 仍然尊重')
 
     const many = (prefix, n) => Array.from({ length: n }, (_, i) => `${prefix}_t${i}`)
     const names = [
@@ -854,6 +859,35 @@ async function main() {
     applyPolicyPatch(pol, { level: 'medium', idleDays: null })
     assert.equal(pol.idleDays, 7, 'idleDays 为 null 视为没碰，跟着档位重新算')
     ok('档位→天数跟随；显式天数优先')
+
+    console.log('[38] 单工具热度：组里只放常用的那几个，其余继续收')
+    const usagePath2 = join(tmpdir(), `lazy-tools-usage2-${process.pid}.json`)
+    writeFileSync(usagePath2, JSON.stringify({ groups: {}, tools: { cua_driver_native__a: new Date().toISOString() } }))
+    process.env.LAZY_TOOLS_USAGE_FILE = usagePath2
+    const worldSingle = makeWorld()
+    worldSingle.ctx.tools.register({ name: 'cua_driver_native__a', description: 'x', parameters: {}, output: {} })
+    worldSingle.ctx.tools.register({ name: 'cua_driver_native__b', description: 'x', parameters: {}, output: {} })
+    apply(worldSingle.ctx, { groups: [{ id: 'cua', match: ['cua_driver_native__*'], defaultOn: false }], autoGroups: 'off' })
+    const agentSingle = worldSingle.createAgent('agent-single')
+    const denySingle = worldSingle.denyByAgent.get(agentSingle)
+    assert.equal(denySingle.has('cua_driver_native__b'), true, '没用过的 b 要继续收着')
+    assert.equal(denySingle.has('cua_driver_native__a'), false, '用过的 a 应该保持可见（only 白名单）')
+    rmSync(usagePath2, { force: true })
+    process.env.LAZY_TOOLS_USAGE_FILE = `${NO_SUCH}.usage.json`
+    ok('单工具热度：only 只放热的那一个，同组其余仍收起')
+
+    console.log('[39] 常驻提示带组用途（能力目录）')
+    const promptWorld = mkWorldWithPrompt()
+    promptWorld.world.ctx.tools.register({ name: 'cua_driver_native__a', description: 'x', parameters: {}, output: {} })
+    apply(promptWorld.world.ctx, {
+      groups: [{ id: 'cua', match: ['cua_driver_native__*'], title: '桌面·看', defaultOn: false }],
+      autoGroups: 'off',
+    })
+    const promptText2 = typeof promptWorld.sections[0].text === 'function'
+      ? promptWorld.sections[0].text()
+      : String(promptWorld.sections[0].text)
+    assert.ok(promptText2.includes('cua(桌面·看)'), `提示里要有组用途：${promptText2.slice(0, 140)}`)
+    ok('提示段列「组 id(用途)」，模型才知道抽屉里有什么')
 
     console.log(`\nsmoke: ${checks} 项全过`)
 }

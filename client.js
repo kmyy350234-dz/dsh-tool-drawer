@@ -136,6 +136,8 @@ window.__ModuleLoader__.load({
       const [form, setForm] = React.useState(null)
       const [status, setStatus] = React.useState('')
       const [error, setError] = React.useState('')
+      // 用户有没有手改过「闲置天数」：没改过就让档位决定天数（2026-10-29 修 bug 2 的客户端半边）
+      const [daysTouched, setDaysTouched] = React.useState(false)
 
       React.useEffect(() => {
         let alive = true
@@ -152,8 +154,8 @@ window.__ModuleLoader__.load({
               presetHigh: String((data.policy.presets && data.policy.presets.high) || 3),
               showDock: data.policy.showDock === true,
               showClear: data.policy.showClear === true,
-                classifyNudge: data.policy.classifyNudge !== false,
-              autoGroups: data.policy.autoGroups || 'suggest',
+              classifyNudge: data.policy.classifyNudge !== false,
+              autoGroups: data.policy.autoGroups || 'on',
             })
           })
           .catch((err) => alive && setError(err.message))
@@ -164,24 +166,55 @@ window.__ModuleLoader__.load({
 
       const update = (key) => (event) => {
         const value = event && event.target ? event.target.value : event
-        setForm((prev) => ({ ...prev, [key]: value }))
+        setStatus('')
+        if (key === 'idleDays') {
+          setDaysTouched(true)
+          setForm((prev) => ({ ...prev, idleDays: value }))
+          return
+        }
+        setForm((prev) => {
+          const next = { ...prev, [key]: value }
+          // 换档位、且用户没手改过天数时：输入框跟着显示该档的天数（真正下发由宿主按档位算）
+          if (key === 'level' && !daysTouched) {
+            const presets = { low: prev.presetLow, medium: prev.presetMedium, high: prev.presetHigh }
+            if (presets[value] !== undefined) next.idleDays = String(presets[value])
+          }
+          return next
+        })
+      }
+      const setFlag = (key) => (event) => {
+        const checked = Boolean(event && event.target && event.target.checked)
+        setForm((prev) => ({ ...prev, [key]: checked }))
         setStatus('')
       }
 
       const save = async () => {
         setError('')
         setStatus(tr('保存中…', 'Saving…'))
+        const presets = { low: Number(form.presetLow), medium: Number(form.presetMedium), high: Number(form.presetHigh) }
+        const daysText = String(form.idleDays == null ? '' : form.idleDays).trim()
+        const payload = {
+          level: form.level,
+          minTools: Number(form.minTools),
+          presets,
+          showDock: form.showDock === true,
+          showClear: form.showClear === true,
+          classifyNudge: form.classifyNudge !== false,
+          autoGroups: form.autoGroups || 'on',
+        }
+        // 空字符串不能变成 Number('') = 0 —— 0 在这里的意思是「不按时间收敛 = 全开」。
+        // 规则：手改过、或填的数与当前档位天数不同 → 下发；否则不下发，让宿主按档位算。
+        if (daysText !== '') {
+          const value = Number(daysText)
+          if (Number.isFinite(value) && value >= 0) {
+            const presetForLevel = presets[form.level]
+            if (daysTouched || !Number.isFinite(presetForLevel) || value !== presetForLevel) {
+              payload.idleDays = Math.round(value)
+            }
+          }
+        }
         try {
-          const data = await request('/policy', {
-            level: form.level,
-            idleDays: Number(form.idleDays),
-            minTools: Number(form.minTools),
-            presets: { low: Number(form.presetLow), medium: Number(form.presetMedium), high: Number(form.presetHigh) },
-            showDock: form.showDock === true,
-            showClear: form.showClear === true,
-            classifyNudge: form.classifyNudge !== false,
-            autoGroups: form.autoGroups || 'suggest',
-          })
+          const data = await request('/policy', payload)
           setState(data)
           setStatus(tr('已保存（下次会话开始时按新策略决定默认收起哪些组）', 'Saved. The new policy applies from the next session start.'))
         } catch (err) {
@@ -193,14 +226,20 @@ window.__ModuleLoader__.load({
       if (error && !form) return h('p', { style: styles.error }, `${tr('读取设置失败：', 'Failed to load settings: ')}${error}`)
       if (!form) return h('p', { style: styles.hint }, tr('读取中…', 'Loading…'))
 
+      const summary = state && state.summary ? state.summary : null
+      const stowedLine = summary
+        ? tr(
+            `已收纳 ${summary.hidden} 个工具 · 自动取出 ${summary.selfHealed} 次`,
+            `${summary.hidden} tools stowed · ${summary.selfHealed} auto-restored`,
+          )
+        : ''
+
+      // 基础页只留大多数人在意的几格；其余进「高级设置」（原生 <details>，不占注意力）。
       return h(
         'div',
         { style: styles.wrap },
-        h(
-          'p',
-          { style: styles.intro },
-          tr('重工具组默认收起，需要时由 AI 或关键词自动开回来。这里控制「自动收敛」的策略——它在每个会话开始时按历史使用决定默认开哪些组，不会在干活途中打断缓存。', 'Heavy tool groups stay collapsed and come back on demand. These settings control when groups collapse on their own: the decision is made once at session start, so it never breaks an active prompt cache.'),
-        ),
+        h('p', { style: styles.intro }, tr('重工具组默认收起，需要时由 AI 或关键词自动开回来。这里控制「自动收敛」的策略——它在每个会话开始时按历史使用决定默认开哪些组，不会在干活途中打断缓存。', 'Heavy tool groups stay collapsed and come back on demand. These settings control when groups collapse on their own: the decision is made once at session start, so it never breaks an active prompt cache.')),
+        stowedLine ? h('p', { style: styles.hint }, stowedLine) : null,
         h(
           'div',
           { style: styles.row },
@@ -208,118 +247,15 @@ window.__ModuleLoader__.load({
           h(
             'select',
             { style: styles.input, value: form.level, onChange: update('level') },
-            ['low', 'medium', 'high'].map((level) =>
-              h('option', { key: level, value: level }, LEVEL_LABELS[level]),
-            ),
-          ),
-        ),
-        h(
-          'div',
-          { style: styles.row },
-          h('label', { style: styles.label }, tr('自动分组', 'Auto groups')),
-          h(
-            'select',
-            { style: styles.input, value: form.autoGroups || 'suggest', onChange: update('autoGroups') },
-            [
-              h('option', { key: 'off', value: 'off' }, tr('关闭', 'Off')),
-              h('option', { key: 'suggest', value: 'suggest' }, tr('只建议（在 scan 里）', 'Suggest (in scan)')),
-              h('option', { key: 'on', value: 'on' }, tr('自动建组并收起', 'Auto-create and collapse')),
-            ],
-          ),
-          h(
-            'span',
-            { style: styles.hint },
-            tr(
-              '按工具名前缀识别家族，核心工具永不入组；选「只建议」不会改动任何东西。',
-              'Groups tool families by name prefix; core tools are never included. "Suggest" changes nothing.',
-            ),
+            ['low', 'medium', 'high'].map((level) => h('option', { key: level, value: level }, LEVEL_LABELS[level])),
           ),
         ),
         h(
           'div',
           { style: styles.row },
           h('label', { style: styles.label }, tr('闲置天数（可自定义）', 'Idle days (custom)')),
-          h('input', {
-            style: styles.input,
-            type: 'number',
-            min: 0,
-            value: form.idleDays,
-            onChange: update('idleDays'),
-          }),
-          h('span', { style: styles.hint }, tr('这里填多少天就是多少天；不填就跟随档位；0 表示不按时间收敛', 'Exact days. Empty = follow the level. 0 = never collapse by time.')),
-        ),
-        h(
-          'div',
-          { style: styles.row },
-          h('label', { style: styles.label }, tr('三档各自的天数（可修改）', 'Days per level (editable)')),
-          h(
-            'div',
-            { style: { display: 'flex', gap: '10px', alignItems: 'center' } },
-            h('span', { style: styles.hint }, tr('低', 'Low')),
-            h('input', {
-              style: { ...styles.input, width: '84px' },
-              type: 'number',
-              min: 0,
-              value: form.presetLow,
-              onChange: update('presetLow'),
-            }),
-            h('span', { style: styles.hint }, tr('中', 'Mid')),
-            h('input', {
-              style: { ...styles.input, width: '84px' },
-              type: 'number',
-              min: 0,
-              value: form.presetMedium,
-              onChange: update('presetMedium'),
-            }),
-            h('span', { style: styles.hint }, tr('高', 'High')),
-            h('input', {
-              style: { ...styles.input, width: '84px' },
-              type: 'number',
-              min: 0,
-              value: form.presetHigh,
-              onChange: update('presetHigh'),
-            }),
-            h('span', { style: styles.hint }, tr('天', 'days')),
-          ),
-          h('span', { style: styles.hint }, tr('改了之后，档位按钮和斜杠命令都按新的天数算', 'The drawer button and the slash command both use these numbers.')),
-        ),
-        h(
-          'div',
-          { style: styles.row },
-          h('label', { style: styles.label }, '最小工具数'),
-          h('input', {
-            style: styles.input,
-            type: 'number',
-            min: 0,
-            value: form.minTools,
-            onChange: update('minTools'),
-          }),
-          h('span', { style: styles.hint }, '少于这么多个工具的组不值得动它'),
-        ),
-        // 「永不自动收起」从界面上拿掉了（2026-10-24 用户觉得麻烦）：
-        // 默认值已经在代码里钉死是 ['cua-input']（动手组永不自动收），
-        // 还想细调的人去 ~/.dsh/lazy-tools.policy.json 或 bundle 配置里写。
-        h(
-          'div',
-          { style: styles.row },
-          h(
-            'label',
-            { style: { ...styles.label, display: 'flex', alignItems: 'center', gap: '8px' } },
-            h('input', {
-              type: 'checkbox',
-              checked: form.classifyNudge !== false,
-              onChange: (event) => setForm((prev) => ({ ...prev, classifyNudge: event.target.checked })),
-            }),
-            tr('没归组的裸名工具，让 AI 顺手分一次组', 'Let the agent group unnamed tools once'),
-          ),
-          h(
-            'span',
-            { style: styles.hint },
-            tr(
-              '默认开启。当有新插件的工具既没有共同前缀、又不属于任何组时，会在系统提示里提醒 AI 花一点 token 分组，结果写进 ~/.dsh/lazy-tools.groups.json，之后长期生效、不再重复。反感多这一句的人可以关掉（关掉后仍可手动让 AI 调 lazy_tools_classify）。',
-              'On by default. When a new plugin registers tools with no shared prefix and no group, the agent is reminded once to group them (a small token cost); the result is stored in ~/.dsh/lazy-tools.groups.json and reused afterwards. Turn it off if you dislike the extra line — lazy_tools_classify still works manually.',
-            ),
-          ),
+          h('input', { style: styles.input, type: 'number', min: 0, value: form.idleDays, onChange: update('idleDays') }),
+          h('span', { style: styles.hint }, tr('留空 = 跟随档位（不会存成 0）；0 = 不按时间收敛，所有组默认张开', 'Empty = follow the level (never stored as 0). 0 = never collapse by time.')),
         ),
         h(
           'div',
@@ -327,18 +263,10 @@ window.__ModuleLoader__.load({
           h(
             'label',
             { style: { ...styles.label, display: 'flex', alignItems: 'center', gap: '8px' } },
-            h('input', {
-              type: 'checkbox',
-              checked: form.showDock === true,
-              onChange: (event) => setForm((prev) => ({ ...prev, showDock: event.target.checked })),
-            }),
+            h('input', { type: 'checkbox', checked: form.showDock === true, onChange: setFlag('showDock') }),
             tr('在输入框上方显示「工具抽屉」控件', 'Show the drawer control above the composer'),
           ),
-          h(
-            'span',
-            { style: styles.hint },
-            tr('默认关闭。开启后可在每个对话里单独调档位；该控件按对话挂载，勾选后需要切换一次对话（或刷新页面）才会显示。', 'Off by default. Once enabled, every conversation can pick its own level. The control is mounted per conversation, so switch to another conversation (or reload) before it appears.'),
-          ),
+          h('span', { style: styles.hint }, tr('默认关闭。开启后可在每个对话里单独选档位；该控件按对话挂载，勾选后切换一次对话（或刷新页面）即出现。', 'Off by default. Once enabled, every conversation can pick its own level. Mounted per conversation, so switch conversations (or reload) before it appears.')),
         ),
         h(
           'div',
@@ -346,21 +274,12 @@ window.__ModuleLoader__.load({
           h(
             'label',
             { style: { ...styles.label, display: 'flex', alignItems: 'center', gap: '8px' } },
-            h('input', {
-              type: 'checkbox',
-              checked: form.showClear === true,
-              onChange: (event) => setForm((prev) => ({ ...prev, showClear: event.target.checked })),
-            }),
-            tr('在输入框上方显示「立刻清空」按钮', 'Show the clear-now button above the composer'),
+            h('input', { type: 'checkbox', checked: form.showClear === true, onChange: setFlag('showClear') }),
+            tr('在输入框上方显示「收纳本对话工具」按钮', 'Show the stow-now button above the composer'),
           ),
-          h(
-            'span',
-            { style: styles.hint },
-            tr('与档位按钮互相独立：只想要档位就不勾它；想一键把本对话的工具全收起来再勾。', 'Independent of the level button. Leave it off unless you want a one-click clear for this conversation.'),
-          ),
+          h('span', { style: styles.hint }, tr('与档位控件互相独立：只想要档位就不勾它；想一键把本对话的工具全收纳再勾。', 'Independent of the level control. Leave it off unless you want a one-click stow for this conversation.')),
         ),
-
-h(
+        h(
           'div',
           { style: styles.actions },
           h('button', { style: styles.button, onClick: save, type: 'button' }, tr('保存', 'Save')),
@@ -368,16 +287,69 @@ h(
           error ? h('span', { style: styles.error }, error) : null,
         ),
         h(
-          'p',
-          { style: styles.hint },
-          state && state.file ? `${tr('策略文件：', 'Policy file: ')}${state.file}` : '',
+          'details',
+          { style: { marginTop: '4px' } },
+          h('summary', { style: { cursor: 'pointer', fontSize: '13px', opacity: 0.75 } }, tr('高级设置', 'Advanced')),
+          h(
+            'div',
+            { style: { ...styles.wrap, marginTop: '12px' } },
+            h(
+              'div',
+              { style: styles.row },
+              h('label', { style: styles.label }, tr('自动分组', 'Auto groups')),
+              h(
+                'select',
+                { style: styles.input, value: form.autoGroups || 'on', onChange: update('autoGroups') },
+                [
+                  h('option', { key: 'on', value: 'on' }, tr('自动建组并收起（默认）', 'Auto-create and collapse (default)')),
+                  h('option', { key: 'suggest', value: 'suggest' }, tr('只建议（在 scan 里）', 'Suggest only (in scan)')),
+                  h('option', { key: 'off', value: 'off' }, tr('关闭', 'Off')),
+                ],
+              ),
+              h('span', { style: styles.hint }, tr('按工具名前缀识别家族，同族至少 3 个才建组，核心工具永不入组；被收起的工具第一次被调用时会自动放回来。', 'Groups tool families by name prefix; at least 3 tools per family; core tools are never included; a collapsed tool is restored automatically the first time it is called.')),
+            ),
+            h(
+              'div',
+              { style: styles.row },
+              h('label', { style: styles.label }, tr('三档各自的天数（可修改）', 'Days per level (editable)')),
+              h(
+                'div',
+                { style: { display: 'flex', gap: '10px', alignItems: 'center' } },
+                h('span', { style: styles.hint }, tr('低', 'Low')),
+                h('input', { style: { ...styles.input, width: '84px' }, type: 'number', min: 0, value: form.presetLow, onChange: update('presetLow') }),
+                h('span', { style: styles.hint }, tr('中', 'Mid')),
+                h('input', { style: { ...styles.input, width: '84px' }, type: 'number', min: 0, value: form.presetMedium, onChange: update('presetMedium') }),
+                h('span', { style: styles.hint }, tr('高', 'High')),
+                h('input', { style: { ...styles.input, width: '84px' }, type: 'number', min: 0, value: form.presetHigh, onChange: update('presetHigh') }),
+                h('span', { style: styles.hint }, tr('天', 'days')),
+              ),
+              h('span', { style: styles.hint }, tr('改了之后，档位控件和斜杠命令都按新的天数算', 'The drawer control and the slash command both use these numbers.')),
+            ),
+            h(
+              'div',
+              { style: styles.row },
+              h('label', { style: styles.label }, tr('最小工具数', 'Min tools per group')),
+              h('input', { style: styles.input, type: 'number', min: 0, value: form.minTools, onChange: update('minTools') }),
+              h('span', { style: styles.hint }, tr('少于这么多个工具的组不值得动它', 'Groups smaller than this are not worth touching.')),
+            ),
+            h(
+              'div',
+              { style: styles.row },
+              h(
+                'label',
+                { style: { ...styles.label, display: 'flex', alignItems: 'center', gap: '8px' } },
+                h('input', { type: 'checkbox', checked: form.classifyNudge !== false, onChange: setFlag('classifyNudge') }),
+                tr('没归组的裸名工具，让 AI 顺手分一次组', 'Let the agent group unnamed tools once'),
+              ),
+              h('span', { style: styles.hint }, tr('默认开启。当有新插件的工具既没有共同前缀、又不属于任何组时，会在系统提示里提醒 AI 花一点 token 分组，结果写进 ~/.dsh/lazy-tools.groups.json，之后长期生效、不再重复。反感多这一句的人可以关掉（关掉后仍可手动让 AI 调 lazy_tools_classify）。', 'On by default. When a new plugin registers tools with no shared prefix and no group, the agent is reminded once to group them (a small token cost); the result is stored in ~/.dsh/lazy-tools.groups.json and reused afterwards. Turn it off if you dislike the extra line — lazy_tools_classify still works manually.')),
+            ),
+            h('p', { style: styles.hint }, state && state.file ? `${tr('策略文件：', 'Policy file: ')}${state.file}` : ''),
+          ),
         ),
       )
     }
 
     // 输入框上方那一行：只改「这个对话」的抽屉，不碰全局设置。
-    const DOCK_LEVELS = ['global', 'low', 'medium', 'high']
-
     function LazyToolsDock(props) {
       useLocaleVersion()
       const sessionId = props && props.sessionId ? String(props.sessionId) : ''
@@ -419,107 +391,113 @@ h(
       }
 
       if (!sessionId) return null
-      // 两个开关各自独立：只要有一个打开，这一行就渲染；里面每个按钮再由自己的开关控制。
+      // 两个开关各自独立：只要有一个打开，这一行就渲染；里面每个控件再由各自的开关控制。
       if (!state || (state.showDock !== true && state.showClear !== true)) return null
       const current = (state && state.session && state.session.level) || 'global'
-      const groups = (state && state.groups) || []
-      const open = groups.filter((group) => group.on)
       const presets = state.presets || { low: 14, medium: 7, high: 3 }
+      const globalDays = Number.isFinite(state.globalIdleDays) ? state.globalIdleDays : presets.medium
       const isCustom = state.session && state.session.source === 'session' && !state.session.level
-      const levelName = current === 'low' ? '低' : current === 'high' ? '高' : '中'
-      const levelLabel = isCustom
-        ? `抽屉：${state.session.idleDays} 天`
-        : `抽屉：${current === 'global' ? tr('用全局设置', 'Global') : `${levelName} ${presets[current]} 天`}`
+      const hiddenTools = Number.isFinite(state.hiddenTools) ? state.hiddenTools : 0
+      const selfHealed = Number.isFinite(state.selfHealed) ? state.selfHealed : 0
+      // 档位从「循环点击」改成一次选择（2026-10-29）：原来想从全局切到高档要点三次，
+      // 而每次点击都会重算工具表 —— 三次 = 三次打断前缀缓存。
+      const selectValue = customOpen || isCustom ? 'custom' : current
+      const customLabel = isCustom
+        ? tr(`自定义（${state.session.idleDays} 天）`, `Custom (${state.session.idleDays} d)`)
+        : tr('自定义…', 'Custom…')
+      const onPick = (event) => {
+        const value = event && event.target ? event.target.value : 'global'
+        if (value === 'custom') {
+          setCustomOpen(true)
+          return
+        }
+        setCustomOpen(false)
+        apply(value === 'global' ? { reset: true } : { level: value })
+      }
 
-      return h(
-        'div',
-        { style: styles.dock },
-        // 按钮一：只负责「这个对话的档位」，点一下换下一档（跟随全局 → 低 → 中 → 高）
-        state.showDock === true
+      const stowButton =
+        state.showClear === true
           ? h(
               'button',
               {
                 type: 'button',
                 style: styles.dockButton,
                 disabled: busy,
-                title: tr('只改这个对话的收敛档位', 'Change the collapse level for this conversation'),
-                onClick: () => {
-                  const order = ['global', 'low', 'medium', 'high']
-                  const next = order[(order.indexOf(current) + 1) % order.length]
-                  setCustomOpen(false)
-                  apply(next === 'global' ? { reset: true } : { level: next })
-                },
+                title: tr('立刻把本对话的所有工具组收纳起来（随时可再开回来）', 'Stow every tool group in this conversation now. They can be reopened at any time.'),
+                onClick: () => apply({ collapseAll: true }),
               },
-              levelLabel,
+              tr('收纳本对话工具', 'Stow now'),
+            )
+          : null
+
+      const statusHint = h(
+        'span',
+        { style: styles.dockHint },
+        error
+          ? error
+          : hiddenTools > 0
+            ? tr(`已收纳 ${hiddenTools} 个工具 · 自动取出 ${selfHealed} 次`, `${hiddenTools} stowed · ${selfHealed} auto-restored`)
+            : tr('没有收纳中的工具', 'nothing stowed'),
+      )
+
+      return h(
+        'div',
+        { style: styles.dock },
+        state.showDock === true
+          ? h('span', { style: styles.dockLabel }, tr('本对话工具收纳', 'Tool drawer'))
+          : null,
+        state.showDock === true
+          ? h(
+              'select',
+              {
+                style: styles.dockSelect,
+                value: selectValue,
+                disabled: busy,
+                title: tr('只改这个对话的收敛档位', 'Change the collapse level for this conversation'),
+                onChange: onPick,
+              },
+              [
+                h('option', { key: 'global', value: 'global' }, tr(`跟随全局（${globalDays} 天）`, `Global (${globalDays} d)`)),
+                h('option', { key: 'low', value: 'low' }, tr(`保守（${presets.low} 天）`, `Conservative (${presets.low} d)`)),
+                h('option', { key: 'medium', value: 'medium' }, tr(`均衡（${presets.medium} 天）`, `Balanced (${presets.medium} d)`)),
+                h('option', { key: 'high', value: 'high' }, tr(`积极（${presets.high} 天）`, `Aggressive (${presets.high} d)`)),
+                h('option', { key: 'custom', value: 'custom' }, customLabel),
+              ],
             )
           : null,
-        // 自定义天数默认收起：点「自定义」才展开输入框，避免和档位按钮同时出现、互相打架
-        state.showDock === true
-          ? customOpen
-            ? h(
-                'span',
-                { style: styles.dockCustom, title: tr('只对当前对话生效；回车生效，Esc 取消', 'Applies to this conversation only. Enter to apply, Esc to cancel.') },
-                h('input', {
-                  type: 'number',
-                  min: 0,
-                  step: 1,
-                  placeholder: '天数',
-                  style: styles.dockInput,
-                  value: customDaysText,
-                  disabled: busy,
-                  autoFocus: true,
-                  'aria-label': '自定义天数（只对当前对话生效）',
-                  onChange: (event) => setCustomDaysText(event.target.value),
-                  onKeyDown: (event) => {
-                    if (event.key === 'Escape') {
-                      setCustomOpen(false)
-                      return
-                    }
-                    if (event.key !== 'Enter') return
-                    const days = Number(customDaysText)
-                    if (customDaysText === '' || !Number.isFinite(days) || days < 0) return
-                    apply({ idleDays: Math.round(days) })
+        state.showDock === true && customOpen
+          ? h(
+              'span',
+              { style: styles.dockCustom, title: tr('只对当前对话生效；回车生效，Esc 取消', 'Applies to this conversation only. Enter to apply, Esc to cancel.') },
+              h('input', {
+                type: 'number',
+                min: 0,
+                step: 1,
+                placeholder: tr('天数', 'days'),
+                style: styles.dockInput,
+                value: customDaysText,
+                disabled: busy,
+                autoFocus: true,
+                'aria-label': tr('自定义天数（只对当前对话生效）', 'Custom days (this conversation only)'),
+                onChange: (event) => setCustomDaysText(event.target.value),
+                onKeyDown: (event) => {
+                  if (event.key === 'Escape') {
                     setCustomOpen(false)
-                  },
-                }),
-                '天',
-                h(
-                  'button',
-                  { type: 'button', style: styles.dockButton, disabled: busy, onClick: () => setCustomOpen(false) },
-                  tr('取消', 'Cancel'),
-                ),
-              )
-            : isCustom
-              ? null
-              : h(
-                  'button',
-                  {
-                    type: 'button',
-                    style: styles.dockButton,
-                    disabled: busy,
-                    title: tr('给这个对话单独设一个天数（不用三档）', 'Set a custom number of days for this conversation'),
-                    onClick: () => setCustomOpen(true),
-                  },
-                  tr(tr('自定义', 'Custom'), 'Custom'),
-                )
+                    return
+                  }
+                  if (event.key !== 'Enter') return
+                  const days = Number(customDaysText)
+                  if (customDaysText === '' || !Number.isFinite(days) || days < 0) return
+                  apply({ idleDays: Math.round(days) })
+                  setCustomOpen(false)
+                },
+              }),
+              tr('天', 'days'),
+              h('button', { type: 'button', style: styles.dockButton, disabled: busy, onClick: () => setCustomOpen(false) }, tr('取消', 'Cancel')),
+            )
           : null,
-        // 按钮二：只负责「立刻清空本对话的工具组」（独立开关，默认不显示）
-        state.showClear === true ? h(
-          'button',
-          {
-            type: 'button',
-            style: styles.dockButton,
-            disabled: busy,
-            title: tr('立刻把本对话的所有工具组收起（可随时再开回来）', 'Collapse every tool group in this conversation now. They can be reopened at any time.'),
-            onClick: () => apply({ collapseAll: true }),
-          },
-          tr(tr('立刻清空', 'Clear now'), 'Clear now'),
-        ) : null,
-        h(
-          'span',
-          { style: styles.dockHint },
-          error ? error : open.length ? tr(`开着 ${open.length} 组`, `${open.length} open`)  : tr('全部收起', 'all collapsed'),
-        ),
+        stowButton,
+        statusHint,
       )
     }
 

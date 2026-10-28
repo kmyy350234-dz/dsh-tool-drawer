@@ -131,8 +131,8 @@ you want to change the pattern or add a `keep` list.
 | Mode | Behaviour |
 |---|---|
 | `off` | Do nothing |
-| `suggest` (default) | Only report suggestions in `lazy_tools_scan`; change nothing |
-| `on` | Create the groups and collapse them by the usual rules |
+| `suggest` | Only report suggestions in `lazy_tools_scan`; change nothing |
+| `on` (default) | Create the groups and collapse them by the usual rules. A collapsed tool is restored automatically the first time it is called, so a mis-grouped family costs one extra round-trip at worst |
 
 The rules are fixed in code, not guessed:
 

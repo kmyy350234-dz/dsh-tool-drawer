@@ -14,7 +14,7 @@
 
 **怎么叠：** 它会注册一批 `ops_*` 工具。两种做法：
 
-- **自动**：把 `autoGroups` 设成 `on`（或 `suggest` 先看建议），我们的前缀聚类会认出 `ops` 家族；
+- **自动**：`autoGroups` 默认就是 `on`，前缀聚类会认出 `ops` 家族（先想看建议再收纳，就把它调回 `suggest`）；
 - **手写**：在 `~/.dsh/lazy-tools.groups.json` 里加一组，`match` 里写具体工具名。
 
 > ⚠️ 注意：它的 `ops_read_files` / `ops_discover_tools` 这类是常驻工具，**不要放进组里** —— `lazy_tools_save_groups` 会拒绝，手写组也请避开。
@@ -53,7 +53,7 @@ auto-ops  expect=16  match=re:^ops(_|__|$)
 
 大部分插件会用 `xxx_yyy` 命名（`dsh_browser_*`、`vision_*`、`mnemon_*`）。
 
-**不需要任何配置**：`autoGroups` 默认是 `suggest`，`lazy_tools_scan` 会告诉你「发现哪些前缀家族、建议怎么建组」；确认后用 `lazy_tools_save_groups` 或手写进 groups 文件。
+**不需要任何配置**：`autoGroups` 默认是 `on`（2026-10-29 从 `suggest` 改的 —— `suggest` 只写建议、普通用户根本碰不到，等于功能不存在）。想要「先审核再收纳」的人，把它调回 `suggest`，再用 `lazy_tools_scan` 看建议、`lazy_tools_save_groups` 落盘。
 
 ---
 
