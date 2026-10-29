@@ -19,6 +19,7 @@
     "locale/*.json",
     "icon.svg",
     "README.md",
+    "CHANGELOG.md",
     "DESIGN.md",
     "INTEROP.md",
     "LICENSE",
