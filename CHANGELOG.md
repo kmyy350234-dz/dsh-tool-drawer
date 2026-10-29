@@ -4,6 +4,12 @@
 
 ## [未发布]
 
+### 修复
+- **销毁竞态不再拖垮 `healthy`**：子代理被销毁时 `restrict` 会抛 `cannot create effect on inactive context`，原来这条记进 `errors` ⇒ `healthy=false`（2026-10-30 实测：subagent 一退出，主会话 health 就报 unhealthy）。现在它**仍留在 `errors` 里作证据**，但**不参与 healthy 判定**，并单独计数 `stats.restrictSkipped`。冒烟 `[13]` 加了回归断言——退回旧写法时它必红（已双向验证：旧码退出码 1、新码 49 项全过）。
+
+### 工程
+- 冒烟测试支持 `--quiet`：只打汇总和失败项。pre-commit 钩子改用它，每次提交少打约 49 行。
+
 ### 新增（按 DSH 作者在 #11207 给的诊断法）
 - **`lazy_tools_health` 支持 `{tool: "名字"}`**：一次给出「全局注册 / agent 作用域 / 本会话工具表 / `run_code` 在不在」四个事实，把「工具看不见」拆成四种因：没注册 / 被作用域过滤 / 被 `schemas(agent)` 过滤 / 只走 PTC。
 - **blocked 状态改成实测三态**：`not-registered` / `agent-filtered` / `filtered-by-schemas`（量不出来时明写 `unverified`），并带上探针结果。原来那句「宿主没挂载」是猜的——2026-10-30 实测 `cua_driver_native__list_apps`：`global=true`、`agent=true`、不在工具表，即被 `schemas(agent)` 滤掉。

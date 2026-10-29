@@ -23,10 +23,14 @@ process.env.LAZY_TOOLS_POLICY_FILE = `${NO_SUCH}.policy.json`
 // （vision_describe 真的热）而少收了一个工具、断言失败 —— 测试不能看用户的历史。
 process.env.LAZY_TOOLS_USAGE_FILE = `${NO_SUCH}.usage.json`
 
+// --quiet：只打汇总和失败项。钩子每次提交都跑它，49 行逐条输出纯属浪费（2026-10-30 加的）。
+const quiet = process.argv.includes('--quiet')
+const log = quiet ? () => {} : (...args) => console.log(...args)
+
 let checks = 0
 function ok(label) {
   checks += 1
-  console.log(`  ok  ${label}`)
+  log(`  ok  ${label}`)
 }
 
 function assertJsonSafe(value, path = 'value') {
@@ -197,7 +201,7 @@ async function runTool(world, name, args, agent) {
 }
 
 async function main() {
-  console.log('[1] 载入与注册')
+  log('[1] 载入与注册')
   const world = makeWorld()
   // 宿主全局工具：两个属于 cua 组，一个不属于
   world.ctx.tools.register({ name: 'cua_driver_native__a', description: 'x', parameters: {}, output: {} })
@@ -215,7 +219,7 @@ async function main() {
   }
   ok('十一个工具都注册上了')
 
-  console.log('[2] agent 创建时按 defaultOn 收起')
+  log('[2] agent 创建时按 defaultOn 收起')
   const agent = world.createAgent('agent-1')
   const deny = world.denyByAgent.get(agent)
   assert.deepEqual([...deny].sort(), ['cua_driver_native__a', 'cua_driver_native__b'])
@@ -230,7 +234,7 @@ async function main() {
   assert.equal(cua.visible, 0)
   ok('status 报 cua: on=false mode=hide, matched=2, visible=0')
 
-  console.log('[3] enable / disable 往返')
+  log('[3] enable / disable 往返')
   const enabled = await runTool(world, 'lazy_tools_enable', { group: 'cua' }, agent)
   assert.deepEqual(enabled, { enabled: 'cua' })
   assert.equal(world.denyByAgent.get(agent).size, 0)
@@ -240,7 +244,7 @@ async function main() {
   assert.equal(afterEnable.groups.find((g) => g.id === 'cua').visible, 2)
   ok('enable 之后限制解除、两个工具回来')
 
-  console.log('[3a] only：只放指定的几个工具')
+  log('[3a] only：只放指定的几个工具')
   const onlyResult = await runTool(world, 'lazy_tools_enable', { group: 'cua', only: ['cua_driver_native__a'] }, agent)
   assert.deepEqual(onlyResult, { enabled: 'cua', only: ['cua_driver_native__a'] })
   assert.deepEqual([...world.denyByAgent.get(agent)].sort(), ['cua_driver_native__b'])
@@ -266,7 +270,7 @@ async function main() {
   assert.match(badGroup.error, /unknown group/)
   ok('未知组返回 error 而不是抛异常')
 
-  console.log('[3b] list：组关着也认得名字、开着标可见')
+  log('[3b] list：组关着也认得名字、开着标可见')
   const listWhileOff = await runTool(world, 'lazy_tools_list', { group: 'cua' }, agent)
   assert.equal(listWhileOff.count, 2)
   assert.equal(listWhileOff.visible, 0)
@@ -280,7 +284,7 @@ async function main() {
   await runTool(world, 'lazy_tools_disable', { group: 'cua' }, agent)
   ok('list 行为正确（关=知道但不可见、开=可见、省略组=全部已知）')
 
-  console.log('[3c] re: 前缀的正则匹配式')
+  log('[3c] re: 前缀的正则匹配式')
   const worldRe = makeWorld()
   worldRe.ctx.tools.register({ name: 'cua_driver_native__get_x', description: 'x', parameters: {}, output: {} })
   worldRe.ctx.tools.register({ name: 'cua_driver_native__click', description: 'x', parameters: {}, output: {} })
@@ -297,7 +301,7 @@ async function main() {
   assert.equal(reStatus.groups.find((g) => g.id === 'input').matched, 1)
   ok('re: 正则分组可用（screen 1 / input 1）')
 
-  console.log('[4] scan / health 的输出')
+  log('[4] scan / health 的输出')
   const scan = await runTool(world, 'lazy_tools_scan', {}, agent)
   assertJsonSafe(scan, 'scan')
   // 可见 = 插件自己的 11 个工具 + other_tool；两个 cua 工具此刻仍被收着
@@ -314,7 +318,7 @@ async function main() {
   assert.equal(health.stats.lastHidden.hidden, 2)
   ok('health: 四个契约全绿，agentCreated=1，lastHidden=2')
 
-  console.log('[5] 契约缺失时不崩')
+  log('[5] 契约缺失时不崩')
   const brokenWorld = makeWorld()
   brokenWorld.ctx.tools = {} // 没有 register / schemas
   apply(brokenWorld.ctx, {})
@@ -322,7 +326,7 @@ async function main() {
   assert.equal(brokenWorld.registered.size, 0)
   ok('宿主缺 register/schemas 时 apply 不抛（插件不炸启动）')
 
-  console.log('[6] restrict 拒绝时记账，不阻断')
+  log('[6] restrict 拒绝时记账，不阻断')
   const world2 = makeWorld()
   apply(world2.ctx, { groups: [{ id: 'cua', match: ['cua_driver_native__*'], defaultOn: false }] })
   world2.ctx.tools.register({ name: 'cua_driver_native__a', description: 'x', parameters: {}, output: {} })
@@ -339,7 +343,7 @@ async function main() {
   assert.ok(health2.errors.some((e) => e.where === 'tools.restrict'))
   ok('restrict 抛错被记账（restrictFailures=1），工具仍可用')
 
-  console.log('[7] 重载补应用：apply 时已经活着的 agent 也要被收')
+  log('[7] 重载补应用：apply 时已经活着的 agent 也要被收')
   const world3 = makeWorld()
   world3.ctx.tools.register({ name: 'cua_driver_native__a', description: 'x', parameters: {}, output: {} })
   const alive = world3.makeAgent('agent-alive')
@@ -348,7 +352,7 @@ async function main() {
   assert.equal(world3.denyByAgent.get(alive).size, 1)
   ok('apply 时把限制补到已存在的 agent（不用等 agent/created 再触发一次）')
 
-  console.log('[8] 插件卸载/重载：限制必须随 ctx.effect 一起解除（不留孤儿）')
+  log('[8] 插件卸载/重载：限制必须随 ctx.effect 一起解除（不留孤儿）')
   const world4 = makeWorld()
   world4.ctx.tools.register({ name: 'cua_driver_native__a', description: 'x', parameters: {}, output: {} })
   apply(world4.ctx, { groups: [{ id: 'cua', match: ['cua_driver_native__*'], defaultOn: false }] })
@@ -360,7 +364,7 @@ async function main() {
   for (const dispose of disposers) if (typeof dispose === 'function') dispose() // 二次解除必须空操作
   ok('卸载时限制被解除干净，重复解除不抛')
 
-  console.log('[9] 常驻提示段：systemPrompt 在就挂一段，不在就跳过')
+  log('[9] 常驻提示段：systemPrompt 在就挂一段，不在就跳过')
   const world5 = makeWorld()
   const sections = []
   world5.ctx.inject = (deps, callback) => {
@@ -383,7 +387,7 @@ async function main() {
   assert.match(promptText, /cua/)
   ok('systemPrompt 段已挂上，正文包含组 id 与排查入口')
 
-  console.log('[10] 漏网与 expect 计数')
+  log('[10] 漏网与 expect 计数')
   const world6 = makeWorld()
   world6.ctx.tools.register({ name: 'cua_driver_native__a', description: 'x', parameters: {}, output: {} })
   world6.ctx.tools.register({ name: 'cua_driver_native__b', description: 'x', parameters: {}, output: {} })
@@ -421,7 +425,7 @@ async function main() {
   assert.equal(health7b.healthy, true)
   ok('写在 keep 里的常驻工具不会被误报成漏网')
 
-  console.log('[11] tools/change：后注册的工具会触发补收起')
+  log('[11] tools/change：后注册的工具会触发补收起')
   const world8 = makeWorld()
   apply(world8.ctx, { groups: [{ id: 'cua', match: ['cua_driver_native__*'], defaultOn: false }] })
   const agent8 = world8.createAgent('agent-change')
@@ -431,7 +435,7 @@ async function main() {
   assert.equal(world8.denyByAgent.get(agent8).has('cua_driver_native__late'), true)
   ok('插件后于工具加载时，tools/change 会把新工具补收进来')
 
-  console.log('[12] 批量开关与用量统计')
+  log('[12] 批量开关与用量统计')
   const world9 = makeWorld()
   world9.ctx.tools.register({ name: 'cua_driver_native__a', description: 'x', parameters: {}, output: {} })
   world9.ctx.tools.register({ name: 'vision_describe', description: 'x', parameters: {}, output: {} })
@@ -455,7 +459,7 @@ async function main() {
   assert.ok(health9.usage.some((u) => u.id === 'cua' && u.enables === 1), JSON.stringify(health9.usage))
   ok('批量 enable 生效、only+多组被拒、usage 记账')
 
-  console.log('[13] 作用域已销毁：不算失败，但必须标 applied=no')
+  log('[13] 作用域已销毁：不算失败，但必须标 applied=no')
   const worldA = makeWorld()
   worldA.ctx.tools.register({ name: 'cua_driver_native__a', description: 'x', parameters: {}, output: {} })
   apply(worldA.ctx, { groups: [{ id: 'cua', match: ['cua_driver_native__*'], defaultOn: false }] })
@@ -471,9 +475,12 @@ async function main() {
   assert.equal(healthA.stats.restrictFailures, 0)
   assert.equal(healthA.stats.lastHidden.applied, false)
   assert.ok(healthA.errors.some((e) => e.where.includes('agent 已销毁')), JSON.stringify(healthA.errors))
+  // 2026-10-30 实测抓到的回归：这条记录曾把 healthy 拖成 false（subagent 销毁后每轮报 unhealthy）。
+  // 修法是「记录保留、但不参与 healthy 判定」——所以这条断言必须在这里，[13] 才算真的守住。
+  assert.equal(healthA.healthy, true, '销毁竞态不许把 healthy 拖成 false')
   ok('已销毁作用域的竞争不计失败，lastHidden.applied=false')
 
-  console.log('[14] 同一进程内重新 apply：先收回旧限制再重建（不留孤儿）')
+  log('[14] 同一进程内重新 apply：先收回旧限制再重建（不留孤儿）')
   const worldB = makeWorld()
   worldB.ctx.tools.register({ name: 'cua_driver_native__a', description: 'x', parameters: {}, output: {} })
   const reapplyCfg = { groups: [{ id: 'cua', match: ['cua_driver_native__*'], defaultOn: false }] }
@@ -487,7 +494,7 @@ async function main() {
   assert.equal(statusB.groups.find((g) => g.id === 'cua').matched, 1)
   ok('重新 apply 时旧限制被收回再重建，state 能重新看见工具（matched=1）')
 
-  console.log('[15] resolve：按名字一步开启')
+  log('[15] resolve：按名字一步开启')
   const worldC = makeWorld()
   worldC.ctx.tools.register({ name: 'cua_driver_native__a', description: 'x', parameters: {}, output: {} })
   worldC.ctx.tools.register({ name: 'cua_driver_native__b', description: 'x', parameters: {}, output: {} })
@@ -507,7 +514,7 @@ async function main() {
   assert.equal(r3.found, false)
   ok('resolve：一步开一个（only 语义）、片段能匹配、找不到给提示')
 
-  console.log('[16] 关键词预开：用户说了 autoHints 里的词，工具自己出现')
+  log('[16] 关键词预开：用户说了 autoHints 里的词，工具自己出现')
   const worldE = makeWorld()
   worldE.ctx.tools.register({ name: 'cua_driver_native__a', description: 'x', parameters: {}, output: {} })
   apply(worldE.ctx, {
@@ -522,7 +529,7 @@ async function main() {
   assert.equal(autoHealth.stats.userMessages, 1)
   ok('命中 autoHints → 自动开组，health 记 autoOpened=1 / userMessages=1')
 
-  console.log('[17] 设置页策略文件：只收认识的键')
+  log('[17] 设置页策略文件：只收认识的键')
   assert.deepEqual(normalizePolicy({ level: 'high', idleDays: 7, minTools: 2, showDock: true, showClear: true }), {
     level: 'high',
     idleDays: 7,
@@ -536,7 +543,7 @@ async function main() {
   assert.deepEqual(normalizePolicy(null), {})
   ok('非法的 level/天数/工具数被丢弃，字符串数组过滤干净')
 
-  console.log('[18] 用量账本：热/冷判定')
+  log('[18] 用量账本：热/冷判定')
   assert.deepEqual(LEVEL_DAYS, { low: 14, medium: 7, high: 3 })
   const usage = { groups: {}, tools: {} }
   const stamp = Date.now()
@@ -550,7 +557,7 @@ async function main() {
   assert.equal(usage.groups.dsh_browser_open, undefined)
   ok('7 天内用过=热、1 天阈值=冷、无记录=冷、阈值 0=恒热、无组工具只记工具名')
 
-  console.log('[19] 用量落盘：调用一次 → 账本有记录、组变热')
+  log('[19] 用量落盘：调用一次 → 账本有记录、组变热')
   const usagePath = join(tmpdir(), `lazy-tools-usage-${process.pid}.json`)
   process.env.LAZY_TOOLS_USAGE_FILE = usagePath
   const worldF = makeWorld()
@@ -566,7 +573,7 @@ async function main() {
   rmSync(usagePath, { force: true })
   process.env.LAZY_TOOLS_USAGE_FILE = `${NO_SUCH}.usage.json`
   ok('pre-execute 记账 → usage 文件写出组时间戳、status.hot=true')
-  console.log('[20] 会话级覆盖：lazy_tools_mode 立刻重算默认开哪些组')
+  log('[20] 会话级覆盖：lazy_tools_mode 立刻重算默认开哪些组')
   const worldG = makeWorld()
   worldG.ctx.tools.register({ name: 'cua_driver_native__a', description: 'x', parameters: {}, output: {} })
   apply(worldG.ctx, { groups: [{ id: 'cua', match: ['cua_driver_native__*'], defaultOn: false }] })
@@ -580,7 +587,7 @@ async function main() {
   assert.equal(worldG.denyByAgent.get(agentG).size, 1)
   ok('idleDays:0 → 全开；reset → 回全局（无历史 ⇒ 又收起）')
 
-  console.log('[21] 自愈守卫：被藏工具的调用被拦下、自动补开')
+  log('[21] 自愈守卫：被藏工具的调用被拦下、自动补开')
   const worldH = makeWorld()
   worldH.ctx.tools.register({ name: 'cua_driver_native__a', description: 'x', parameters: {}, output: {} })
   apply(worldH.ctx, { groups: [{ id: 'cua', match: ['cua_driver_native__*'], defaultOn: false }] })
@@ -592,7 +599,7 @@ async function main() {
   const healthH = await runTool(worldH, 'lazy_tools_health', {}, agentH)
   assert.equal(healthH.stats.selfHealed, 1)
   ok('守卫拦下 + 补开该工具 + health.selfHealed=1')
-  console.log('[22] 斜杠命令 /lazy-tools：改当前会话、乱输入报错')
+  log('[22] 斜杠命令 /lazy-tools：改当前会话、乱输入报错')
   const worldI = makeWorld()
   worldI.ctx.tools.register({ name: 'cua_driver_native__a', description: 'x', parameters: {}, output: {} })
   apply(worldI.ctx, { groups: [{ id: 'cua', match: ['cua_driver_native__*'], defaultOn: false }] })
@@ -607,7 +614,7 @@ async function main() {
   const badResult = command.handler({ agent: agentI, rawInput: 'bogus' })
   assert.equal(badResult.kind, 'error')
   ok('/lazy-tools high 生效；无参数读状态；乱输入报错')
-  console.log('[23] 清空之后还能自己捞回来（设计红线）')
+  log('[23] 清空之后还能自己捞回来（设计红线）')
   const worldJ = makeWorld()
   worldJ.ctx.tools.register({ name: 'cua_driver_native__a', description: 'x', parameters: {}, output: {} })
   worldJ.ctx.tools.register({ name: 'cua_driver_native__b', description: 'x', parameters: {}, output: {} })
@@ -623,7 +630,7 @@ async function main() {
   await runTool(worldJ, 'lazy_tools_enable', { group: 'cua' }, agentJ)
   assert.equal(worldJ.denyByAgent.get(agentJ).size, 0)
   ok('立刻清空 → resolve 单个 / enable 整组 都能捞回')
-  console.log('[24] 三处名字必须一致（2026-10-24 五次恢复模式的根因）')
+  log('[24] 三处名字必须一致（2026-10-24 五次恢复模式的根因）')
     const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
     const clientSrc = readFileSync(new URL('../client.js', import.meta.url), 'utf8')
     const patchSrc = readFileSync(new URL('../cordis.patch.yml', import.meta.url), 'utf8')
@@ -636,7 +643,7 @@ async function main() {
     assert.match(pkg.version, /^\d+\.\d+\.\d+$/, '版本号不是 x.y.z')
     assert.ok(pkg.dsh && pkg.dsh.bundle && pkg.dsh.bundle.patch, 'package.json 缺 dsh.bundle.patch，装不上')
     ok('包名 / 客户端 id / patch 行名三处一致；版本号合法；bundle 声明在')
-    console.log('[25] 自动分组：切分、白名单、80% 规则、上限')
+    log('[25] 自动分组：切分、白名单、80% 规则、上限')
     const { tokenize, suggestGroups, matchPattern, normalizeAutoMode } = await import('../lib/autogroups.js')
     assert.deepEqual(tokenize('cua_driver_native__list_apps'), ['cua_driver_native'])
     assert.deepEqual(tokenize('mnemon_view_route'), ['mnemon', 'view', 'route'])
@@ -673,7 +680,7 @@ async function main() {
     const capped = suggestGroups(names, covered, { minTools: 3, maxGroups: 1 })
     assert.equal(capped.suggestions.length, 1, 'maxGroups 应生效')
     ok('切分 / 白名单 / 覆盖淘汰 / 数量上限 都对')
-    console.log('[26] 自动分组：子族覆盖不足时不许拆大族（mnemon 17 不该碎成两个 3）')
+    log('[26] 自动分组：子族覆盖不足时不许拆大族（mnemon 17 不该碎成两个 3）')
     const realish = [
       'mnemon_memory_body_create', 'mnemon_memory_body_merge', 'mnemon_memory_body_update',
       'mnemon_document_create', 'mnemon_document_manage', 'mnemon_document_search',
@@ -687,7 +694,7 @@ async function main() {
     assert.equal(mn.expect, 17, '整族数量应为 17')
     assert.ok(!collapsed.suggestions.some((item) => item.id.startsWith('auto-mnemon-')), '不该碎成子族')
     ok('子族覆盖不足 80% 时保留整族')
-    console.log('[27] autoGroups=on：真的建组并按规则收起')
+    log('[27] autoGroups=on：真的建组并按规则收起')
     const worldAuto = makeWorld()
     for (const name of ['smokefam_alpha', 'smokefam_beta', 'smokefam_gamma', 'smokefam_delta']) {
       worldAuto.ctx.tools.register({ name, description: 'x', parameters: {}, output: {} })
@@ -700,7 +707,7 @@ async function main() {
     assert.equal(autoGroup.matched, 4)
     assert.equal(worldAuto.denyByAgent.get(agentAuto).has('smokefam_alpha'), true, '应默认收起')
     ok('自动组已创建且默认收起')
-    console.log('[28] 冷启动顺序：apply 时没工具，会话开始才注册 → 仍要建出自动组')
+    log('[28] 冷启动顺序：apply 时没工具，会话开始才注册 → 仍要建出自动组')
     const worldRace = makeWorld()
     apply(worldRace.ctx, { groups: [], autoGroups: 'on' })   // 此刻一个工具都没有
     for (const name of ['latefam_a', 'latefam_b', 'latefam_c']) {
@@ -712,7 +719,7 @@ async function main() {
     assert.ok(lateGroup, '延迟注册的工具族也要能建组')
     assert.equal(lateGroup.matched, 3)
     ok('会话开始时补算生效')
-    console.log('[29] extraGroups：追加而不替换默认四组')
+    log('[29] extraGroups：追加而不替换默认四组')
     const worldExtra = makeWorld()
     for (const name of ['list_windows', 'get_window_state', 'click', 'type_text', 'launch_app']) {
       worldExtra.ctx.tools.register({ name, description: 'x', parameters: {}, output: {} })
@@ -731,7 +738,7 @@ async function main() {
     const observe = statusExtra.groups.find((g) => g.id === 'cu-observe')
     assert.equal(observe.matched, 2)
     ok('extraGroups 追加成功、默认组保留')
-    console.log('[30] 分类交接：save_groups 必须拒绝常驻工具')
+    log('[30] 分类交接：save_groups 必须拒绝常驻工具')
     const worldCls = makeWorld()
     apply(worldCls.ctx, { groups: [], autoGroups: 'off' })
     const agentCls = worldCls.createAgent('agent-cls')
@@ -745,7 +752,7 @@ async function main() {
     assert.equal(smallSave.saved, 0)
     assert.ok(smallSave.issues.some((s) => s.includes('少于 2')), '必须拒绝单工具组')
     ok('classify 给材料、save_groups 拒绝常驻与单工具组')
-    console.log('[31] 分类提示开关：默认开，关掉后提示段里不出现')
+    log('[31] 分类提示开关：默认开，关掉后提示段里不出现')
     const mkWorldWithPrompt = () => {
       const world = makeWorld()
       const sections = []
@@ -776,7 +783,7 @@ async function main() {
     assert.ok(offText.includes('lazy_tools_status'), '关闭后基础提示还在')
     ok('分类提示默认开、可关，关掉不影响基础提示')
 
-    console.log('[32] 宿主没挂载的组：静音待命，不拉低 healthy')
+    log('[32] 宿主没挂载的组：静音待命，不拉低 healthy')
     const worldNM = makeWorld()
     worldNM.ctx.tools.register({ name: 'cua_driver_native__a', description: 'x', parameters: {}, output: {} })
     worldNM.ctx.tools.register({ name: 'cua_driver_native__b', description: 'x', parameters: {}, output: {} })
@@ -799,7 +806,7 @@ async function main() {
     assert.ok(hNM.groups.find((g) => g.id === 'cua').blockedProbe, '要带上探针结果（global/agent 两个布尔）')
     ok('[32] 注册了但不在工具表 → blocked:filtered-by-schemas、不报警、healthy 仍 true、notes 带实测原因')
 
-    console.log('[33] 宿主修好了：监控自动恢复，不用做任何事')
+    log('[33] 宿主修好了：监控自动恢复，不用做任何事')
     remountCua()
     const hNM2 = await runTool(worldNM, 'lazy_tools_health', {}, agentNM)
     const gNM2 = hNM2.groups.find((g) => g.id === 'cua')
@@ -808,7 +815,7 @@ async function main() {
     assert.equal(hNM2.healthy, true)
     ok('挂回来后 blocked 消失、visible=2 —— 监控自己恢复')
 
-    console.log('[34] 挂过又消失：这个必须响')
+    log('[34] 挂过又消失：这个必须响')
     const unmountAgain = worldNM.unmount(agentNM, ['cua_driver_native__a', 'cua_driver_native__b'])
     const hNM3 = await runTool(worldNM, 'lazy_tools_health', {}, agentNM)
     const gNM3 = hNM3.groups.find((g) => g.id === 'cua')
@@ -819,7 +826,7 @@ async function main() {
     unmountAgain()
     ok('出现过又消失 → 报警、healthy=false（静音没有把真异常一起吞掉）')
 
-    console.log('[35] bench 口径：可见 + 收起 + 宿主没挂 === 注册总数')
+    log('[35] bench 口径：可见 + 收起 + 宿主没挂 === 注册总数')
     const worldBench = makeWorld()
     // 两组：gg 关着（它的 2 个工具是我们收的）／hh 开着（其中 h_two 宿主没挂）
     for (const n of ['g_one', 'g_two', 'h_one', 'h_two', 'keep_one']) worldBench.ctx.tools.register({ name: n, description: 'x'.repeat(20), parameters: {}, output: {} })
@@ -840,7 +847,7 @@ async function main() {
     assert.equal(benchB.visibleInRegistry + benchB.hidden + benchB.absent, benchB.tools, '三态必须能对上账')
     ok('bench：收起 2 + absent 1 + 注册内可见 (tools-3) = 注册总数，账能对上')
 
-    console.log('[36] tools/change 冷却：先检查再盖章，3 秒内新注册的工具不能漏')
+    log('[36] tools/change 冷却：先检查再盖章，3 秒内新注册的工具不能漏')
     const worldLeak = makeWorld()
     worldLeak.ctx.tools.register({ name: 'late_one', description: 'x', parameters: {}, output: {} })
     apply(worldLeak.ctx, { groups: [{ id: 'late', match: ['late_*'], title: 'late', defaultOn: false }], autoGroups: 'off' })
@@ -854,7 +861,7 @@ async function main() {
     assert.ok(denyLeak.has('late_two'), `3 秒内新增的 late_two 也必须被收起；实际 deny=${[...denyLeak].join(',')}`)
     ok('冷启动 3 秒内新增的工具仍被收起（冷却只限重建频率，不吞检查）')
 
-    console.log('[37] 设置页只改档位时，生效天数跟着档位走')
+    log('[37] 设置页只改档位时，生效天数跟着档位走')
     const { applyPolicyPatch } = await import('../lib/api.js')
     const pol = { level: 'high', idleDays: 3, presets: { low: 14, medium: 7, high: 3 } }
     applyPolicyPatch(pol, { level: 'low' })
@@ -865,7 +872,7 @@ async function main() {
     assert.equal(pol.idleDays, 7, 'idleDays 为 null 视为没碰，跟着档位重新算')
     ok('档位→天数跟随；显式天数优先')
 
-    console.log('[38] 单工具热度：组里只放常用的那几个，其余继续收')
+    log('[38] 单工具热度：组里只放常用的那几个，其余继续收')
     const usagePath2 = join(tmpdir(), `lazy-tools-usage2-${process.pid}.json`)
     writeFileSync(usagePath2, JSON.stringify({ groups: {}, tools: { cua_driver_native__a: new Date().toISOString() } }))
     process.env.LAZY_TOOLS_USAGE_FILE = usagePath2
@@ -881,7 +888,7 @@ async function main() {
     process.env.LAZY_TOOLS_USAGE_FILE = `${NO_SUCH}.usage.json`
     ok('单工具热度：only 只放热的那一个，同组其余仍收起')
 
-    console.log('[39] 常驻提示带组用途（能力目录）')
+    log('[39] 常驻提示带组用途（能力目录）')
     const promptWorld = mkWorldWithPrompt()
     promptWorld.world.ctx.tools.register({ name: 'cua_driver_native__a', description: 'x', parameters: {}, output: {} })
     apply(promptWorld.world.ctx, {
@@ -894,7 +901,7 @@ async function main() {
     assert.ok(promptText2.includes('cua(桌面·看)'), `提示里要有组用途：${promptText2.slice(0, 140)}`)
     ok('提示段列「组 id(用途)」，模型才知道抽屉里有什么')
 
-    console.log('[40] glob 里的 ? 必须按字面量转义')
+    log('[40] glob 里的 ? 必须按字面量转义')
     const worldQ = makeWorld()
     worldQ.ctx.tools.register({ name: 'ab', description: 'x', parameters: {}, output: {} })
     worldQ.ctx.tools.register({ name: 'a?b', description: 'x', parameters: {}, output: {} })
