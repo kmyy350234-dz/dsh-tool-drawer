@@ -1009,20 +1009,21 @@ async function main() {
 
     // 2026-10-30 挑刺：firstTryRate 的分子原来是「补救次数」，语义反了 ——
     // 旧公式 (autoOpened + selfHealed)/toolCalls 在没有自愈时给 0（读成"成功率 0%"），实际应该是 100%。
-    console.log('[43] firstTryRate：没有自愈时必须是 1（旧公式会给 0）')
+    // 2026-10-30 挑刺（第二轮）：分母原来数**所有**工具的 pre-execute，而 read/write/bash 永不入组、
+    // 不可能自愈 —— 200 次调用里 190 次核心工具，5 次自愈会被读成 97.5%，组内其实是 50%。
+    // 现在分母只算「属于某个组」的调用；这个用例同时守住语义（无自愈=1）和分母口径（核心工具不计）。
+    console.log('[43] firstTryRate：无自愈=1，且分母只数组内调用')
     const worldRate = makeWorld()
-    apply(worldRate.ctx, { groups: [], autoGroups: 'off' })
+    worldRate.ctx.tools.register({ name: 'g_rate', description: 'x', parameters: {}, output: {} })
+    apply(worldRate.ctx, { groups: [{ id: 'gr', match: ['g_rate'], defaultOn: true }], autoGroups: 'off' })
     const agentRate = worldRate.createAgent('agent-rate')
-    for (let i = 0; i < 20; i += 1) await worldRate.firePreExecute(agentRate, 'lazy_tools_status')
+    for (let i = 0; i < 20; i += 1) await worldRate.firePreExecute(agentRate, 'g_rate')
+    for (let i = 0; i < 5; i += 1) await worldRate.firePreExecute(agentRate, 'lazy_tools_status') // 核心工具，不计
     const hRate = await runTool(worldRate, 'lazy_tools_health', {}, agentRate)
-    assert.ok(hRate.stats.toolCalls >= 20, `toolCalls 要累计到 20，实际 ${hRate.stats.toolCalls}`)
+    assert.equal(hRate.stats.toolCalls, 20, `分母只该数组内调用（实际 ${hRate.stats.toolCalls}）`)
     assert.equal(hRate.stats.selfHealed, 0, '这个场景没有自愈')
-    assert.equal(
-      hRate.stats.firstTryRate,
-      1,
-      `没有自愈时首次成功率应为 1，实际 ${hRate.stats.firstTryRate}（旧公式会给 0）`,
-    )
-    ok('firstTryRate = 1 - 自愈次数/调用数（不是「补救次数占比」）')
+    assert.equal(hRate.stats.firstTryRate, 1, `无自愈时首次成功率应为 1（实际 ${hRate.stats.firstTryRate}）`)
+    ok('firstTryRate = 1 - 自愈/组内调用；核心工具调用不进分母')
 
     console.log(`\nsmoke: ${checks} 项全过`)
 }
