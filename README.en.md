@@ -71,9 +71,9 @@ Every tool schema is tokens in *every* request. A desktop-automation plugin can 
 browser plugin 30+, a vision plugin a dozen — hundreds of definitions the model reads on each turn,
 even when the task never needs them.
 
-Measured on one machine: 168 registered tools, 48 of them kept out of every request by the default
-groups — **94,792 characters per request**. (The table above explains the caveat: 19 tools this host
-never mounts are counted separately, and a machine where everything mounts collapses 67.)
+The numbers are measured, not estimated — see the table above, which is the **only** place these
+figures live. It also explains the one caveat: 19 tools this host never mounts are counted separately,
+and a machine where everything mounts collapses 67.
 
 ## How it differs from a proxy or an embedding router
 

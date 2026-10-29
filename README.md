@@ -279,7 +279,7 @@ MIT，见 [LICENSE](LICENSE)。
 ## English summary
 
 Tool Drawer for DeepSeek Harness: keeps heavy tool groups out of every request and restores them on
-demand (one call, a keyword, or a dispatch guard). 168 registered tools, 48 collapsed by the default
-groups (94,792 characters) on one machine, measured. No proxy, no embeddings, no judge model — real calls stay
+demand (one call, a keyword, or a dispatch guard). The numbers are measured, not estimated — see the
+table above (that table is the **only** place these figures live). No proxy, no embeddings, no judge model — real calls stay
 native. Install with `plugin_manager install_bundle`; configure in the DSH settings page. MIT,
 best-effort maintenance.
