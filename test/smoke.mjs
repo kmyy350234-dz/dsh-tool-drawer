@@ -889,6 +889,18 @@ async function main() {
     assert.ok(promptText2.includes('cua(桌面·看)'), `提示里要有组用途：${promptText2.slice(0, 140)}`)
     ok('提示段列「组 id(用途)」，模型才知道抽屉里有什么')
 
+    console.log('[40] glob 里的 ? 必须按字面量转义')
+    const worldQ = makeWorld()
+    worldQ.ctx.tools.register({ name: 'ab', description: 'x', parameters: {}, output: {} })
+    worldQ.ctx.tools.register({ name: 'a?b', description: 'x', parameters: {}, output: {} })
+    apply(worldQ.ctx, { groups: [{ id: 'q', match: ['a?b'], defaultOn: false }], autoGroups: 'off' })
+    const agentQ = worldQ.createAgent('agent-q')
+    const statusQ = await runTool(worldQ, 'lazy_tools_status', {}, agentQ)
+    const groupQ = statusQ.groups.find((g) => g.id === 'q')
+    assert.equal(groupQ.matched, 1, '`a?b` 只能匹配字面量 a?b，不能把 ab 也吃进来')
+    assert.equal(groupQ.visible, 0)
+    ok('`?` 转义后只匹配字面量（`*` 仍是通配符）')
+
     console.log(`\nsmoke: ${checks} 项全过`)
 }
 

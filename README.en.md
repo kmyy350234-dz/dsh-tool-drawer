@@ -71,9 +71,12 @@ Every tool schema is tokens in *every* request. A desktop-automation plugin can 
 browser plugin 30+, a vision plugin a dozen — hundreds of definitions the model reads on each turn,
 even when the task never needs them.
 
-The numbers are measured, not estimated — see the table above, which is the **only** place these
-figures live. It also explains the one caveat: 19 tools this host never mounts are counted separately,
+The numbers are measured, not estimated — see the table above, which is the **only** place these figures
+live. It also explains the one caveat: 19 tools this host never mounts are counted separately,
 and a machine where everything mounts collapses 67.
+**These are cold-start / not-yet-warmed numbers.** Over time, groups that get used stay open by design,
+so the collapsed count drifts down — that is the heat model working, not a doctored figure. Re-run
+`lazy_tools_bench` to reproduce.
 
 ## How it differs from a proxy or an embedding router
 
@@ -134,6 +137,10 @@ you want to change the pattern or add a `keep` list.
 | `suggest` | Only report suggestions in `lazy_tools_scan`; change nothing |
 | `on` (default) | Create the groups and collapse them by the usual rules. A collapsed tool is restored automatically the first time it is called, so a mis-grouped family costs one extra round-trip at worst |
 
+**A newly installed plugin may be auto-collapsed**: auto groups have ids starting with `auto-`
+(e.g. `auto-foo`); `lazy_tools_disable auto-foo` dissolves one. Core tools are never included, and a
+collapsed tool is restored by the guard the first time it is called.
+
 The rules are fixed in code, not guessed:
 
 - Split on `__` or `_`; **descend only when child families cover ≥80%** of the parent, otherwise keep
@@ -179,6 +186,9 @@ host half — no settings page.
 | `lazy_tools_mode {level?, idleDays?, reset?, collapse?}` | **this session only**: change the threshold and recompute which groups start open (`reset` → global policy, `collapse` → clear this conversation) |
 | `lazy_tools_scan` | every visible tool bucketed by name prefix, to help author new group patterns |
 | `lazy_tools_health` | contract self-check, `healthy`, `warnings`, `stray`, `usage`, `autoOpened`, `selfHealed`, recent errors |
+| `lazy_tools_bench` | measures the "tool schema tax" in characters: registered total, visible/collapsed, per group (the single source of the numbers in this README) |
+| `lazy_tools_classify` | lists bare-named tools that share no prefix and belong to no group, with descriptions, so an agent can group them once |
+| `lazy_tools_save_groups` | writes the chosen groups to `~/.dsh/lazy-tools.groups.json`; takes effect next session by default, `applyNow: true` applies immediately |
 
 `healthy: true` means: four contracts OK **and** no errors **and** no warnings.
 
