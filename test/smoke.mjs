@@ -9,7 +9,7 @@
 import assert from 'node:assert/strict'
 import { apply } from '../lib/index.js'
 import { normalizePolicy } from '../lib/api.js'
-import { isHot, recordUsage, LEVEL_DAYS, DAY } from '../lib/usage.js'
+import { isToolHot, recordUsage, LEVEL_DAYS, DAY } from '../lib/usage.js'
 import { readFileSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -574,10 +574,10 @@ async function main() {
   const usage = { groups: {}, tools: {} }
   const stamp = Date.now()
   recordUsage(usage, 'vision_ocr', 'vision-heavy', new Date(stamp - 2 * DAY))
-  assert.equal(isHot(usage, 'vision-heavy', 7, stamp), true)
-  assert.equal(isHot(usage, 'vision-heavy', 1, stamp), false)
-  assert.equal(isHot(usage, 'browser-heavy', 7, stamp), false)
-  assert.equal(isHot(usage, 'browser-heavy', 0, stamp), true)
+  assert.equal(isToolHot(usage, 'vision_ocr', 7, stamp), true)
+  assert.equal(isToolHot(usage, 'vision_ocr', 1, stamp), false)
+  assert.equal(isToolHot(usage, 'never_used', 7, stamp), false)
+  assert.equal(isToolHot(usage, 'never_used', 0, stamp), true)
   recordUsage(usage, 'dsh_browser_open', null, new Date(stamp))
   assert.equal(typeof usage.tools.dsh_browser_open, 'string')
   assert.equal(usage.groups.dsh_browser_open, undefined)
