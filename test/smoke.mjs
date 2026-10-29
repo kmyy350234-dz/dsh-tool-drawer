@@ -1054,7 +1054,7 @@ async function main() {
 
     // 2026-10-30 挑刺（第四轮）：CAP=3 是「永久自愈税」—— 常用 4~11 个工具的用户每个会话都为
     // 被藏的那几个付一次自愈。上限应与判据对齐：max(3, ceil(成员数 × warmRatio))。
-    console.log('[45] only 上限随组规模走（20 成员 5 热 = 25% → 放 5 个，不是 3 个）')
+    console.log('[45] 热工具全放（20 成员 5 热 = 25% → 放 5 个，不再有 CAP）')
     const usagePath45 = join(tmpdir(), `lazy-tools-usage45-${process.pid}.json`)
     const ledger45 = { groups: {}, tools: {}, counts: {} }
     const world45 = makeWorld()
@@ -1068,7 +1068,7 @@ async function main() {
     apply(world45.ctx, { groups: [{ id: 'cap', match: ['cap__*'], defaultOn: false }], autoGroups: 'off' })
     const agent45 = world45.createAgent('agent-cap')
     const deny45 = world45.denyByAgent.get(agent45)
-    for (let i = 0; i < 5; i += 1) assert.equal(deny45.has(`cap__t${i}`), false, `热的 cap__t${i} 必须放出来（CAP 不能卡 3）`)
+    for (let i = 0; i < 5; i += 1) assert.equal(deny45.has(`cap__t${i}`), false, `热的 cap__t${i} 必须放出来（不许再有 CAP 截断）`)
     for (let i = 5; i < 20; i += 1) assert.equal(deny45.has(`cap__t${i}`), true, `冷的 cap__t${i} 要继续收着`)
     const st45 = await runTool(world45, 'lazy_tools_status', {}, agent45)
     const grp45 = st45.groups.find((g) => g.id === 'cap')
@@ -1077,7 +1077,7 @@ async function main() {
     assert.equal(grp45.hot, false, '5/20 = 25% < 30%，hot 应为 false（与决策同语义）')
     rmSync(usagePath45, { force: true })
     process.env.LAZY_TOOLS_USAGE_FILE = `${NO_SUCH}.usage.json`
-    ok('only 上限 = max(3, ceil(成员数×warmRatio))，不是写死 3')
+    ok('only = 热的全放（旧 slice(0,3) 会漏掉 2 个）')
 
     // 对照组：warmRatio 可配 —— 调到 0.5 后 5/12（42%）不够热，仍走 only，且上限 6 允许 5 个全放
     console.log('[46] warmRatio 可配（0.5）：5/12 不够热 → only 5')
