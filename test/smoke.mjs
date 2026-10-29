@@ -94,6 +94,9 @@ function makeWorld() {
         registered.set(definition.name, definition)
         return () => registered.delete(definition.name)
       },
+      // 真实宿主：get() 查的是「注册表里有没有」，不受作用域过滤影响
+      // （#11207 官方给的 lookup：global 有、agent 有、但 schemas(agent) 里没有 = 被 schemas 层滤了）
+      get(name) { return registered.get(name) },
       schemas(agent) {
         const deny = (agent && denyByAgent.get(agent)) || new Set()
         const miss = (agent && unmounted.get(agent)) || new Set()
@@ -107,6 +110,7 @@ function makeWorld() {
     denyByAgent.set(agent, new Set())
     agent.ctx = {
       tools: {
+        get(name) { return registered.get(name) },
         restrict(filter) {
           const deny = denyByAgent.get(agent)
           const added = Array.isArray(filter && filter.deny) ? [...filter.deny] : []
@@ -788,11 +792,12 @@ async function main() {
     assert.equal(gNM.on, true)
     assert.equal(gNM.matched, 2)
     assert.equal(gNM.visible, 0)
-    assert.equal(gNM.blocked, 'host-not-mounted')
+    assert.equal(gNM.blocked, 'filtered-by-schemas')
     assert.deepEqual(hNM.warnings, [], `宿主没挂载不该算 warning：${JSON.stringify(hNM.warnings)}`)
     assert.equal(hNM.healthy, true, '静音待命不能让 healthy 变 false —— 否则每轮都在替宿主挨刀')
-    assert.ok(hNM.notes.some((n) => n.includes('静音待命')), `notes 要写明原因：${JSON.stringify(hNM.notes)}`)
-    ok('从未挂载 → 不报警、healthy 仍 true、组标 blocked:host-not-mounted、notes 有说明')
+    assert.ok(hNM.notes.some((n) => n.includes('schemas(agent) 过滤')), `notes 要写实测原因：${JSON.stringify(hNM.notes)}`)
+    assert.ok(hNM.groups.find((g) => g.id === 'cua').blockedProbe, '要带上探针结果（global/agent 两个布尔）')
+    ok('[32] 注册了但不在工具表 → blocked:filtered-by-schemas、不报警、healthy 仍 true、notes 带实测原因')
 
     console.log('[33] 宿主修好了：监控自动恢复，不用做任何事')
     remountCua()

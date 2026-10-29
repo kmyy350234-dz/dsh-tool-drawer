@@ -4,6 +4,10 @@
 
 ## [未发布]
 
+### 新增（按 DSH 作者在 #11207 给的诊断法）
+- **`lazy_tools_health` 支持 `{tool: "名字"}`**：一次给出「全局注册 / agent 作用域 / 本会话工具表 / `run_code` 在不在」四个事实，把「工具看不见」拆成四种因：没注册 / 被作用域过滤 / 被 `schemas(agent)` 过滤 / 只走 PTC。
+- **blocked 状态改成实测三态**：`not-registered` / `agent-filtered` / `filtered-by-schemas`（量不出来时明写 `unverified`），并带上探针结果。原来那句「宿主没挂载」是猜的——2026-10-30 实测 `cua_driver_native__list_apps`：`global=true`、`agent=true`、不在工具表，即被 `schemas(agent)` 滤掉。
+
 ### 修复（第三方复核 2026-10-29）
 - **glob 转义漏了 `?`**：转义集是 `[.+^${}()|[\]\\]`，手写 `foo?bar` 会变成正则 `/^foo?bar$/`（匹配 `fobar`）——照文档写却静默不生效。补一个字符，`*` 仍是通配符。冒烟 `[40]` 覆盖。
 - **`POST /lazy-tools/api/policy` 会把策略文件写空**：`readJsonBody` 在「body 超 64KB 被截断 / JSON 坏 / req 出错」时返回 `{}`，归一化后仍是 `{}`，写盘就把 `~/.dsh/lazy-tools.policy.json` 清空，却返回 200。现在**空策略一律拒绝**（400）——合法的设置页保存至少带一个已知键。现场验证：坏 JSON → 400，文件 sha256 未变。
