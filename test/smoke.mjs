@@ -1052,6 +1052,84 @@ async function main() {
     assert.equal(hRate.stats.firstTryRate, 1, `无自愈时首次成功率应为 1（实际 ${hRate.stats.firstTryRate}）`)
     ok('firstTryRate = 1 - 自愈/组内调用；核心工具调用不进分母')
 
+    // 2026-10-30 挑刺（第四轮）：CAP=3 是「永久自愈税」—— 常用 4~11 个工具的用户每个会话都为
+    // 被藏的那几个付一次自愈。上限应与判据对齐：max(3, ceil(成员数 × warmRatio))。
+    console.log('[45] only 上限随组规模走（20 成员 5 热 = 25% → 放 5 个，不是 3 个）')
+    const usagePath45 = join(tmpdir(), `lazy-tools-usage45-${process.pid}.json`)
+    const ledger45 = { groups: {}, tools: {}, counts: {} }
+    const world45 = makeWorld()
+    for (let i = 0; i < 20; i += 1) {
+      const name = `cap__t${i}`
+      world45.ctx.tools.register({ name, description: 'x', parameters: {}, output: {} })
+      if (i < 5) recordUsage(ledger45, name, 'cap', new Date())
+    }
+    writeFileSync(usagePath45, JSON.stringify(ledger45))
+    process.env.LAZY_TOOLS_USAGE_FILE = usagePath45
+    apply(world45.ctx, { groups: [{ id: 'cap', match: ['cap__*'], defaultOn: false }], autoGroups: 'off' })
+    const agent45 = world45.createAgent('agent-cap')
+    const deny45 = world45.denyByAgent.get(agent45)
+    for (let i = 0; i < 5; i += 1) assert.equal(deny45.has(`cap__t${i}`), false, `热的 cap__t${i} 必须放出来（CAP 不能卡 3）`)
+    for (let i = 5; i < 20; i += 1) assert.equal(deny45.has(`cap__t${i}`), true, `冷的 cap__t${i} 要继续收着`)
+    const st45 = await runTool(world45, 'lazy_tools_status', {}, agent45)
+    const grp45 = st45.groups.find((g) => g.id === 'cap')
+    assert.equal(grp45.onlyCount, 5, `only 应放 5 个，实际 ${grp45.onlyCount}`)
+    assert.equal(grp45.hotTools, 5, `hotTools 应报 5，实际 ${grp45.hotTools}`)
+    assert.equal(grp45.hot, false, '5/20 = 25% < 30%，hot 应为 false（与决策同语义）')
+    rmSync(usagePath45, { force: true })
+    process.env.LAZY_TOOLS_USAGE_FILE = `${NO_SUCH}.usage.json`
+    ok('only 上限 = max(3, ceil(成员数×warmRatio))，不是写死 3')
+
+    // 对照组：warmRatio 可配 —— 调到 0.5 后 5/12（42%）不够热，仍走 only，且上限 6 允许 5 个全放
+    console.log('[46] warmRatio 可配（0.5）：5/12 不够热 → only 5')
+    const usagePath46 = join(tmpdir(), `lazy-tools-usage46-${process.pid}.json`)
+    const ledger46 = { groups: {}, tools: {}, counts: {} }
+    const world46 = makeWorld()
+    for (let i = 0; i < 12; i += 1) {
+      const name = `ratio__t${i}`
+      world46.ctx.tools.register({ name, description: 'x', parameters: {}, output: {} })
+      if (i < 5) recordUsage(ledger46, name, 'ratio', new Date())
+    }
+    writeFileSync(usagePath46, JSON.stringify(ledger46))
+    process.env.LAZY_TOOLS_USAGE_FILE = usagePath46
+    apply(world46.ctx, {
+      groups: [{ id: 'ratio', match: ['ratio__*'], defaultOn: false }],
+      autoGroups: 'off',
+      warmRatio: 0.5,
+    })
+    const agent46 = world46.createAgent('agent-ratio')
+    const st46 = await runTool(world46, 'lazy_tools_status', {}, agent46)
+    const grp46 = st46.groups.find((g) => g.id === 'ratio')
+    assert.equal(grp46.mode, 'only', `5/12=42% < 50% ⇒ 应走 only，实际 ${grp46.mode}`)
+    assert.equal(grp46.onlyCount, 5, `上限 6 应容许 5 个全放，实际 ${grp46.onlyCount}`)
+    assert.equal(grp46.hot, false, '42% < 50% ⇒ hot=false（与决策同语义）')
+    rmSync(usagePath46, { force: true })
+    process.env.LAZY_TOOLS_USAGE_FILE = `${NO_SUCH}.usage.json`
+    ok('warmRatio 可配，且 status.hot 与决策同一语义')
+
+    // status.hot 曾经用「组时间戳」（任一工具热）；现在必须与占比判据一致
+    console.log('[47] status.hot 不再用旧语义：1/12 热 → hot=false，但 only 放 1 个')
+    const usagePath47 = join(tmpdir(), `lazy-tools-usage47-${process.pid}.json`)
+    const ledger47 = { groups: {}, tools: {}, counts: {} }
+    const world47 = makeWorld()
+    for (let i = 0; i < 12; i += 1) {
+      const name = `one__t${i}`
+      world47.ctx.tools.register({ name, description: 'x', parameters: {}, output: {} })
+    }
+    recordUsage(ledger47, 'one__t0', 'one', new Date()) // 组时间戳也写了，模拟真实账本
+    writeFileSync(usagePath47, JSON.stringify(ledger47))
+    process.env.LAZY_TOOLS_USAGE_FILE = usagePath47
+    apply(world47.ctx, { groups: [{ id: 'one', match: ['one__*'], defaultOn: false }], autoGroups: 'off' })
+    const agent47 = world47.createAgent('agent-one')
+    const st47 = await runTool(world47, 'lazy_tools_status', {}, agent47)
+    const grp47 = st47.groups.find((g) => g.id === 'one')
+    assert.equal(grp47.mode, 'only', '1/12 应走 only')
+    assert.equal(grp47.onlyCount, 1, 'only 只放 1 个')
+    assert.equal(grp47.hot, false, '8% < 30% ⇒ hot 必须是 false（旧语义会错报 true）')
+    assert.equal(grp47.lastUsed !== null, true, '但 lastUsed 仍要有（组级时间戳保留作展示）')
+    rmSync(usagePath47, { force: true })
+    process.env.LAZY_TOOLS_USAGE_FILE = `${NO_SUCH}.usage.json`
+    ok('hot 与决策一致；组级时间戳只留作 lastUsed')
+
     console.log(`\nsmoke: ${checks} 项全过`)
 }
 
