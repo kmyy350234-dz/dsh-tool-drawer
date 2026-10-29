@@ -980,6 +980,29 @@ async function main() {
     worldR.setSyncRestrictEvents(false)
     ok('连续开两个组：没有孤儿限制，两个工具都真的回来了')
 
+    // 2026-10-30 对面第二轮：冷却期内**第二次**晚注册会被整段跳过，且之后没有事件就永远漏着。
+    // 复现：先注册 late_one（触发一次检查并盖时间戳）→ 冷却内注册 late_two（被 continue 跳过）
+    //      → 之后没有事件 → late_two 一直可见。
+    console.log('[42] 冷却期内的晚注册：不许漏（要延迟核对一次）')
+    process.env.LAZY_TOOLS_COOLDOWN_MS = '60'
+    const worldT = makeWorld()
+    worldT.ctx.tools.register({ name: 'g_one', description: 'x', parameters: {}, output: {} })
+    apply(worldT.ctx, { groups: [{ id: 'gh', match: ['g_*'], defaultOn: false }], autoGroups: 'off' })
+    const agentT = worldT.createAgent('agent-late')
+    const onlyG2 = () => worldT.visibleNames(agentT).filter((n) => n.startsWith('g_'))
+    assert.deepEqual(onlyG2(), [], '初始 g_one 应该被藏起来')
+    worldT.ctx.tools.register({ name: 'g_late_one', description: 'x', parameters: {}, output: {} })
+    worldT.fireToolsChange()
+    assert.deepEqual(onlyG2(), [], '第一次晚注册：立刻被藏起来（并开始冷却）')
+    worldT.ctx.tools.register({ name: 'g_late_two', description: 'x', parameters: {}, output: {} })
+    worldT.fireToolsChange()
+    // 这一刻就是 bug 现场：冷却把它整段跳过，于是它**可见**
+    assert.deepEqual(onlyG2(), ['g_late_two'], `冷却内第二次晚注册此刻应还是露着的（实际：${JSON.stringify(onlyG2())}）`)
+    await new Promise((resolve) => setTimeout(resolve, 250))
+    assert.deepEqual(onlyG2(), [], `冷却过后必须补收（实际可见：${JSON.stringify(onlyG2())}）`)
+    delete process.env.LAZY_TOOLS_COOLDOWN_MS
+    ok('冷却期内的第二次晚注册不会永远漏着（延迟核对生效）')
+
     console.log(`\nsmoke: ${checks} 项全过`)
 }
 
