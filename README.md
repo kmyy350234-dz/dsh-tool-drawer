@@ -238,7 +238,7 @@ schema 在运行时解析：扫描 `%USERPROFILE%\.dsh\profiles\*\` 查找 DSH �
 node test/smoke.mjs
 ```
 
-51 项断言，运行在假宿主上，不需要安装 DSH。
+53 项断言（以 `node test/smoke.mjs` 的输出为准），运行在假宿主上，不需要安装 DSH。
 
 假宿主只实现本插件依赖的四个契约。宿主契约变化时，测试先失败，而不是会话先出问题。
 

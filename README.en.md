@@ -254,7 +254,7 @@ already gives you** (a message, an error) instead of asking the model to remembe
 ## Tests
 
 ```bash
-node test/smoke.mjs   # 32 assertions against a fake host, no DSH required
+node test/smoke.mjs   # assertions against a fake host, no DSH required (count: use the `node test/smoke.mjs` output)
 ```
 
 The fake host implements exactly the four contracts this plugin depends on, so a contract change
