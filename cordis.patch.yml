@@ -24,6 +24,13 @@
             hint: 点击 / 键盘 / 窗口与会话控制 —— 会改状态，确认要看再开
             defaultOn: false
             expect: 37
+            # 2026-10-30 补：37 个工具、小白最高频，原来唯独这组没有关键词预开，
+            # 于是「点一下 / 输个字 / 滚一下」全靠自愈（要模型先猜出 cua_driver_native__click）。
+            autoHints:
+              [
+                点击, 点一下, 点它, 双击, 右键, 拖动, 拖一下, 滚动, 滚一下, 按下, 敲一下,
+                输入, 打字, 输入框, 填一下, 快捷键, 打开应用, 启动应用, 关闭应用, 窗口最大化,
+              ]
           - id: browser-heavy
             match: [ 're:^dsh_browser_(?!open$|content$|a11y$|click$|type$|wait$)' ]
             keep:

@@ -924,8 +924,13 @@ async function main() {
     const promptText2 = typeof promptWorld.sections[0].text === 'function'
       ? promptWorld.sections[0].text()
       : String(promptWorld.sections[0].text)
-    assert.ok(promptText2.includes('cua(桌面·看)'), `提示里要有组用途：${promptText2.slice(0, 140)}`)
-    ok('提示段列「组 id(用途)」，模型才知道抽屉里有什么')
+    assert.ok(promptText2.includes('cua(桌面·看'), `提示里要有组用途：${promptText2.slice(0, 160)}`)
+    // 2026-10-30 补：能力目录必须带**代表工具名**，否则自愈等于要模型猜一个被藏起来的名字
+    assert.ok(
+      promptText2.includes(': a'),
+      `提示里要有代表工具名（这组注册的是 cua_driver_native__a）：${promptText2.slice(0, 160)}`,
+    )
+    ok('提示段列「组 id(用途: 代表工具名)」—— 自愈不用再猜名字')
 
     log('[40] glob 里的 ? 必须按字面量转义')
     const worldQ = makeWorld()

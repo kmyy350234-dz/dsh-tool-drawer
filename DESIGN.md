@@ -59,7 +59,7 @@ README 的「省了多少」表格是这份数字的**唯一存放处**（2026-1
 | 四组 | `cua-screen 19`、`cua-input 37`、`browser-heavy 28`、`vision-heavy 8`（另有用户手写组 `cu-observe 5` / `cu-act 9` / `cu-audio 2`） |
 | 切分验证 | 56 个 CUA 真名按正则切 19+37，**零重叠零遗漏**（脚本验，不是手算） |
 | only 单工具 | `enable {group,'only':[get_window_state]}` 后工具表只多这一个 |
-| 冒烟测试 | **48 项**，假宿主真跑（不依赖 DSH） |
+| 冒烟测试 | **51 项**，假宿主真跑（不依赖 DSH） |
 
 ## 边界（别把它当万灵药）
 
