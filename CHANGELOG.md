@@ -2,6 +2,19 @@
 
 格式参照 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循语义化版本。
 
+## [0.15.13] - 2026-10-30
+
+### 修复（挑刺第七轮：同一个判据两个取法）
+- **会话档位改过后，`status` 还在用全局天数**：决策走 `sessionIdleDays(st)`，而 `groupsView` 用 `policy.idleDays` ——
+  `lazy_tools_mode {idleDays:1}` 之后会出现「组已收起，`hot` 还报 true」。现在 `status` 也走 `sessionIdleDays`。
+- **能力目录的样本排序不再依赖天数**：常驻提示段拿不到 agent（也就拿不到会话覆盖的 `idleDays`），
+  所以那边改用**最近用过的优先，次数只做 tiebreak** —— 不依赖天数，就不存在「两个取法」。
+- `DESIGN` 的「动手前五个问题」补第 6 条：**两个消费者要同一个判据时，必须走同一个函数**。
+
+### 撤回（用户 2026-10-30：「如无必要勿增实体」）
+- 曾给 `enable` / `disable` 加「已是目标状态就跳过 rebuild」的守卫（新增 `alreadyOpen` / `alreadyClosed` 字段）。
+  **已撤回**：`health` 对「限制被别处覆盖」给的修复建议正是「先 `disable` 再 `enable`」，
+  跳过 rebuild 会让这条修复路径失效 —— 用一个新字段换掉一条修复路径，不划算。
 ## [0.15.12] - 2026-10-30
 
 ### 清理（工程自查，无行为变化）

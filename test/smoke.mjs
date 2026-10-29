@@ -1185,6 +1185,34 @@ async function main() {
     process.env.LAZY_TOOLS_USAGE_FILE = `${NO_SUCH}.usage.json`
     ok('目录排序：idleDays 窗口内优先，再按次数（与决策同口径）')
 
+    // 2026-10-30 挑刺：会话档位（lazy_tools_mode idleDays）改过之后，决策用 sessionIdleDays，
+    // 而 status/目录排序还在用 policy.idleDays —— 会出现「组已收起、hot 仍报 true」。
+    console.log('[52] 会话档位生效时，status.hot 与决策同源')
+    const usagePath52 = join(tmpdir(), `lazy-tools-usage52-${process.pid}.json`)
+    const ledger52 = { groups: {}, tools: {}, counts: {} }
+    const worldSd = makeWorld()
+    for (const s of ['a', 'b', 'c', 'd']) worldSd.ctx.tools.register({ name: `sd__${s}`, description: 'x', parameters: {}, output: {} })
+    const threeDaysAgo = new Date(Date.now() - 3 * DAY)
+    recordUsage(ledger52, 'sd__a', 'sd', threeDaysAgo)
+    recordUsage(ledger52, 'sd__b', 'sd', threeDaysAgo)
+    writeFileSync(usagePath52, JSON.stringify(ledger52))
+    process.env.LAZY_TOOLS_USAGE_FILE = usagePath52
+    apply(worldSd.ctx, { groups: [{ id: 'sd', match: ['sd__*'], defaultOn: false }], autoGroups: 'off' })
+    const agentSd = worldSd.createAgent('agent-sd')
+    const s1 = await runTool(worldSd, 'lazy_tools_status', {}, agentSd)
+    const g1 = s1.groups.find((g) => g.id === 'sd')
+    assert.equal(g1.mode, 'all', '3 天前用过 2/4（50% ≥30%，7 天窗口内）⇒ 整组开')
+    assert.equal(g1.hot, true)
+    await runTool(worldSd, 'lazy_tools_mode', { idleDays: 1 }, agentSd)
+    const s2 = await runTool(worldSd, 'lazy_tools_status', {}, agentSd)
+    const g2 = s2.groups.find((g) => g.id === 'sd')
+    assert.equal(g2.mode, 'hide', '1 天窗口下 3 天前的调用已冷 ⇒ 收起')
+    assert.equal(g2.hotTools, 0, 'hotTools 也要按会话天数算')
+    assert.equal(g2.hot, false, '组已收起，hot 必须同时为 false（同源；旧代码会报 true）')
+    rmSync(usagePath52, { force: true })
+    process.env.LAZY_TOOLS_USAGE_FILE = `${NO_SUCH}.usage.json`
+    ok('会话档位下 status 与决策同源（不再各算各的天数）')
+
     console.log(`\nsmoke: ${checks} 项全过`)
 }
 
