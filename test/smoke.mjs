@@ -898,21 +898,48 @@ async function main() {
     assert.equal(pol.idleDays, 7, 'idleDays 为 null 视为没碰，跟着档位重新算')
     ok('档位→天数跟随；显式天数优先')
 
-    log('[38] 单工具热度：组里只放常用的那几个，其余继续收')
+    // 2026-10-30 挑刺（第三轮）：原来的 fixture 手工写 {groups:{}, tools:{...}} —— 那是插件自己
+    // **永远写不出来**的状态（recordUsage 必然同时写 groups），所以这个用例测的是假数据。
+    // 现在用真实账本：10 个工具的组里只有 1 个用过 → 组时间戳虽热，但热工具占比只有 10%，
+    // 按新定义（≥30% 才算整组开）应走 only，只放那 1 个。
+    log('[38] 单工具热度：大组里只用 1 个 → 只放那一个')
     const usagePath2 = join(tmpdir(), `lazy-tools-usage2-${process.pid}.json`)
-    writeFileSync(usagePath2, JSON.stringify({ groups: {}, tools: { cua_driver_native__a: new Date().toISOString() } }))
+    const ledgerReal = { groups: {}, tools: {}, counts: {} }
+    recordUsage(ledgerReal, 'cua_driver_native__a', 'cua', new Date())
+    writeFileSync(usagePath2, JSON.stringify(ledgerReal))
     process.env.LAZY_TOOLS_USAGE_FILE = usagePath2
     const worldSingle = makeWorld()
-    worldSingle.ctx.tools.register({ name: 'cua_driver_native__a', description: 'x', parameters: {}, output: {} })
-    worldSingle.ctx.tools.register({ name: 'cua_driver_native__b', description: 'x', parameters: {}, output: {} })
+    const ten = []
+    for (const suffix of ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j']) {
+      ten.push(`cua_driver_native__${suffix}`)
+      worldSingle.ctx.tools.register({ name: `cua_driver_native__${suffix}`, description: 'x', parameters: {}, output: {} })
+    }
     apply(worldSingle.ctx, { groups: [{ id: 'cua', match: ['cua_driver_native__*'], defaultOn: false }], autoGroups: 'off' })
     const agentSingle = worldSingle.createAgent('agent-single')
     const denySingle = worldSingle.denyByAgent.get(agentSingle)
-    assert.equal(denySingle.has('cua_driver_native__b'), true, '没用过的 b 要继续收着')
-    assert.equal(denySingle.has('cua_driver_native__a'), false, '用过的 a 应该保持可见（only 白名单）')
+    assert.equal(denySingle.has('cua_driver_native__a'), false, '用过的 a 应该被 only 放出来')
+    for (const name of ten.filter((n) => n !== 'cua_driver_native__a')) {
+      assert.equal(denySingle.has(name), true, `没用过的 ${name} 要继续收着`)
+    }
     rmSync(usagePath2, { force: true })
     process.env.LAZY_TOOLS_USAGE_FILE = `${NO_SUCH}.usage.json`
-    ok('单工具热度：only 只放热的那一个，同组其余仍收起')
+    ok('大组只用 1 个：only 只放那一个（占比 10% < 30%）')
+
+    // 对照组：小组里 1/2 用过 = 50% ≥ 30% → 整组开（否则「一个工具常用就整组开」会被一刀切掉）
+    log('[44] 热工具占比够高 → 整组开（对照组）')
+    const usagePath3 = join(tmpdir(), `lazy-tools-usage3-${process.pid}.json`)
+    const ledgerSmall = { groups: {}, tools: {}, counts: {} }
+    recordUsage(ledgerSmall, 'small__a', 'small', new Date())
+    writeFileSync(usagePath3, JSON.stringify(ledgerSmall))
+    process.env.LAZY_TOOLS_USAGE_FILE = usagePath3
+    const worldSmall = makeWorld()
+    for (const suffix of ['a', 'b']) worldSmall.ctx.tools.register({ name: `small__${suffix}`, description: 'x', parameters: {}, output: {} })
+    apply(worldSmall.ctx, { groups: [{ id: 'small', match: ['small__*'], defaultOn: false }], autoGroups: 'off' })
+    const agentSmall = worldSmall.createAgent('agent-small')
+    assert.equal(worldSmall.denyByAgent.get(agentSmall).size, 0, '1/2 = 50% ≥ 30% ⇒ 整组开，一个都不该 deny')
+    rmSync(usagePath3, { force: true })
+    process.env.LAZY_TOOLS_USAGE_FILE = `${NO_SUCH}.usage.json`
+    ok('小组里过半常用 → 整组开（占比阈值生效）')
 
     log('[39] 常驻提示带组用途（能力目录）')
     const promptWorld = mkWorldWithPrompt()
