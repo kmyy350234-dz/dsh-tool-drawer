@@ -1130,6 +1130,61 @@ async function main() {
     process.env.LAZY_TOOLS_USAGE_FILE = `${NO_SUCH}.usage.json`
     ok('hot 与决策一致；组级时间戳只留作 lastUsed')
 
+    // 2026-10-30 第二轮挑刺：吸纳型组（前缀通配/负向前瞻）配静态 expect，新工具被正确收起却触发告警 ——
+    // healthy 在默认状态长期 false，正是「训练人忽略警报」。
+    console.log('[48] 吸纳型组：多出来的成员不算漂移（expect 是下限）')
+    const worldAbs = makeWorld()
+    for (const s of ['a', 'b', 'c']) worldAbs.ctx.tools.register({ name: `abs__${s}`, description: 'x', parameters: {}, output: {} })
+    apply(worldAbs.ctx, { groups: [{ id: 'abs', match: ['abs__*'], expect: 2, defaultOn: true }], autoGroups: 'off' })
+    const agentAbs = worldAbs.createAgent('agent-abs')
+    const hAbs = await runTool(worldAbs, 'lazy_tools_health', {}, agentAbs)
+    assert.equal(hAbs.warnings.filter((w) => String(w).includes(' abs') || String(w).startsWith('abs')).length, 0, `不该有 abs 的告警：${JSON.stringify(hAbs.warnings)}`)
+    const sAbs = await runTool(worldAbs, 'lazy_tools_status', {}, agentAbs)
+    const gAbs = sAbs.groups.find((g) => g.id === 'abs')
+    assert.equal(gAbs.matched, 3)
+    assert.equal(gAbs.expectOk, true, '3 ≥ expect 2 ⇒ expectOk 应为 true（下限语义）')
+    ok('吸纳型组：matched 3 > expect 2 不告警（healthy 不被误伤）')
+
+    console.log('[49] 少了的成员才算漂移（下限语义的反面）')
+    const worldMiss = makeWorld()
+    worldMiss.ctx.tools.register({ name: 'miss__a', description: 'x', parameters: {}, output: {} })
+    apply(worldMiss.ctx, { groups: [{ id: 'miss', match: ['miss__*'], expect: 2, defaultOn: true }], autoGroups: 'off' })
+    const agentMiss = worldMiss.createAgent('agent-miss')
+    const hMiss = await runTool(worldMiss, 'lazy_tools_health', {}, agentMiss)
+    assert.ok(
+      hMiss.warnings.some((w) => String(w).includes('miss') && String(w).includes('<')),
+      `少成员时应有 '<' 告警：${JSON.stringify(hMiss.warnings)}`,
+    )
+    ok('matched < expect ⇒ 告警（改名/没加载/正则漏）')
+
+    console.log('[50] minTools 填 2 时，生效值是 3（不许静默失效）')
+    const worldMt = makeWorld()
+    apply(worldMt.ctx, { groups: [], autoGroups: 'off', minTools: 2 })
+    const agentMt = worldMt.createAgent('agent-mt')
+    const hMt = await runTool(worldMt, 'lazy_tools_health', {}, agentMt)
+    assert.equal(hMt.policy.minTools, 3, `minTools 应夹到 3，实际 ${hMt.policy.minTools}`)
+    ok('minTools 下限 3 在加载时夹住，health 显示生效值')
+
+    console.log('[51] 能力目录：窗口内的工具优先于「陈年高频」')
+    const usagePath51 = join(tmpdir(), `lazy-tools-usage51-${process.pid}.json`)
+    const oldIso = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString()
+    writeFileSync(usagePath51, JSON.stringify({ groups: {}, tools: { ord__a: oldIso, ord__b: new Date().toISOString() }, counts: { ord__a: 100, ord__b: 1 } }))
+    process.env.LAZY_TOOLS_USAGE_FILE = usagePath51
+    const worldOrd = makeWorld()
+    const sections51 = []
+    worldOrd.ctx.inject = (deps, callback) => {
+      callback({ effect: (make) => make(), systemPrompt: { section: (s) => { sections51.push(s); return () => {} } } })
+    }
+    worldOrd.ctx.tools.register({ name: 'ord__a', description: 'x', parameters: {}, output: {} })
+    worldOrd.ctx.tools.register({ name: 'ord__b', description: 'x', parameters: {}, output: {} })
+    apply(worldOrd.ctx, { groups: [{ id: 'ord', match: ['ord__*'], expect: 2, defaultOn: false }], autoGroups: 'off' })
+    const text51 = sections51.length ? String(sections51[0].text()) : ''
+    assert.ok(text51.includes('ord__b') && text51.includes('ord__a'), `目录要有两个工具名：${text51.slice(0, 160)}`)
+    assert.ok(text51.indexOf('ord__b') < text51.indexOf('ord__a'), '窗口内用过的 ord__b 应排在「30 天前用过 100 次」的 ord__a 前面')
+    rmSync(usagePath51, { force: true })
+    process.env.LAZY_TOOLS_USAGE_FILE = `${NO_SUCH}.usage.json`
+    ok('目录排序：idleDays 窗口内优先，再按次数（与决策同口径）')
+
     console.log(`\nsmoke: ${checks} 项全过`)
 }
 
