@@ -2,7 +2,12 @@
 
 格式参照 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循语义化版本。
 
-## [未发布]
+## [0.15.0] - 2026-10-30
+
+### 修复（2026-10-30，DSH 作者用 mock 复现后指出）
+- **重入 `rebuild` 会留下孤儿限制**：`rebuild` 先 `lift()` 旧限制、之后才替换 `st.lifts`；而 rc.3 里**撤销限制会同步发 `tools/change`**，事件处理器因此重入 `rebuild`，内层把自己的句柄写进 `st.lifts`，外层回来又用 `leftovers` 覆盖掉 —— 内层那条限制**再也撤不掉**。症状：打开一个组后工具不回来、过滤器条目越点越多。
+- **修法**：`rebuild` 串行化 —— 重入只置 `pendingRebuild`，外层跑完补跑（上限 5 轮），句柄不会再被覆盖；晚注册的工具仍由循环里的新一轮读取覆盖到。
+- **测试假绿**：我们的假宿主原先**不会**在撤销限制时同步发事件，所以这条重入路径永远走不到。mock 新增 `setSyncRestrictEvents(true)`；回归用例 `[41]`（连续开两个关着的组 → 两个名字都要可见、限制条数归零）**先红后绿**验证过。档案 #54。
 
 ### 修复
 - **销毁竞态不再拖垮 `healthy`**：子代理被销毁时 `restrict` 会抛 `cannot create effect on inactive context`，原来这条记进 `errors` ⇒ `healthy=false`（2026-10-30 实测：subagent 一退出，主会话 health 就报 unhealthy）。现在它**仍留在 `errors` 里作证据**，但**不参与 healthy 判定**，并单独计数 `stats.restrictSkipped`。冒烟 `[13]` 加了回归断言——退回旧写法时它必红（已双向验证：旧码退出码 1、新码 49 项全过）。
