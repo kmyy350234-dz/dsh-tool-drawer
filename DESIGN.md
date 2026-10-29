@@ -75,7 +75,7 @@ README 的「省了多少」表格是这份数字的**唯一存放处**（2026-1
    - 结论：**不是没注册、不是被本插件的 restrict 挡、也不是 PTC**；是被 `tools.schemas(agent)` 这一层滤掉。DSH 作者在 #11207 给的两条线索仍然有效：**「呈现模式（PTC / native）」是另一道闸，agent preset 可覆盖部署默认值**；**限制在作用域链上取交集**（别人的空 deny 抵消不了另一个过滤）。
    - 抽屉的处置：不再写「宿主没挂载」（那是猜的），改成三态实测 —— `not-registered` / `agent-filtered` / `filtered-by-schemas`，notes 里带探针的两个布尔；**静音待命不变**（不是抽屉能解的）。
    - 另：`/lazy-tools/api/policy` 收到解析失败的 body 时曾把策略文件写空（只丢档位，手写组不受影响）；现在**拒绝空策略**（400）。
-   - 待办：把这两组布尔 + `run_code` 不存在回给官方（他们要的就是这两行 lookup 的结果 + 出站工具名）。
+   - **已回**（2026-10-30）：三个实验 + 六问贴在 Discussion #11207（[discussioncomment-19272444](https://github.com/deepseek-ai/deepseek-harness/discussions/11207#discussioncomment-19272444)），原始数据见 `perf-\11207-实验记录-20261030.md`。
 
 ## 同类与差别
 
