@@ -76,6 +76,16 @@ README 的「省了多少」表格是这份数字的**唯一存放处**（2026-1
    - 抽屉的处置：不再写「宿主没挂载」（那是猜的），改成三态实测 —— `not-registered` / `agent-filtered` / `filtered-by-schemas`，notes 里带探针的两个布尔；**静音待命不变**（不是抽屉能解的）。
    - 另：`/lazy-tools/api/policy` 收到解析失败的 body 时曾把策略文件写空（只丢档位，手写组不受影响）；现在**拒绝空策略**（400）。
    - **已回**（2026-10-30）：三个实验 + 六问贴在 Discussion #11207（[discussioncomment-19272444](https://github.com/deepseek-ai/deepseek-harness/discussions/11207#discussioncomment-19272444)），原始数据见 `perf-\11207-实验记录-20261030.md`。
+   - **第二封回信后的更正（2026-10-30 01:2x，重要）**：作者指出 `get(name)` **省略第二参数时用的是全局视图**，
+     即使通过 `agent.ctx.tools` 调用 ⇒ 早先那个 `agent=true` 是**重复测量全局**，不是作用域。换成 `get(name, agent)` 后实测（我们 deny 为空时）：
+     ```
+     global: true   scoped: false   inScopedSchemas: false   scopedRunCode: false
+     defaultPreset: cordis   composedPreset: cordis
+     ```
+     ⇒ **作用域链上有「别人」的限制**（不是抽屉、不是 PTC、`run_code` 在这个作用域里也不存在）。
+     这也解释了实验 2：`defaultPreset` 与 `composedPreset` 都是 `cordis`，那次切 `standard` **确实没生效**。
+     探针已按作者给的代码改成 `get(name, agent)` + `defaultPreset/composedPreset`；三态里的 `filtered-by-schemas` 此刻的真实含义是「**作用域视图不给它**」。
+
 
 ## 同类与差别
 
