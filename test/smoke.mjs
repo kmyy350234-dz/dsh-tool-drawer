@@ -55,6 +55,9 @@ function makeWorld() {
   const registered = new Map()
   const createdListeners = []
   const denyByAgent = new Map()
+  const activeByAgent = new Map() // agent -> [{ names }]：当前**真正挂着**的限制（孤儿会在这里露出来）
+  // rc.3 的撤销是同步通知的。默认关（不影响其它用例），需要复现重入的用例自己打开。
+  let fireOnRestrict = false
   const living = [] // «ctx.get('agents').list()» 返回的东西
   const effects = [] // «ctx.effect(cb)» 收下的回调，插件卸载时 Cordis 会调用它们
   const toolsChangeListeners = []
@@ -112,15 +115,23 @@ function makeWorld() {
   const makeAgent = (id) => {
     const agent = { id }
     denyByAgent.set(agent, new Set())
+    activeByAgent.set(agent, [])
     agent.ctx = {
       tools: {
         get(name) { return registered.get(name) },
         restrict(filter) {
           const deny = denyByAgent.get(agent)
           const added = Array.isArray(filter && filter.deny) ? [...filter.deny] : []
+          const entry = { names: added }
+          activeByAgent.get(agent).push(entry)
           for (const name of added) deny.add(name)
+          // 2026-10-30：rc.3 里「撤销限制」是**同步**通知 tools/change 的。
+          // 这条 synchronous 行为正是重入 rebuild 的来源，所以 mock 必须能模拟它（否则测试会假绿）。
+          if (fireOnRestrict) fireToolsChange()
           return () => {
+            activeByAgent.get(agent).splice(activeByAgent.get(agent).indexOf(entry), 1)
             for (const name of added) deny.delete(name)
+            if (fireOnRestrict) fireToolsChange()
           }
         },
       },
@@ -181,6 +192,21 @@ function makeWorld() {
     firePreExecute,
     registered,
     denyByAgent,
+    activeByAgent,
+    // 打开它 = mock 的 restrict 在「加上」和「解除」时都同步 fireToolsChange（rc.3 的行为）
+    setSyncRestrictEvents(value) {
+      fireOnRestrict = !!value
+    },
+    /** 当前真正挂着的限制列表（孤儿 = 比预期多出来的那条） */
+    activeRestrictions(agent) {
+      return activeByAgent.get(agent) || []
+    },
+    /** 该 agent 现在可见的工具名（= schemas(agent) 的名字） */
+    visibleNames(agent) {
+      const deny = denyByAgent.get(agent) || new Set()
+      const miss = unmounted.get(agent) || new Set()
+      return [...registered.keys()].filter((name) => !deny.has(name) && !miss.has(name))
+    },
     createAgent,
     makeAgent,
     living,
@@ -912,6 +938,47 @@ async function main() {
     assert.equal(groupQ.matched, 1, '`a?b` 只能匹配字面量 a?b，不能把 ab 也吃进来')
     assert.equal(groupQ.visible, 0)
     ok('`?` 转义后只匹配字面量（`*` 仍是通配符）')
+
+    // 2026-10-30 对面（DSH 作者）用我们的 db42e09 在 mock 里复现出来的真 bug：
+    // rebuild 先 lift 旧限制、之后才替换 st.lifts；而 rc.3 的 lift 是**同步**发 tools/change 的，
+    // 于是 change 处理器重入 rebuild，内层把自己的 lift 句柄写进 st.lifts，
+    // 外层回来又用 leftovers 覆盖掉 → 内层那条限制永远没人解除（孤儿）。
+    // 复现条件必须包括「同步事件」—— 所以这里打开 setSyncRestrictEvents。
+    console.log('[41] 重入 rebuild：连续打开两个关着的组，不许留下孤儿限制')
+    const worldR = makeWorld()
+    worldR.setSyncRestrictEvents(true)
+    worldR.ctx.tools.register({ name: 'g1_tool', description: 'x', parameters: {}, output: {} })
+    worldR.ctx.tools.register({ name: 'g2_tool', description: 'x', parameters: {}, output: {} })
+    apply(worldR.ctx, {
+      groups: [
+        { id: 'g1', match: ['g1_*'], defaultOn: false },
+        { id: 'g2', match: ['g2_*'], defaultOn: false },
+      ],
+      autoGroups: 'off',
+    })
+    const agentR = worldR.createAgent('agent-reentrant')
+    // 只看这两个测试工具：插件自己的 lazy_tools_* 永远可见，和本用例无关
+    const onlyG = () => worldR.visibleNames(agentR).filter((n) => n.startsWith('g'))
+    assert.equal(worldR.activeRestrictions(agentR).length, 1, '初始：一条限制覆盖两个组')
+    assert.deepEqual(onlyG(), [], '初始两个都该藏起来')
+
+    await runTool(worldR, 'lazy_tools_enable', { group: 'g1' }, agentR)
+    assert.deepEqual(onlyG(), ['g1_tool'], '开 g1 之后只该看见 g1_tool')
+    assert.equal(
+      worldR.activeRestrictions(agentR).length,
+      1,
+      `开 g1 之后应该只剩一条限制（覆盖 g2），实际 ${worldR.activeRestrictions(agentR).length} 条 → 有孤儿`,
+    )
+
+    await runTool(worldR, 'lazy_tools_enable', { group: 'g2' }, agentR)
+    assert.deepEqual(onlyG().sort(), ['g1_tool', 'g2_tool'], '两个都开之后两个都要可见')
+    assert.equal(
+      worldR.activeRestrictions(agentR).length,
+      0,
+      `两个都开之后不许留任何限制，实际 ${worldR.activeRestrictions(agentR).length} 条`,
+    )
+    worldR.setSyncRestrictEvents(false)
+    ok('连续开两个组：没有孤儿限制，两个工具都真的回来了')
 
     console.log(`\nsmoke: ${checks} 项全过`)
 }
