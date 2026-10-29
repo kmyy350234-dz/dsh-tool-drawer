@@ -925,12 +925,11 @@ async function main() {
       ? promptWorld.sections[0].text()
       : String(promptWorld.sections[0].text)
     assert.ok(promptText2.includes('cua(桌面·看'), `提示里要有组用途：${promptText2.slice(0, 160)}`)
-    // 2026-10-30 补：能力目录必须带**代表工具名**，否则自愈等于要模型猜一个被藏起来的名字
-    assert.ok(
-      promptText2.includes(': a'),
-      `提示里要有代表工具名（这组注册的是 cua_driver_native__a）：${promptText2.slice(0, 160)}`,
-    )
-    ok('提示段列「组 id(用途: 代表工具名)」—— 自愈不用再猜名字')
+    // 2026-10-30 补：能力目录必须带**代表工具名**，否则自愈等于要模型猜一个被藏起来的名字；
+    // 且必须列**完整名** —— 裸名 `click` 在注册表里可能是别的插件的同名工具（本机就撞了）。
+    assert.ok(promptText2.includes('cua_driver_native__a'), `提示里要列完整工具名：${promptText2.slice(0, 200)}`)
+    assert.ok(!promptText2.includes(': a)'), '不许截前缀：裸名可能是别的插件的同名工具（click 就撞了）')
+    ok('提示段列「组 id(用途: 完整工具名)」—— 自愈不用再猜名字，也不会念错插件')
 
     log('[40] glob 里的 ? 必须按字面量转义')
     const worldQ = makeWorld()
@@ -1007,6 +1006,23 @@ async function main() {
     assert.deepEqual(onlyG2(), [], `冷却过后必须补收（实际可见：${JSON.stringify(onlyG2())}）`)
     delete process.env.LAZY_TOOLS_COOLDOWN_MS
     ok('冷却期内的第二次晚注册不会永远漏着（延迟核对生效）')
+
+    // 2026-10-30 挑刺：firstTryRate 的分子原来是「补救次数」，语义反了 ——
+    // 旧公式 (autoOpened + selfHealed)/toolCalls 在没有自愈时给 0（读成"成功率 0%"），实际应该是 100%。
+    console.log('[43] firstTryRate：没有自愈时必须是 1（旧公式会给 0）')
+    const worldRate = makeWorld()
+    apply(worldRate.ctx, { groups: [], autoGroups: 'off' })
+    const agentRate = worldRate.createAgent('agent-rate')
+    for (let i = 0; i < 20; i += 1) await worldRate.firePreExecute(agentRate, 'lazy_tools_status')
+    const hRate = await runTool(worldRate, 'lazy_tools_health', {}, agentRate)
+    assert.ok(hRate.stats.toolCalls >= 20, `toolCalls 要累计到 20，实际 ${hRate.stats.toolCalls}`)
+    assert.equal(hRate.stats.selfHealed, 0, '这个场景没有自愈')
+    assert.equal(
+      hRate.stats.firstTryRate,
+      1,
+      `没有自愈时首次成功率应为 1，实际 ${hRate.stats.firstTryRate}（旧公式会给 0）`,
+    )
+    ok('firstTryRate = 1 - 自愈次数/调用数（不是「补救次数占比」）')
 
     console.log(`\nsmoke: ${checks} 项全过`)
 }

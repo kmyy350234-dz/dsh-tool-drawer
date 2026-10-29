@@ -39,7 +39,7 @@ Lightest first — all four places are plain text:
 
 Match patterns accept `*` globs and `re:` regexes; each group may carry `keep` (never collapse), `expect` (count assertion) and `autoHints` (keywords that open it).
 
-**Three red lines** (this project holds itself to them too): never change the tool table mid-session · recovery tools never go into a group · failures must be reported. Details in [DESIGN.md](DESIGN.md).
+**Three red lines** (this project holds itself to them too): do **not** change the tool table mid-session by default (two exceptions, both logged: keyword pre-open and self-heal) · recovery tools never go into a group · failures must be reported. Details in [DESIGN.md](DESIGN.md).
 
 ---
 
