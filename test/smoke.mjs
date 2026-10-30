@@ -22,6 +22,8 @@ process.env.LAZY_TOOLS_POLICY_FILE = `${NO_SUCH}.policy.json`
 // 用量账本也必须隔离：2026-10-29 单工具热度上线后，[12] 因为读到真机账本
 // （vision_describe 真的热）而少收了一个工具、断言失败 —— 测试不能看用户的历史。
 process.env.LAZY_TOOLS_USAGE_FILE = `${NO_SUCH}.usage.json`
+  // 2026-10-30：计数器已跨重载持久化 ⇒ 插件会真的往 NO_SUCH 路径写文件，先清掉，避免上一轮残留污染这一轮。
+  rmSync(`${NO_SUCH}.usage.json`, { force: true })
 
 // --quiet：只打汇总和失败项。钩子每次提交都跑它，49 行逐条输出纯属浪费（2026-10-30 加的）。
 const quiet = process.argv.includes('--quiet')
@@ -555,6 +557,9 @@ async function main() {
 
   log('[16] 关键词预开：用户说了 autoHints 里的词，工具自己出现')
   const worldE = makeWorld()
+  const envE = `${NO_SUCH}.hint.usage.json`
+  process.env.LAZY_TOOLS_USAGE_FILE = envE
+  rmSync(envE, { force: true })
   worldE.ctx.tools.register({ name: 'cua_driver_native__a', description: 'x', parameters: {}, output: {} })
   apply(worldE.ctx, {
     groups: [{ id: 'desktop', match: ['cua_driver_native__*'], autoHints: ['截图', '看窗口'], defaultOn: false }],
@@ -1055,6 +1060,9 @@ async function main() {
     // 现在分母只算「属于某个组」的调用；这个用例同时守住语义（无自愈=1）和分母口径（核心工具不计）。
     console.log('[43] firstTryRate：无自愈=1，且分母只数组内调用')
     const worldRate = makeWorld()
+  const envRate = `${NO_SUCH}.rate.usage.json`
+  process.env.LAZY_TOOLS_USAGE_FILE = envRate
+  rmSync(envRate, { force: true })
     worldRate.ctx.tools.register({ name: 'g_rate', description: 'x', parameters: {}, output: {} })
     apply(worldRate.ctx, { groups: [{ id: 'gr', match: ['g_rate'], defaultOn: true }], autoGroups: 'off' })
     const agentRate = worldRate.createAgent('agent-rate')
@@ -1251,6 +1259,29 @@ async function main() {
   assert.equal('usage' in fullH, true, 'full 视图要带账本')
   assert.ok(fullH.stats && slimH.stats, '两档都要有 stats')
   ok('默认精简保留 client + stats；full 才给 usage / 探针')
+
+  log('[55] 计数器跨重载持久化：重载后 toolCalls 从账本恢复')
+  const envP = `${NO_SUCH}.persist.usage.json`
+  rmSync(envP, { force: true })
+  process.env.LAZY_TOOLS_USAGE_FILE = envP
+  const worldP1 = makeWorld()
+  worldP1.ctx.tools.register({ name: 'g_persist', description: 'x', parameters: {}, output: {} })
+  apply(worldP1.ctx, { groups: [{ id: 'gp', match: ['g_persist'], defaultOn: false }], autoGroups: 'off' })
+  const agentP1 = worldP1.createAgent('agent-persist-1')
+  for (let i = 0; i < 3; i += 1) await worldP1.firePreExecute(agentP1, 'g_persist')
+  await runTool(worldP1, 'lazy_tools_save_groups', {}, agentP1) // 触发一次落盘（不快，但足以证明写入路径）
+  const rawP = JSON.parse(readFileSync(envP, 'utf8'))
+  assert.ok(rawP.stats && rawP.stats.toolCalls >= 1, `账本里要有累计计数：${JSON.stringify(rawP.stats)}`)
+  // 模拟插件重载：新实例、同一账本
+  const worldP2 = makeWorld()
+  worldP2.ctx.tools.register({ name: 'g_persist', description: 'x', parameters: {}, output: {} })
+  apply(worldP2.ctx, { groups: [{ id: 'gp', match: ['g_persist'], defaultOn: false }], autoGroups: 'off' })
+  const agentP2 = worldP2.createAgent('agent-persist-2')
+  const hP2 = await runTool(worldP2, 'lazy_tools_health', { full: true }, agentP2)
+  assert.equal(hP2.stats.toolCalls, rawP.stats.toolCalls, `重载后应从账本恢复（文件 ${rawP.stats.toolCalls} / 内存 ${hP2.stats.toolCalls}）`)
+  rmSync(envP, { force: true })
+  process.env.LAZY_TOOLS_USAGE_FILE = `${NO_SUCH}.usage.json`
+  ok('toolCalls 落盘并在重载后恢复（指标不再每次归零）')
 
   console.log(`\nsmoke: ${checks} 项全过`)
 }
