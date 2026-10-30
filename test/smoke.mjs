@@ -1283,6 +1283,44 @@ async function main() {
   process.env.LAZY_TOOLS_USAGE_FILE = `${NO_SUCH}.usage.json`
   ok('toolCalls 落盘并在重载后恢复（指标不再每次归零）')
 
+  // 2026-10-30 对抗测试（元宝）三条：都只在手改配置时触发，但失效形态是「静默丢功能」。
+  log('[56] 手写组 match:["*"] 不能吞掉常驻/自救工具')
+  const worldStar = makeWorld()
+  worldStar.ctx.tools.register({ name: 'other_tool', description: 'x', parameters: {}, output: {} })
+  apply(worldStar.ctx, { groups: [{ id: 'all', match: ['*'], defaultOn: false }], autoGroups: 'off' })
+  const agentStar = worldStar.createAgent('agent-star')
+  const denyStar = worldStar.denyByAgent.get(agentStar)
+  for (const name of ['lazy_tools_status', 'lazy_tools_enable', 'lazy_tools_disable', 'lazy_tools_mode', 'lazy_tools_save_groups', 'lazy_tools_list', 'lazy_tools_health']) {
+    assert.equal(denyStar.has(name), false, `${name} 是自救工具，不许被手写组收起`)
+  }
+  assert.equal(denyStar.has('other_tool'), true, '普通工具仍应被这个组收起（组本身要生效）')
+  // 组内的「成员」也不该包含常驻/自救工具（status 的 matched 会暴露这一点）
+  const sStar = await runTool(worldStar, 'lazy_tools_status', {}, agentStar)
+  const gStar = sStar.groups.find((g) => g.id === 'all')
+  assert.equal(gStar.matched, 1, `组只该匹配到 1 个普通工具，实际 ${gStar.matched}`)
+  assert.equal(gStar.visible, 0)
+  ok('手写 match:* 只收普通工具，自救工具永远可见')
+
+  log('[57] 配置里的组全无效：不许静默零注册')
+  const worldBad = makeWorld()
+  apply(worldBad.ctx, { groups: [null, {}, { id: 'g' }] })
+  assert.equal(worldBad.registered.size, 7, `组全无效时也要注册 7 个工具，实际 ${worldBad.registered.size}`)
+  const agentBad = worldBad.createAgent('agent-bad')
+  const hBad = await runTool(worldBad, 'lazy_tools_health', {}, agentBad)
+  assert.ok(hBad.errors.some((e) => String(e.where).includes('group')), '必须留下可见的错误记录')
+  ok('组全无效 → 退回默认组并记账，工具照常注册（不再静默死掉）')
+
+  log('[58] expect 非有限数不许进 status')
+  const worldNaN = makeWorld()
+  worldNaN.ctx.tools.register({ name: 'nan_a', description: 'x', parameters: {}, output: {} })
+  apply(worldNaN.ctx, { groups: [{ id: 'nan', match: ['nan_*'], expect: Number.NaN }], autoGroups: 'off' })
+  const agentNaN = worldNaN.createAgent('agent-nan')
+  const sNaN = await runTool(worldNaN, 'lazy_tools_status', {}, agentNaN)
+  const gNaN = sNaN.groups.find((g) => g.id === 'nan')
+  assert.equal('expect' in gNaN, false, 'NaN expect 应视为未设置')
+  assertJsonSafe(sNaN, 'status-nan')
+  ok('expect 非法值被夹掉，status 仍 JSON-safe')
+
   console.log(`\nsmoke: ${checks} 项全过`)
 }
 
