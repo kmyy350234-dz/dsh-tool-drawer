@@ -1308,6 +1308,17 @@ async function main() {
   const agentBad = worldBad.createAgent('agent-bad')
   const hBad = await runTool(worldBad, 'lazy_tools_health', {}, agentBad)
   assert.ok(hBad.errors.some((e) => String(e.where).includes('group')), '必须留下可见的错误记录')
+  // 退回的确实是出厂组（不是空表），且混合「合法+无效」仍以合法组为准
+  const sBad = await runTool(worldBad, 'lazy_tools_status', {}, agentBad)
+  assert.ok(sBad.groups.some((g) => g.id === 'cua-screen'), '组全无效时应退回出厂组')
+  const worldMix = makeWorld()
+  worldMix.ctx.tools.register({ name: 'ok_a', description: 'x', parameters: {}, output: {} })
+  apply(worldMix.ctx, { groups: [{ id: 'ok', match: ['ok_*'], defaultOn: false }, null, {}], autoGroups: 'off' })
+  assert.equal(worldMix.registered.size, 8, '1 个业务工具 + 7 个自救工具')
+  const agentMix = worldMix.createAgent('agent-mix')
+  const sMix = await runTool(worldMix, 'lazy_tools_status', {}, agentMix)
+  assert.equal(sMix.groups.length, 1, '混合输入只保留 1 个合法组')
+  assert.equal(sMix.groups[0].id, 'ok')
   ok('组全无效 → 退回默认组并记账，工具照常注册（不再静默死掉）')
 
   log('[58] expect 非有限数不许进 status')
