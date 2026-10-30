@@ -29,8 +29,8 @@
 |---|---|
 | 档位 / 闲置天数 / 是否显示控件 / 分类提示开关 | 设置页，或 `~/.dsh/lazy-tools.policy.json` |
 | 有共同前缀的工具组（`dsh_browser_*` 这类） | 包的 `cordis.patch.yml` 里的 `groups`，或配置 `extraGroups`（**追加**，不动默认组） |
-| 没有共同前缀的工具（`click` / `type_text` 这种裸名） | `~/.dsh/lazy-tools.groups.json`；也可以让 AI 调 `lazy_tools_classify` 看描述、`lazy_tools_save_groups` 落盘 |
-| 只想看不想写 | `lazy_tools_status` / `lazy_tools_scan` / `lazy_tools_list` / `lazy_tools_health` |
+| 没有共同前缀的工具（`click` / `type_text` 这种裸名） | `~/.dsh/lazy-tools.groups.json`；也可以让 AI 调 `lazy_tools_save_groups`（不传 `groups` 看描述、带 `groups` 落盘） |
+| 只想看不想写 | `lazy_tools_status` / `lazy_tools_list` / `lazy_tools_health` |
 
 匹配式支持 `*` 通配和 `re:` 正则；每组可写 `keep`（永不收起）、`expect`（数量断言）、`autoHints`（说到这些词就开）。
 
@@ -54,7 +54,7 @@
 > 稳态下工具定义本来就在前缀缓存里命中，命中价通常只有未命中的几分之一（具体倍率由服务商决定，这里不编数字）；
 > 而**会话中途改工具表**会让后续请求的缓存作废一次 —— 本插件有三条路径会中途改表：关键词预开、自愈、`save_groups {applyNow:true}`。
 > 它们都是「用户或模型当下就要用」，不是优化手段；如果一次会话都没触发，缓存一次都不会被打断。
-> **这组数是「冷启动 / 还没用热」时的实测**：用久了，热组会默认开着，收起量自然往下走 —— 那不是虚报，是插件的设计（按使用热度）。复现请跑 `lazy_tools_bench`。
+> **这组数是「冷启动 / 还没用热」时的实测**：用久了，热组会默认开着，收起量自然往下走 —— 那不是虚报，是插件的设计（按使用热度）。复现请跑 `lazy_tools_health { bench: true }`。
 > 另有 34 个**内核工具**（`read` / `write` / `pwsh` / `glob` / `web_fetch` …）由宿主直接提供，不进工具注册表 —— 它们不在上表统计里，也不会被收起。
 
 换算成 token 请用你自己 provider 的 tokenizer —— 这里只报**字符数**，因为不同语言的描述密度差别很大，硬编一个系数等于替读者猜。
@@ -62,12 +62,12 @@
 **这个数字随时可以自己复现**：
 
 ```
-lazy_tools_bench
+lazy_tools_health { bench: true }
 ```
 
 它会把每个组占多少字符、收起了多少、占全量的比例都列出来。README 里所有数字都来自这条命令。
 
-> 早期版本写的是「约 220 token/工具」的估算；换成 `lazy_tools_bench` 之后，改成实测字符数，读者可以核对。
+> 早期版本写的是「约 220 token/工具」的估算；换成 `lazy_tools_health { bench: true }` 之后，改成实测字符数，读者可以核对。
 
 ## 怎么做到「不读」
 
@@ -127,7 +127,7 @@ bundle 自带的 patch 已配好四组：
 | 模式 | 行为 |
 |---|---|
 | `off` | 完全不动 |
-| `suggest` | 只在 `lazy_tools_scan` 里给建议，不改任何东西 |
+| `suggest` | 只在 `lazy_tools_list { ungrouped: true }` 里给建议，不改任何东西 |
 | `on`（默认） | 自动建组，并按规则默认收起。被收起的工具第一次被调用时会自动放回来，所以「误分组」最多多一次往返 |
 
 **新装的插件可能被自动收起**：自动组的 id 以 `auto-` 开头（如 `auto-foo`），用 `lazy_tools_disable auto-foo` 就能解散；核心工具永不入组；被收起的工具第一次被调用时，守卫会自动把它放回来。
@@ -159,20 +159,16 @@ bundle 自带的 patch 已配好四组：
 
 `autoHints` 采用**子串匹配**，需要注意变体：配置 `截图` 时，用户输入「截个图」匹配不到。常见写法都应列入，例如 截图、截个图、截屏、看窗口。
 
-## 十一个工具
+## 七个工具
 
 | 工具 | 作用 |
 |---|---|
 | `lazy_tools_status` | 查看每组状态：开关、模式、匹配数量、可见数量、是否热、上次使用时间 |
-| `lazy_tools_enable` | 打开一组；`only: ['名字']` 只放指定工具，其余保持收起；`groups: [...]` 批量打开 |
+| `lazy_tools_enable` | 打开一组；`only: ['名字']` 只放指定工具；`groups: [...]` 批量打开；**`name: '工具名'` 按名字一步开一个**（原 resolve） |
 | `lazy_tools_disable` | 收起一组，同时清除 `only` 白名单 |
-| `lazy_tools_list` | 列出组内工具，包含当前被隐藏的 |
-| `lazy_tools_resolve` | 只知工具名时使用：按名称或片段定位所属组，只放出该工具 |
+| `lazy_tools_list` | 列出组内工具（含被隐藏的）；`ungrouped: true` 附带前缀分桶 + 未归组工具的描述（原 scan / classify） |
 | `lazy_tools_mode` | 仅修改当前会话策略；`reset` 回全局，`collapse` 立即清空 |
-| `lazy_tools_scan` | 按名字前缀对可见工具分桶，便于编写新的组匹配式 |
-| `lazy_tools_bench` | 量「工具定义占多少字符」：注册总数、当前可见/收起、每组各占多少（README 数字的唯一来源） |
-| `lazy_tools_health` | 自检四个宿主契约，并输出 warnings、漏网工具、自动打开次数、自愈次数 |
-| `lazy_tools_classify` | 列出没归组、也没有共同前缀的裸名工具（带描述），供 AI 自己判断怎么分 |
+| `lazy_tools_health` | 自检四个宿主契约，输出 warnings / 漏网工具 / 自动打开与自愈次数；**`bench: true` 附带基准账**（注册总数、可见/收起、每组字符数 —— README 数字的唯一来源） |
 | `lazy_tools_save_groups` | 把分好的组写进 `~/.dsh/lazy-tools.groups.json`；默认下次会话生效，`applyNow: true` 才立刻生效 |
 
 `healthy: true` 表示：四个契约均通过，无错误，无警告。

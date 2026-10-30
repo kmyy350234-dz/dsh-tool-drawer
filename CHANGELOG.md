@@ -2,6 +2,24 @@
 
 格式参照 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循语义化版本。
 
+## [0.16.0] - 2026-10-30
+
+### 破坏性变更：工具 **11 → 7**（减法，省每轮上下文）
+
+四个工具并进已有入口，**旧名不再注册 schema**（少 4 份 schema 常驻每轮请求）：
+
+| 旧 | 新入口 | 说明 |
+|---|---|---|
+| `lazy_tools_bench` | `lazy_tools_health { bench: true }` | 基准账是诊断，不是独立能力 |
+| `lazy_tools_scan` | `lazy_tools_list { ungrouped: true }` | 前缀分桶 + 未归组工具 |
+| `lazy_tools_classify` | `lazy_tools_save_groups`（不传 `groups`） | 返回分类材料；带 `groups` 仍落盘 |
+| `lazy_tools_resolve` | `lazy_tools_enable { name }` | 按工具名一步开一个 |
+
+**旧名不会静默消失**：调用时守卫回一句「已并入 X」（不注册 schema，零上下文成本）。
+
+### 验收
+- 冒烟 61 → **62 项**（新增 `[53]`：旧名给指路）；所有被合并路径都有测试覆盖。
+- 工具表、常驻提示、README 标题与工具表同步到 7 个。
 ## [0.15.14] - 2026-10-30
 
 ### 清理（「删一半」的收尾：代码删了，数据和文档没跟上）

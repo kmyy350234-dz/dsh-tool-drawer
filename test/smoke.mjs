@@ -240,10 +240,10 @@ async function main() {
       { id: 'idle', match: ['other_tool'], title: '默认开', defaultOn: true },
     ],
   })
-  for (const name of ['lazy_tools_status', 'lazy_tools_enable', 'lazy_tools_disable', 'lazy_tools_scan', 'lazy_tools_list', 'lazy_tools_resolve', 'lazy_tools_mode', 'lazy_tools_health', 'lazy_tools_classify', 'lazy_tools_save_groups', 'lazy_tools_bench']) {
+  for (const name of ['lazy_tools_status', 'lazy_tools_enable', 'lazy_tools_disable', 'lazy_tools_mode', 'lazy_tools_save_groups', 'lazy_tools_list', 'lazy_tools_health']) {
     assert.ok(world.registered.has(name), `缺工具 ${name}`)
   }
-  ok('十一个工具都注册上了')
+  ok('七个工具都注册上了（0.16.0 由 11 个合并而来）')
 
   log('[2] agent 创建时按 defaultOn 收起')
   const agent = world.createAgent('agent-1')
@@ -327,13 +327,13 @@ async function main() {
   assert.equal(reStatus.groups.find((g) => g.id === 'input').matched, 1)
   ok('re: 正则分组可用（screen 1 / input 1）')
 
-  log('[4] scan / health 的输出')
-  const scan = await runTool(world, 'lazy_tools_scan', {}, agent)
-  assertJsonSafe(scan, 'scan')
-  // 可见 = 插件自己的 11 个工具 + other_tool；两个 cua 工具此刻仍被收着
-  assert.equal(scan.total, 12, `可见数不对：${JSON.stringify(scan.buckets.map((b) => b.prefix))}`)
-  assert.equal(scan.buckets.some((b) => b.prefix === 'cua_driver_native'), false)
-  ok('scan 输出 JSON-safe，total 对得上当前可见数，且没有 cua 前缀')
+  log('[4] list {ungrouped} / health 的输出')
+  const scan = await runTool(world, 'lazy_tools_list', { ungrouped: true }, agent)
+  assertJsonSafe(scan, 'list-ungrouped')
+  // 前缀分桶只统计「当前可见」的工具；两个 cua 工具此刻仍被收着，所以不该出现
+  assert.equal(scan.prefixes.some((b) => b.prefix === 'cua_driver_native'), false)
+  assert.ok(scan.ungrouped && Array.isArray(scan.ungrouped.tools), '要给出未归组工具与描述')
+  ok('list {ungrouped} 输出 JSON-safe：前缀分桶 + 未归组工具，且没有 cua 前缀')
 
   const health = await runTool(world, 'lazy_tools_health', {}, agent)
   assertJsonSafe(health, 'health')
@@ -479,7 +479,7 @@ async function main() {
   const badBatchOnly = await runTool(world9, 'lazy_tools_enable', { groups: ['cua', 'vision'], only: ['x'] }, agent9)
   assert.match(badBatchOnly.error, /只能配单个组/)
   const noSelector = await runTool(world9, 'lazy_tools_enable', {}, agent9)
-  assert.match(noSelector.error, /group 或 groups/)
+  assert.match(noSelector.error, /group、groups 或 name/)
   const health9 = await runTool(world9, 'lazy_tools_health', {}, agent9)
   assertJsonSafe(health9, 'health9')
   assert.ok(health9.usage.some((u) => u.id === 'cua' && u.enables === 1), JSON.stringify(health9.usage))
@@ -527,18 +527,18 @@ async function main() {
   apply(worldC.ctx, { groups: [{ id: 'cua', match: ['cua_driver_native__*'], defaultOn: false }] })
   const agentC = worldC.createAgent('agent-resolve')
   assert.equal(worldC.denyByAgent.get(agentC).size, 2)
-  const r1 = await runTool(worldC, 'lazy_tools_resolve', { name: 'cua_driver_native__a' }, agentC)
+  const r1 = await runTool(worldC, 'lazy_tools_enable', { name: 'cua_driver_native__a' }, agentC)
   assert.equal(r1.found, true)
   assert.equal(r1.applied, true)
   assert.equal(r1.group, 'cua')
   assert.equal(worldC.denyByAgent.get(agentC).has('cua_driver_native__a'), false)
   assert.equal(worldC.denyByAgent.get(agentC).has('cua_driver_native__b'), true)
-  const r2 = await runTool(worldC, 'lazy_tools_resolve', { name: 'native__b' }, agentC)
+  const r2 = await runTool(worldC, 'lazy_tools_enable', { name: 'native__b' }, agentC)
   assert.equal(r2.found, true)
   assert.equal(r2.tool, 'cua_driver_native__b')
-  const r3 = await runTool(worldC, 'lazy_tools_resolve', { name: 'nope_xyz' }, agentC)
+  const r3 = await runTool(worldC, 'lazy_tools_enable', { name: 'nope_xyz' }, agentC)
   assert.equal(r3.found, false)
-  ok('resolve：一步开一个（only 语义）、片段能匹配、找不到给提示')
+  ok('enable {name}：一步开一个（only 语义）、片段能匹配、找不到给提示')
 
   log('[16] 关键词预开：用户说了 autoHints 里的词，工具自己出现')
   const worldE = makeWorld()
@@ -650,7 +650,7 @@ async function main() {
   assert.equal(worldJ.denyByAgent.get(agentJ).size, 0)
   await runTool(worldJ, 'lazy_tools_mode', { collapse: true }, agentJ)
   assert.equal(worldJ.denyByAgent.get(agentJ).size, 2)
-  const resolvedBack = await runTool(worldJ, 'lazy_tools_resolve', { name: 'cua_driver_native__a' }, agentJ)
+  const resolvedBack = await runTool(worldJ, 'lazy_tools_enable', { name: 'cua_driver_native__a' }, agentJ)
   assert.equal(resolvedBack.applied, true)
   assert.equal(worldJ.denyByAgent.get(agentJ).has('cua_driver_native__a'), false)
   await runTool(worldJ, 'lazy_tools_enable', { group: 'cua' }, agentJ)
@@ -768,16 +768,16 @@ async function main() {
     const worldCls = makeWorld()
     apply(worldCls.ctx, { groups: [], autoGroups: 'off' })
     const agentCls = worldCls.createAgent('agent-cls')
-    const material = await runTool(worldCls, 'lazy_tools_classify', {}, agentCls)
-    assert.ok(Array.isArray(material.tools), 'classify 要返回 tools 数组')
-    assert.ok(typeof material.instructions === 'string' && material.instructions.length > 20, '要给分组说明')
+    const material = await runTool(worldCls, 'lazy_tools_save_groups', {}, agentCls)
+    assert.ok(material.classify && Array.isArray(material.classify.tools), '不传 groups 要返回分类材料')
+    assert.ok(typeof material.classify.instructions === 'string' && material.classify.instructions.length > 20, '要给分组说明')
     const badSave = await runTool(worldCls, 'lazy_tools_save_groups', { groups: [{ id: 'nope', match: ['pwsh', 'read'] }] }, agentCls)
     assert.equal(badSave.saved, 0)
     assert.ok(badSave.issues.some((s) => s.includes('常驻')), '必须拒绝含常驻工具的组')
     const smallSave = await runTool(worldCls, 'lazy_tools_save_groups', { groups: [{ id: 'tiny', match: ['only_one'] }] }, agentCls)
     assert.equal(smallSave.saved, 0)
     assert.ok(smallSave.issues.some((s) => s.includes('少于 2')), '必须拒绝单工具组')
-    ok('classify 给材料、save_groups 拒绝常驻与单工具组')
+    ok('save_groups 不传 groups 给材料、带 groups 时拒绝常驻与单工具组')
     log('[31] 分类提示开关：默认开，关掉后提示段里不出现')
     const mkWorldWithPrompt = () => {
       const world = makeWorld()
@@ -864,11 +864,11 @@ async function main() {
       autoGroups: 'off',
     })
     const agentBench = worldBench.createAgent('agent-b', (a) => worldBench.unmount(a, ['h_two']))
-    const benchB = await runTool(worldBench, 'lazy_tools_bench', {}, agentBench)
+    const benchB = (await runTool(worldBench, 'lazy_tools_health', { bench: true }, agentBench)).bench
     assertJsonSafe(benchB, 'bench-b')
     assert.equal(benchB.hidden, 2, 'g_one / g_two 是抽屉收起的')
     assert.equal(benchB.absent, 1, 'h_two 是宿主没挂的，不算在收起里（组开着不该被算成我们收的）')
-    // tools 里还包含插件自己的 11 个 lazy_tools_*，所以只对「差值」下断言
+    // tools 里还包含插件自己的 7 个 lazy_tools_*，所以只对「差值」下断言
     assert.equal(benchB.visibleInRegistry, benchB.tools - 3)
     assert.equal(benchB.visibleInRegistry + benchB.hidden + benchB.absent, benchB.tools, '三态必须能对上账')
     ok('bench：收起 2 + absent 1 + 注册内可见 (tools-3) = 注册总数，账能对上')
@@ -1213,7 +1213,20 @@ async function main() {
     process.env.LAZY_TOOLS_USAGE_FILE = `${NO_SUCH}.usage.json`
     ok('会话档位下 status 与决策同源（不再各算各的天数）')
 
-    console.log(`\nsmoke: ${checks} 项全过`)
+    // 0.16.0：11 个工具并成 7 个。旧名不再注册 schema（每轮省上下文），
+  // 但模型若喊旧名，守卫要回一句「已并入 X」——公开契约先废弃，不静默消失。
+  log('[53] 旧工具名给指路，不静默消失')
+  const worldLegacy = makeWorld()
+  apply(worldLegacy.ctx, { groups: [], autoGroups: 'off' })
+  const agentLegacy = worldLegacy.createAgent('agent-legacy')
+  const hintScan = worldLegacy.fireGuard(agentLegacy, 'lazy_tools_scan')
+  assert.equal(typeof hintScan, 'string')
+  assert.match(hintScan, /lazy_tools_list/)
+  const hintBench = worldLegacy.fireGuard(agentLegacy, 'lazy_tools_bench')
+  assert.match(hintBench, /lazy_tools_health/)
+  ok('旧名 scan/bench/classify/resolve 都返回「已并入 X」')
+
+  console.log(`\nsmoke: ${checks} 项全过`)
 }
 
 main().catch((error) => {
