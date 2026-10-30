@@ -48,9 +48,9 @@ Match patterns accept `*` globs and `re:` regexes; each group may carry `keep` (
 **Measured** (2026-10-28, 168 registered tools on one machine):
 
 ```
-all tool definitions   178,702 chars   # only tools this session can actually see
+all tool definitions   178,702 chars   # visible-in-registry + collapsed (this session's scope)
 collapsed (48 tools)    94,792 chars   (53%)
-visible  (101 tools)    83,910 chars
+visible in registry (101)   83,910 chars
 not mounted (19 tools)  23,637 chars   # never entered context — not counted as savings
 ```
 
@@ -58,12 +58,15 @@ not mounted (19 tools)  23,637 chars   # never entered context — not counted a
 > never cost a token; they are listed separately instead of being folded into "how much it saves".
 > On a machine where every tool mounts, that row is 0 and the figures become
 > "collapsed 67 / 118,429 chars / 58%".
-> Another 34 **core tools** (`read` / `write` / `pwsh` / `glob` / `web_fetch`, …) come straight from
-> the host rather than the tool registry — they are outside this table and are never collapsed.
+> Another 34 tools live **outside the tool registry**: 33 host core tools (`read` / `write` / `pwsh` /
+> `glob` / `web_fetch`, …) plus 1 agent-scoped `ops_discover_tools`. They are outside this table and are
+> never collapsed.
 
 Convert to tokens with your own provider's tokenizer — only character counts are reported here, because description density differs too much between languages for a fixed ratio to be honest.
 
 Reproduce it anytime with `lazy_tools_health { bench: true }`; every number in this README comes from that command.
+
+> **Cache accounting:** the numbers above are **characters of tool definitions**, not a matching discount on your bill. In steady state tool schemas are served from the prefix cache, which usually costs a fraction of a miss (the exact ratio is provider-specific — this project does not invent one). Changing the tool table **mid-session** invalidates that cache once; this plugin only does so when the user or the model needs a tool *right now* (keyword pre-open, self-heal, save_groups { applyNow: true }).
 
 ## Why
 
@@ -114,9 +117,9 @@ plugin_manager install_bundle  target: /absolute/path/to/dsh-tool-drawer
 ```
 
 That links the checkout into the profile, selects the bundle, and starts the client half. The bundle
-patch already ships four groups (desktop-read 19, desktop-input 37, browser-heavy 28, vision-heavy 8)
-with `keep` lists and `autoHints`; edit `cordis.patch.yml` in the checkout (or override the row in the
-profile patch) to change members.
+patch already ships four groups (`cua-screen` 19, `cua-input` 37, `browser-heavy` 28, `vision-heavy` 8);
+only the latter two carry `keep` lists, and all four carry `autoHints`. Edit `cordis.patch.yml` in the
+checkout (or override the row in the profile patch) to change members.
 
 Config changes apply on reload; **host code changes need a process restart**. The settings page is
 drawn by the client half and talks to the host over a loopback route.
@@ -202,9 +205,11 @@ upload.
 | `level` | `medium` | collapse aggressiveness: `low` 14 d / `medium` 7 d / `high` 3 d |
 | `presets` | `{14,7,3}` | days per level — change them to your own pace |
 | `idleDays` | follows `level` | override the day threshold (`0` = never collapse by time) |
-| `minTools` | `3` | don't bother collapsing groups smaller than this |
+| `minTools` | `3` | **auto-grouping** threshold: a prefix needs at least this many tools to become a group (floor 3 — smaller values are clamped) |
 | `showDock` | `false` | show the level control above the composer |
 | `showClear` | `false` | show the independent "clear now" button above the composer |
+| `classifyNudge` | `true` | when bare-named tools have no group, remind the model once in the system prompt to classify them |
+| `autoGroups` | `on` | automatic grouping: `off` / `suggest` / `on` |
 
 Both composer toggles are independent; the drawer control is mounted per conversation, so it appears
 after switching conversations (or reloading). The panel is bilingual and follows the host locale
@@ -222,15 +227,17 @@ Most people install a pile of plugins and use each of them rarely — but when t
 tool has to be there. Three deterministic mechanisms cover that, and none of them guesses:
 
 0. **Usage ledger + session-start decision** — every real call is recorded in
-   `~/.dsh/lazy-tools.usage.json` (timestamps only). When a session starts, a group stays open if it
-   was used within `idleDays` or has `defaultOn: true`; everything else starts collapsed. The decision
-   happens **once, at the session boundary**, so it never invalidates an active prompt cache.
+   `~/.dsh/lazy-tools.usage.json` (timestamps only). When a session starts, a group opens fully when
+   the share of its tools used within `idleDays` reaches `warmRatio` (default 0.30); below that only
+   those warm tools are revealed (`only`); with none warm the group starts collapsed. Group-level
+   timestamps are display-only (`lastUsed`) and no longer drive the decision. The decision happens
+   **once, at the session boundary**, so it never invalidates an active prompt cache.
 1. **`autoHints`** — the host emits `agent/inbox/inserted` when a user message arrives; if the text
    contains a configured phrase, the group is revealed *before the model reads the message*. It never
    auto-hides, and every auto-open is counted (`autoOpened`) so you can audit false positives.
 2. **`lazy_tools_enable { name }` / self-heal** — on an `unknown tool` error, `enable { name }` finds the
    owning group and reveals just that tool; a dispatch guard also tries to reveal it *before* the call is
-   rejected, and the model simply retries (`selfHealed` counts both). The old `resolve` is now this entry point.
+   rejected, and the model simply retries (only the guard bumps `stats.selfHealed`; `enable { name }` is not counted). The old `resolve` is now this entry point.
 
 No embeddings, no judge model, no proxy: the "intelligence" is just **acting on evidence the host
 already gives you** (a message, an error) instead of asking the model to remember.

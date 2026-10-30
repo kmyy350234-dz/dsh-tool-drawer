@@ -2,6 +2,27 @@
 
 格式参照 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循语义化版本。
 
+## [0.16.3] - 2026-10-30
+
+### 修复（第二轮冷读 11 处；其中一条是代码死分支）
+- **三态里的 `agent-filtered` 永远走不到**：判定用 `p.agent`，而 `p.agent` 是 `get(name)`（全局视图），
+  与 `p.global` 同值。现在改用 `p.scoped = get(name, agent)`：`scoped === false` ⇒ `agent-filtered`，
+  `scoped === true` 但不在工具表 ⇒ `filtered-by-schemas`。
+- **假宿主 `get(name, agent)` 不按 agent 过滤**（忽略第二个参数）⇒ `scoped` 恒等于 `global`，三态测不出来 ——
+  这和 #54 是同一类「替身比真宿主更听话」。已修：`test/smoke.mjs` 的 mock 现在按 agent 的 deny/未挂载过滤；
+  `[32]` 也相应从 `filtered-by-schemas` 改成 `agent-filtered`（这个场景本来就是「作用域查不到」）。
+
+### 文档（11 处逐条）
+- README：`health.autoOpened` / `health.selfHealed` → `health.stats.*`（按旧写法读到的是 undefined）；
+  bench 的「比例」→「三态计数，百分比自己除」。
+- DESIGN：常驻提示「五组 id」→「全部组 id（四组 + 手写 + auto）」；探针字段 `inScopedSchemas` → 实际输出；
+  三态判定说明改成 `scoped` 口径。
+- README.en：组名 `cua-screen/cua-input`（原来错写 desktop-read/desktop-input）、bench 注释、
+  34 个非注册表工具拆成 33 宿主内核 + 1 个 agent 作用域、配置表补到 8 行（`classifyNudge` / `autoGroups`）、
+  `minTools` 解释、组热描述补 `only` 档、澄清 `selfHealed` 只有守卫计数、补「缓存账」段落。
+
+### 验收
+- 冒烟 **63 项**全过；`[32]` 的断言随语义更新（不是放宽，是改成更真的那个状态）。
 ## [0.16.2] - 2026-10-30
 
 ### 文档与代码对齐（独立冷读发现 24 处不一致，逐条修）

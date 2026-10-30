@@ -101,9 +101,15 @@ function makeWorld() {
         registered.set(definition.name, definition)
         return () => registered.delete(definition.name)
       },
-      // 真实宿主：get() 查的是「注册表里有没有」，不受作用域过滤影响
-      // （#11207 官方给的 lookup：global 有、agent 有、但 schemas(agent) 里没有 = 被 schemas 层滤了）
-      get(name) { return registered.get(name) },
+      // 真实宿主：get(name) 是全局视图；get(name, agent) 是 agent 作用域视图（rc.3 与 schemas(agent) 同源）。
+      // 2026-10-30 冷读指出假宿主原来忽略第二个参数 ⇒ `scoped` 永远等于 `global`，三态测不出来。
+      get(name, agent) {
+        if (!agent) return registered.get(name)
+        const deny = denyByAgent.get(agent) || new Set()
+        const miss = unmounted.get(agent) || new Set()
+        if (deny.has(name) || miss.has(name)) return undefined
+        return registered.get(name)
+      },
       schemas(agent) {
         const deny = (agent && denyByAgent.get(agent)) || new Set()
         const miss = (agent && unmounted.get(agent)) || new Set()
@@ -118,7 +124,14 @@ function makeWorld() {
     activeByAgent.set(agent, [])
     agent.ctx = {
       tools: {
-        get(name) { return registered.get(name) },
+        // 与注册表级 get 同语义：带 agent 时按该 agent 的作用域过滤（2026-10-30 冷读修）
+        get(name, scopedAgent) {
+          if (!scopedAgent) return registered.get(name)
+          const denyS = denyByAgent.get(scopedAgent) || new Set()
+          const missS = unmounted.get(scopedAgent) || new Set()
+          if (denyS.has(name) || missS.has(name)) return undefined
+          return registered.get(name)
+        },
         restrict(filter) {
           const deny = denyByAgent.get(agent)
           const added = Array.isArray(filter && filter.deny) ? [...filter.deny] : []
@@ -825,12 +838,13 @@ async function main() {
     assert.equal(gNM.on, true)
     assert.equal(gNM.matched, 2)
     assert.equal(gNM.visible, 0)
-    assert.equal(gNM.blocked, 'filtered-by-schemas')
+    // 2026-10-30 二修：scoped 才是 agent 作用域视图；这个场景是「全局有、作用域查不到」⇒ agent-filtered
+    assert.equal(gNM.blocked, 'agent-filtered')
     assert.deepEqual(hNM.warnings, [], `宿主没挂载不该算 warning：${JSON.stringify(hNM.warnings)}`)
     assert.equal(hNM.healthy, true, '静音待命不能让 healthy 变 false —— 否则每轮都在替宿主挨刀')
-    assert.ok(hNM.notes.some((n) => n.includes('schemas(agent) 过滤')), `notes 要写实测原因：${JSON.stringify(hNM.notes)}`)
+    assert.ok(hNM.notes.some((n) => n.includes('作用域')), `notes 要写实测原因：${JSON.stringify(hNM.notes)}`)
     assert.ok(hNM.groups.find((g) => g.id === 'cua').blockedProbe, '要带上探针结果（global/agent 两个布尔）')
-    ok('[32] 注册了但不在工具表 → blocked:filtered-by-schemas、不报警、healthy 仍 true、notes 带实测原因')
+    ok('[32] 注册了但不在工具表 → blocked:agent-filtered、不报警、healthy 仍 true、notes 带实测原因')
 
     log('[33] 宿主修好了：监控自动恢复，不用做任何事')
     remountCua()
