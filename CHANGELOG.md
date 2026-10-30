@@ -2,6 +2,20 @@
 
 格式参照 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循语义化版本。
 
+## [0.16.1] - 2026-10-30
+
+### health 默认精简（减法清单 C 项，经独立盲评）
+- 默认输出 **4072 → 约 3.0KB**：去掉账本 `usage`、`nameProbe`/`filterReport` 的 null 占位、`contracts[].detail` 复述；
+  分组只留判定字段，`warnings/notes/stray/errors` 连成一块便于扫。
+- 要全量：`lazy_tools_health { full: true }`（结构不变）。
+- **独立盲评结论**：精简版「更容易一眼看完」，且三个排障问题仍答得出；
+  唯一硬条件——**默认必须保留 `client.seen`**（当时唯一的红灯，被删掉会读成“全绿”）。已补回。
+- **未采纳盲评的一半**：没有把 `client.seen` 并进 `healthy`。面板是可选件（`showDock` 默认关），
+  没上报不等于插件有病；并进去会让每个新会话开局就红，等于训练人忽略警报。改为「可见但不判病」，边界写进 DESIGN。
+
+### 验收
+- 冒烟 62 → **63 项**（新增 `[54]`：默认保留 client / full 才给 usage）。
+- 备份与对照：`_work\health-before-full.json`（4072B）、`health-after-default.json`、`health-after-full.json`。
 ## [0.16.0] - 2026-10-30
 
 ### 破坏性变更：工具 **11 → 7**（减法，省每轮上下文）

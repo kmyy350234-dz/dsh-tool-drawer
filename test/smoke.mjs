@@ -480,7 +480,7 @@ async function main() {
   assert.match(badBatchOnly.error, /只能配单个组/)
   const noSelector = await runTool(world9, 'lazy_tools_enable', {}, agent9)
   assert.match(noSelector.error, /group、groups 或 name/)
-  const health9 = await runTool(world9, 'lazy_tools_health', {}, agent9)
+  const health9 = await runTool(world9, 'lazy_tools_health', { full: true }, agent9)
   assertJsonSafe(health9, 'health9')
   assert.ok(health9.usage.some((u) => u.id === 'cua' && u.enables === 1), JSON.stringify(health9.usage))
   ok('批量 enable 生效、only+多组被拒、usage 记账')
@@ -1225,6 +1225,18 @@ async function main() {
   const hintBench = worldLegacy.fireGuard(agentLegacy, 'lazy_tools_bench')
   assert.match(hintBench, /lazy_tools_health/)
   ok('旧名 scan/bench/classify/resolve 都返回「已并入 X」')
+
+  log('[54] health 默认精简：保留 client、去掉账本；full 给全量')
+  const worldSlim = makeWorld()
+  apply(worldSlim.ctx, { groups: [], autoGroups: 'off' })
+  const agentSlim = worldSlim.createAgent('agent-slim')
+  const slimH = await runTool(worldSlim, 'lazy_tools_health', {}, agentSlim)
+  assert.equal('usage' in slimH, false, '默认视图不该带账本 usage')
+  assert.equal('client' in slimH, true, '默认视图必须带 client（缺失≠正常，2026-10-30 盲评指出）')
+  const fullH = await runTool(worldSlim, 'lazy_tools_health', { full: true }, agentSlim)
+  assert.equal('usage' in fullH, true, 'full 视图要带账本')
+  assert.ok(fullH.stats && slimH.stats, '两档都要有 stats')
+  ok('默认精简保留 client + stats；full 才给 usage / 探针')
 
   console.log(`\nsmoke: ${checks} 项全过`)
 }
