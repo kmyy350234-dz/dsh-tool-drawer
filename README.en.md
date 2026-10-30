@@ -7,7 +7,7 @@
 > actually use on the bench, lets stale ones sink on their own — and brings a tool back with one call,
 > one keyword, or a guard that catches the call and reopens it.
 
-**Status:** `0.14.x` — used daily on one DSH installation; the config surface may still change.
+**Status:** `0.16.x` — used daily on one DSH installation; the config surface may still change.
 Issues and PRs are welcome, but maintenance is **best-effort**. If DSH ships native on-demand tool
 loading, this project should retire (see *Exit criteria*).
 
@@ -17,10 +17,10 @@ loading, this project should retire (see *Exit criteria*).
 
 The defaults are the whole feature set. **No settings page, no config file, nothing to write:**
 
-- Four groups ship ready (desktop·read / desktop·act / browser·heavy / vision·heavy), and they collapse by recent use;
+- Four groups ship ready (`cua-screen` / `cua-input` / `browser-heavy` / `vision-heavy`), and they collapse by recent use;
 - A collapsed tool **comes back the moment you call it** (a guard catches the call and reopens it) — you never need to know which group it belongs to;
 - Saying "screenshot" or "look at that window" opens the matching group on its own;
-- To look around: `lazy_tools_status`; to bring everything back: `lazy_tools_enable` or the settings-page button.
+- To look around: `lazy_tools_status`; to open everything for this session: `lazy_tools_mode { idleDays: 0 }`.
 
 Install it, keep working.
 
@@ -32,12 +32,12 @@ Lightest first — all four places are plain text:
 |---|---|
 | Level / idle days / dock visibility / classification nudge | the settings page, or `~/.dsh/lazy-tools.policy.json` |
 | Groups for tools with a shared prefix (`dsh_browser_*` …) | `groups` in the package `cordis.patch.yml`, or config `extraGroups` (**appends**, never replaces the defaults) |
-| Tools with no shared prefix (`click`, `type_text` …) | `~/.dsh/lazy-tools.groups.json`; or let the agent run `lazy_tools_classify` then `lazy_tools_save_groups` |
-| Read-only inspection | `lazy_tools_status` / `lazy_tools_scan` / `lazy_tools_list` / `lazy_tools_health` |
-| `lazy_tools_classify` | Lists unnamed, ungrouped tools with their descriptions so the agent can decide how to group them |
+| Tools with no shared prefix (`click`, `type_text` …) | `~/.dsh/lazy-tools.groups.json`; or let the agent call `lazy_tools_save_groups` (no `groups` = classification material, with `groups` = write) |
+| Read-only inspection | `lazy_tools_status` / `lazy_tools_list` / `lazy_tools_health` |
+| `lazy_tools_list { ungrouped: true }` | Lists ungrouped tools with descriptions plus name-prefix buckets (absorbs the old `scan` / `classify`) |
 | `lazy_tools_save_groups` | Writes the chosen groups to `~/.dsh/lazy-tools.groups.json`; takes effect next session unless `applyNow: true` |
 
-Match patterns accept `*` globs and `re:` regexes; each group may carry `keep` (never collapse), `expect` (count assertion) and `autoHints` (keywords that open it).
+Match patterns accept `*` globs and `re:` regexes; each group may carry `keep` (never collapse), `expect` (lower bound on member count) and `autoHints` (keywords that open it).
 
 **Three red lines** (this project holds itself to them too): do **not** change the tool table mid-session by default (two exceptions, both logged: keyword pre-open and self-heal) · recovery tools never go into a group · failures must be reported. Details in [DESIGN.md](DESIGN.md).
 
@@ -63,7 +63,7 @@ not mounted (19 tools)  23,637 chars   # never entered context — not counted a
 
 Convert to tokens with your own provider's tokenizer — only character counts are reported here, because description density differs too much between languages for a fixed ratio to be honest.
 
-Reproduce it anytime with `lazy_tools_bench`; every number in this README comes from that command.
+Reproduce it anytime with `lazy_tools_health { bench: true }`; every number in this README comes from that command.
 
 ## Why
 
@@ -76,7 +76,7 @@ live. It also explains the one caveat: 19 tools this host never mounts are count
 and a machine where everything mounts collapses 67.
 **These are cold-start / not-yet-warmed numbers.** Over time, groups that get used stay open by design,
 so the collapsed count drifts down — that is the heat model working, not a doctored figure. Re-run
-`lazy_tools_bench` to reproduce.
+`lazy_tools_health { bench: true }` to reproduce.
 
 ## How it differs from a proxy or an embedding router
 
@@ -134,7 +134,7 @@ you want to change the pattern or add a `keep` list.
 | Mode | Behaviour |
 |---|---|
 | `off` | Do nothing |
-| `suggest` | Only report suggestions in `lazy_tools_scan`; change nothing |
+| `suggest` | Only report suggestions under `autoGroups.suggestions` in `lazy_tools_list { ungrouped: true }`; create nothing |
 | `on` (default) | Create the groups and collapse them by the usual rules. A collapsed tool is restored automatically the first time it is called, so a mis-grouped family costs one extra round-trip at worst |
 
 **A newly installed plugin may be auto-collapsed**: auto groups have ids starting with `auto-`
@@ -159,7 +159,7 @@ registry, so auto grouping never touches them.
 Custom match patterns or `keep` lists still go in the config — see the next section.
 
 A manual `cordis.patch.yml` row is still possible (see
-[examples/profile-patch.snippet.yml](examples/profile-patch.snippet.yml)) but it gets you only the
+[profile-patch.snippet.yml](profile-patch.snippet.yml)) but it gets you only the
 host half — no settings page.
 
 ## Config reference (per group)
@@ -169,7 +169,7 @@ host half — no settings page.
 | `id` | group id, used by every tool call |
 | `match` | array of patterns. Plain strings are globs (`*` wildcard, anchored); prefix `re:` for a raw regular expression |
 | `keep` | tool names that must never be treated as "stray" — the ones you deliberately leave visible |
-| `expect` | expected number of tools in the group; a mismatch shows up as a `warnings[]` entry in `lazy_tools_health` |
+| `expect` | **lower bound** on the group size; only `matched < expect` produces a `warnings[]` entry (absorbing match patterns grow, and that is fine) |
 | `defaultOn` | `false` = hidden unless enabled (almost always what you want) |
 | `autoHints` | optional phrases; when a user message contains one, the group is revealed before the model reads it (substring, case-insensitive). List the variants people actually type — `截图` does **not** match `截个图` |
 | `title` | free-form label shown by `lazy_tools_status` |
@@ -178,17 +178,13 @@ host half — no settings page.
 
 | Tool | What it does |
 |---|---|
-| `lazy_tools_status` | per group: `on`, `mode` (`hide`/`only`/`all`), `matched`, `visible`, `expect*`, `hot`, `lastUsed` |
-| `lazy_tools_enable {group \| groups, only?}` | show a group; `only: ['name']` shows exactly those tools; `groups: [...]` for batches |
+| `lazy_tools_status` | per group: `on`, `mode` (`hide`/`only`/`all`), `matched`, `visible`, `onlyCount`, `expect`/`expectOk`, `hot`, `lastUsed` |
+| `lazy_tools_enable {group \| groups, only?, name?}` | show a group; `only: ['name']` shows exactly those tools; `groups: [...]` for batches; **`name: '<tool or fragment>'` reveals just that one tool** (absorbs the old `resolve`) |
 | `lazy_tools_disable {group \| groups}` | hide it again (clears any `only` allow-list) |
-| `lazy_tools_list {group?}` | tool names in a group, including currently hidden ones |
-| `lazy_tools_resolve {name, apply?}` | **one step**: find the owning group and reveal just that tool; meant to be used right after an `unknown tool` error |
+| `lazy_tools_list {group?, ungrouped?}` | tool names in a group, including hidden ones; `ungrouped: true` adds ungrouped tools with descriptions plus name-prefix buckets and `autoGroups` suggestions (absorbs the old `scan` / `classify`) |
 | `lazy_tools_mode {level?, idleDays?, reset?, collapse?}` | **this session only**: change the threshold and recompute which groups start open (`reset` → global policy, `collapse` → clear this conversation) |
-| `lazy_tools_scan` | every visible tool bucketed by name prefix, to help author new group patterns |
-| `lazy_tools_health` | contract self-check, `healthy`, `warnings`, `stray`, `usage`, `autoOpened`, `selfHealed`, recent errors |
-| `lazy_tools_bench` | measures the "tool schema tax" in characters: registered total, visible/collapsed, per group (the single source of the numbers in this README) |
-| `lazy_tools_classify` | lists bare-named tools that share no prefix and belong to no group, with descriptions, so an agent can group them once |
-| `lazy_tools_save_groups` | writes the chosen groups to `~/.dsh/lazy-tools.groups.json`; takes effect next session by default, `applyNow: true` applies immediately |
+| `lazy_tools_health {tool?, layersFor?, bench?, full?}` | contract self-check; default is a **slim view** (`healthy`, per-group state, `warnings`, `stray`, `client`, `stats`); `{ full: true }` adds ledger `usage`, `contracts[].detail`, `nameProbe`, `filterReport`; `{ bench: true }` adds the schema-tax report |
+| `lazy_tools_save_groups {groups?, applyNow?}` | write groups to `~/.dsh/lazy-tools.groups.json` (next session unless `applyNow: true`); **without `groups`** it returns classification material instead (bare-named, ungrouped tools with descriptions) |
 
 `healthy: true` means: four contracts OK **and** no errors **and** no warnings.
 
@@ -232,9 +228,9 @@ tool has to be there. Three deterministic mechanisms cover that, and none of the
 1. **`autoHints`** — the host emits `agent/inbox/inserted` when a user message arrives; if the text
    contains a configured phrase, the group is revealed *before the model reads the message*. It never
    auto-hides, and every auto-open is counted (`autoOpened`) so you can audit false positives.
-2. **`lazy_tools_resolve` / self-heal** — on an `unknown tool` error, `resolve` finds the owning group
-   and reveals just that tool; a dispatch guard also tries to reveal it *before* the call is rejected,
-   and the model simply retries (`selfHealed` counts both).
+2. **`lazy_tools_enable { name }` / self-heal** — on an `unknown tool` error, `enable { name }` finds the
+   owning group and reveals just that tool; a dispatch guard also tries to reveal it *before* the call is
+   rejected, and the model simply retries (`selfHealed` counts both). The old `resolve` is now this entry point.
 
 No embeddings, no judge model, no proxy: the "intelligence" is just **acting on evidence the host
 already gives you** (a message, an error) instead of asking the model to remember.
@@ -272,7 +268,7 @@ breaks the test before it breaks your session.
 5. **Failure mode is fail-open**: if a contract breaks, tools come back and you spend tokens — it will
    not lock you out.
 6. **Self-heal only covers tools that exist but are hidden.** A misspelled or not-yet-loaded name
-   cannot be repaired; use `lazy_tools_resolve` with a fragment.
+   cannot be repaired; use `lazy_tools_enable { name: "<fragment>" }`.
 7. **UI is bilingual, tool descriptions are not.** The settings panel and the composer row follow the
    host locale service; model-facing tool descriptions are registered once at boot and stay in
    Chinese, because the host process has no view of the UI language.

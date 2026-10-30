@@ -42,7 +42,7 @@
 ## 问题量级
 
 一台机器上 197 个工具，其中桌面自动化 56、浏览器 34、视觉 14、TiddlyWiki 16……
-工具 schema 是**每轮都在 prompt 里**的固定成本。要量它，**跑 `lazy_tools_bench`**——
+工具 schema 是**每轮都在 prompt 里**的固定成本。要量它，**跑 `lazy_tools_health { bench: true }`**——
 README 的「省了多少」表格是这份数字的**唯一存放处**（2026-10-29 起：同一个事实不存两遍，存两遍必然漂）。
 
 ## 五个可复用的模式
@@ -80,7 +80,7 @@ README 的「省了多少」表格是这份数字的**唯一存放处**（2026-1
 
 | 项 | 值 |
 |---|---|
-| 工具总数 / 收起 / 可见 | 197 / 102 / 95（2026-10-23 的机况；当前机况请跑 `lazy_tools_bench`） |
+| 工具总数 / 收起 / 可见 | 197 / 102 / 95（2026-10-23 的机况；当前机况请跑 `lazy_tools_health { bench: true }`） |
 | 四组 | `cua-screen 19`、`cua-input 37`、`browser-heavy 28`、`vision-heavy 8`（另有用户手写组 `cu-observe 5` / `cu-act 9` / `cu-audio 2`） |
 | 切分验证 | 56 个 CUA 真名按正则切 19+37，**零重叠零遗漏**（脚本验，不是手算） |
 | only 单工具 | `enable {group,'only':[get_window_state]}` 后工具表只多这一个 |
@@ -89,7 +89,7 @@ README 的「省了多少」表格是这份数字的**唯一存放处**（2026-1
 ## 边界（别把它当万灵药）
 
 1. **只能藏全局注册的工具**。agent scope 内注册的（本机 `dsh-ops` 的 `ops_*` 就是）宿主明确拒绝，藏不了。
-   实测（2026-10-28）：一个会话的 135 个可见工具里，**34 个不归工具注册表** —— 33 个是宿主内核自带的（`read` / `write` / `pwsh` / `glob` / `web_fetch` / `schedule_*` …），1 个是 `dsh-ops` 的 agent 作用域工具 `ops_discover_tools`。所以 `lazy_tools_bench` 的 `visible` 会大于它在注册表里能统计到的 `visibleInRegistry`；这两个数对不上不是 bug，是这一条边界。`bench` 现在会把这些名字逐个放进 `outsideRegistryNames`，不用再猜。
+   实测（2026-10-28）：一个会话的 135 个可见工具里，**34 个不归工具注册表** —— 33 个是宿主内核自带的（`read` / `write` / `pwsh` / `glob` / `web_fetch` / `schedule_*` …），1 个是 `dsh-ops` 的 agent 作用域工具 `ops_discover_tools`。所以 `lazy_tools_health { bench: true }` 的 `visible` 会大于它在注册表里能统计到的 `visibleInRegistry`；这两个数对不上不是 bug，是这一条边界。`bench` 现在会把这些名字逐个放进 `outsideRegistryNames`，不用再猜。
 2. **分组只能按名字**。宿主的 `ToolSchema` 只有 name/description/parameters，**没有 tags**，所以命名没规律就只能手写白名单。
 3. **开关会打断前缀缓存**。工具表一变，那一轮 cache 就未命中——所以纪律是「一次开、别反复切」，`only` 优于整组开。
 4. **不做自动回收**。TTL 与关键词触发都容易误判，先记用量（`health.usage`），攒够数据再决定。
@@ -137,7 +137,7 @@ README 的「省了多少」表格是这份数字的**唯一存放处**（2026-1
    走 only 的条件是 `hot < 成员数×ratio ≤ ceil(...)`，永远截不到 —— 2026-10-30 删掉，
    免得文档把不存在的机制说成有效机制。
    账本只记「最后调用时间」，能力目录样本按**最近用过的优先**排 —— 没有窗口内计数，就不假装能算「用得最多」。
-   `warmRatio` 进设置页与 `/policy`（夹到 0.05–1）；**30% 这个值本身留待 `firstTryRate` 的真实数据调**，不拍脑袋。
+   `warmRatio` **不进设置页**（内部判据），只走配置文件与 `/policy`（夹到 0.05–1）；**30% 这个值本身留待 `firstTryRate` 的真实数据调**，不拍脑袋。
    `status.hot` 已改成与决策**同一语义**（占比 ≥ warmRatio），并新增 `hotTools` / `hotRatio`；
    组级时间戳从此只用于 `lastUsed` 展示，不再参与任何决策。
 ## 同类与差别
@@ -155,7 +155,7 @@ README 的「省了多少」表格是这份数字的**唯一存放处**（2026-1
      这是我们 2026-10-30 补目录样本名的原因；它比我们更不容易「卡在没人知道名字上」；
   3. **它能管住 agent 作用域工具与 MCP**；我们只能掩蔽全局注册表里的工具（文档里写明的边界）。
   **我们从它身上学到的**：`tool_search` 这种「按用途检索、命中即激活」的入口，比「让模型记住名字」更稳。
-  我们**没有**照抄（红线：不加新部件），而是把成本压在已有的 `lazy_tools_list` / `lazy_tools_resolve` 上，并把它们写进常驻提示的指路里；
+  我们**没有**照抄（红线：不加新部件），而是把成本压在已有的 `lazy_tools_list` / `lazy_tools_enable { name }` 上，并把它们写进常驻提示的指路里；
   如果将来「猜名字失败」的比率（`health.stats.firstTryRate` 的反面）真的高，这条是最该重新评估的候选。
 - 共同点：大家解的都是「工具 schema 税」；不同点在**动哪一层**。
 

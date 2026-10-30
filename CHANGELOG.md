@@ -2,6 +2,27 @@
 
 格式参照 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循语义化版本。
 
+## [0.16.2] - 2026-10-30
+
+### 文档与代码对齐（独立冷读发现 24 处不一致，逐条修）
+- README 中文：状态 `0.16.x`、测试项数（以 smoke 输出为准，当前 63）、工具名（`resolve` → `enable { name }`）、
+  `register` 表补 `classifyNudge` / `autoGroups`、`minTools` 说明改成「自动分组建组门槛」、
+  「可见 101」标注为**注册表内**、34 个非注册表工具拆成 33 宿主内核 + 1 个 agent 作用域。
+- README 英文：工具表从 11 行重写为 7 行（与代码一致）、`bench/scan/classify/resolve` 全部换成新入口、
+  组名 `cua-screen/cua-input`（原来错写 desktop-read/desktop-input）、`expect` 下限语义、
+  `healthy` 默认精简 + `full`、示例链接修正到同目录。
+- DESIGN：`bench` → `health { bench: true }`、`resolve` → `enable { name }`、
+  `warmRatio` 那句「进设置页」改成「**不进**设置页（内部判据）」。
+
+### 修复（冷读发现的真问题）
+- **`autoGroups: suggest` 没有可观察输出**：合并 `scan` 时把建议字段丢了，选它的人看不到任何东西。
+  现已接回 `lazy_tools_list { ungrouped: true }` 的 `autoGroups.suggestions`。
+
+### 新增
+- `LICENSE`（MIT）：`package.json` 与 README 一直引用它，但文件不存在。
+
+### 验收
+- 冒烟 63 项全过；文档残留名（bench/scan/classify/resolve）已清零。
 ## [0.16.1] - 2026-10-30
 
 ### health 默认精简（减法清单 C 项，经独立盲评）
