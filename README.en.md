@@ -172,7 +172,7 @@ host half — no settings page.
 | `expect` | expected number of tools in the group; a mismatch shows up as a `warnings[]` entry in `lazy_tools_health` |
 | `defaultOn` | `false` = hidden unless enabled (almost always what you want) |
 | `autoHints` | optional phrases; when a user message contains one, the group is revealed before the model reads it (substring, case-insensitive). List the variants people actually type — `截图` does **not** match `截个图` |
-| `title`, `hint` | free-form labels shown by `lazy_tools_status` |
+| `title` | free-form label shown by `lazy_tools_status` |
 
 ## Tools
 

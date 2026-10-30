@@ -904,7 +904,7 @@ async function main() {
     // 按新定义（≥30% 才算整组开）应走 only，只放那 1 个。
     log('[38] 单工具热度：大组里只用 1 个 → 只放那一个')
     const usagePath2 = join(tmpdir(), `lazy-tools-usage2-${process.pid}.json`)
-    const ledgerReal = { groups: {}, tools: {}, counts: {} }
+    const ledgerReal = { groups: {}, tools: {} }
     recordUsage(ledgerReal, 'cua_driver_native__a', 'cua', new Date())
     writeFileSync(usagePath2, JSON.stringify(ledgerReal))
     process.env.LAZY_TOOLS_USAGE_FILE = usagePath2
@@ -928,7 +928,7 @@ async function main() {
     // 对照组：小组里 1/2 用过 = 50% ≥ 30% → 整组开（否则「一个工具常用就整组开」会被一刀切掉）
     log('[44] 热工具占比够高 → 整组开（对照组）')
     const usagePath3 = join(tmpdir(), `lazy-tools-usage3-${process.pid}.json`)
-    const ledgerSmall = { groups: {}, tools: {}, counts: {} }
+    const ledgerSmall = { groups: {}, tools: {} }
     recordUsage(ledgerSmall, 'small__a', 'small', new Date())
     writeFileSync(usagePath3, JSON.stringify(ledgerSmall))
     process.env.LAZY_TOOLS_USAGE_FILE = usagePath3
@@ -1056,7 +1056,7 @@ async function main() {
     // 被藏的那几个付一次自愈。上限应与判据对齐：max(3, ceil(成员数 × warmRatio))。
     console.log('[45] 热工具全放（20 成员 5 热 = 25% → 放 5 个，不再有 CAP）')
     const usagePath45 = join(tmpdir(), `lazy-tools-usage45-${process.pid}.json`)
-    const ledger45 = { groups: {}, tools: {}, counts: {} }
+    const ledger45 = { groups: {}, tools: {} }
     const world45 = makeWorld()
     for (let i = 0; i < 20; i += 1) {
       const name = `cap__t${i}`
@@ -1082,7 +1082,7 @@ async function main() {
     // 对照组：warmRatio 可配 —— 调到 0.5 后 5/12（42%）不够热，仍走 only，且上限 6 允许 5 个全放
     console.log('[46] warmRatio 可配（0.5）：5/12 不够热 → only 5')
     const usagePath46 = join(tmpdir(), `lazy-tools-usage46-${process.pid}.json`)
-    const ledger46 = { groups: {}, tools: {}, counts: {} }
+    const ledger46 = { groups: {}, tools: {} }
     const world46 = makeWorld()
     for (let i = 0; i < 12; i += 1) {
       const name = `ratio__t${i}`
@@ -1109,7 +1109,7 @@ async function main() {
     // status.hot 曾经用「组时间戳」（任一工具热）；现在必须与占比判据一致
     console.log('[47] status.hot 不再用旧语义：1/12 热 → hot=false，但 only 放 1 个')
     const usagePath47 = join(tmpdir(), `lazy-tools-usage47-${process.pid}.json`)
-    const ledger47 = { groups: {}, tools: {}, counts: {} }
+    const ledger47 = { groups: {}, tools: {} }
     const world47 = makeWorld()
     for (let i = 0; i < 12; i += 1) {
       const name = `one__t${i}`
@@ -1165,7 +1165,7 @@ async function main() {
     assert.equal(hMt.policy.minTools, 3, `minTools 应夹到 3，实际 ${hMt.policy.minTools}`)
     ok('minTools 下限 3 在加载时夹住，health 显示生效值')
 
-    console.log('[51] 能力目录：窗口内的工具优先于「陈年高频」')
+    console.log('[51] 能力目录：最近用过的优先（不按累计次数）')
     const usagePath51 = join(tmpdir(), `lazy-tools-usage51-${process.pid}.json`)
     const oldIso = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString()
     writeFileSync(usagePath51, JSON.stringify({ groups: {}, tools: { ord__a: oldIso, ord__b: new Date().toISOString() }, counts: { ord__a: 100, ord__b: 1 } }))
@@ -1180,16 +1180,16 @@ async function main() {
     apply(worldOrd.ctx, { groups: [{ id: 'ord', match: ['ord__*'], expect: 2, defaultOn: false }], autoGroups: 'off' })
     const text51 = sections51.length ? String(sections51[0].text()) : ''
     assert.ok(text51.includes('ord__b') && text51.includes('ord__a'), `目录要有两个工具名：${text51.slice(0, 160)}`)
-    assert.ok(text51.indexOf('ord__b') < text51.indexOf('ord__a'), '窗口内用过的 ord__b 应排在「30 天前用过 100 次」的 ord__a 前面')
+    assert.ok(text51.indexOf('ord__b') < text51.indexOf('ord__a'), '今天用过的 ord__b 应排在 30 天前用过的 ord__a 前面')
     rmSync(usagePath51, { force: true })
     process.env.LAZY_TOOLS_USAGE_FILE = `${NO_SUCH}.usage.json`
-    ok('目录排序：idleDays 窗口内优先，再按次数（与决策同口径）')
+    ok('目录排序：最近用过的优先；不按累计次数（账本没有窗口内计数）')
 
     // 2026-10-30 挑刺：会话档位（lazy_tools_mode idleDays）改过之后，决策用 sessionIdleDays，
     // 而 status/目录排序还在用 policy.idleDays —— 会出现「组已收起、hot 仍报 true」。
     console.log('[52] 会话档位生效时，status.hot 与决策同源')
     const usagePath52 = join(tmpdir(), `lazy-tools-usage52-${process.pid}.json`)
-    const ledger52 = { groups: {}, tools: {}, counts: {} }
+    const ledger52 = { groups: {}, tools: {} }
     const worldSd = makeWorld()
     for (const s of ['a', 'b', 'c', 'd']) worldSd.ctx.tools.register({ name: `sd__${s}`, description: 'x', parameters: {}, output: {} })
     const threeDaysAgo = new Date(Date.now() - 3 * DAY)
