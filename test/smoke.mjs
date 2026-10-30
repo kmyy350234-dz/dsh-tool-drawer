@@ -842,8 +842,8 @@ async function main() {
     assert.equal(gNM.blocked, 'agent-filtered')
     assert.deepEqual(hNM.warnings, [], `宿主没挂载不该算 warning：${JSON.stringify(hNM.warnings)}`)
     assert.equal(hNM.healthy, true, '静音待命不能让 healthy 变 false —— 否则每轮都在替宿主挨刀')
-    assert.ok(hNM.notes.some((n) => n.includes('作用域')), `notes 要写实测原因：${JSON.stringify(hNM.notes)}`)
-    assert.ok(hNM.groups.find((g) => g.id === 'cua').blockedProbe, '要带上探针结果（global/agent 两个布尔）')
+    assert.ok(hNM.notes.some((n) => n.includes('作用域') && n.includes('scoped=false')), 'notes 要写明决定性布尔 scoped=false（agent 是无第二参的全局值，不许当证据）')
+    assert.ok(hNM.groups.find((g) => g.id === 'cua').blockedProbe, '要带上探针结果（global/scoped）')
     ok('[32] 注册了但不在工具表 → blocked:agent-filtered、不报警、healthy 仍 true、notes 带实测原因')
 
     log('[33] 宿主修好了：监控自动恢复，不用做任何事')

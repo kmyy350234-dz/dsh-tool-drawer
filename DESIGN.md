@@ -109,7 +109,9 @@ README 的「省了多少」表格是这份数字的**唯一存放处**（2026-1
      ```
      ⇒ **作用域链上有「别人」的限制**（不是抽屉、不是 PTC、`run_code` 在这个作用域里也不存在）。
      这也解释了实验 2：`defaultPreset` 与 `composedPreset` 都是 `cordis`，那次切 `standard` **确实没生效**。
-     探针已按作者给的代码改成 `get(name, agent)` + `defaultPreset/composedPreset`。\n    **三态判定同步修正（2026-10-30 冷读）**：原来用 `p.agent` 判 `agent-filtered`，而 `agent = get(name)` 与 `global` 同源 ⇒ 那个分支永远走不到。现在用 `p.scoped`：\n    `scoped === false` ⇒ `agent-filtered`（作用域视图不给它）；`scoped === true` 但不在工具表 ⇒ `filtered-by-schemas`（呈现层滤掉）。假宿主也补上了「`get(name, agent)` 按 agent 过滤」，否则三态测不出来。
+     探针已按作者给的代码改成 `get(name, agent)` + `defaultPreset/composedPreset`。
+    **三态判定同步修正（2026-10-30 冷读）**：原来用 `p.agent` 判 `agent-filtered`，而 `agent = get(name)` 与 `global` 同源 ⇒ 那个分支永远走不到。现在用 `p.scoped`：
+    `scoped === false` ⇒ `agent-filtered`（作用域视图不给它）；`scoped === true` 但不在工具表 ⇒ `filtered-by-schemas`（呈现层滤掉）。假宿主也补上了「`get(name, agent)` 按 agent 过滤」，否则三态测不出来。
 
 
 ## 已知代价与明确决定（2026-10-30 挑刺清单后补）
