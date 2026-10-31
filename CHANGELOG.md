@@ -2,6 +2,22 @@
 
 格式参照 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循语义化版本。
 
+## [0.16.8] - 2026-10-31
+
+### 兼容（DSH 2.0.21 更新，但用户版本不一）
+- DSH 2.0.21-next 起 `dsh-ops` 用 `ops_*` 取代了官方 `pwsh`。**插件不做版本分支**（我们只有一台机器、一个版本，
+  旧分支永远测不到），改为**保护清单取两代并集**：`pwsh` 与 `ops_bash/ops_grep/ops_glob/ops_inspect_local_file/ops_result`
+  同时受保护；宿主没有的名字是空操作。
+- `PROTECTED_PREFIXES` 增加 `ops`（自动分组不再把 `ops_*` 家族当候选）。
+- README（中/英）写明实测宿主：**2.0.20-next 与 2.0.21-next**，更早版本未测。
+
+### 测试
+- 新增 `[59]`：手写 `match: ['*']` 下 `pwsh` 与 `ops_*` 都不被收起、普通工具仍被收起。冒烟 67 → **68 项**。
+
+### 背景（不是本插件的 bug）
+- #11207 在 2.0.21 上**仍未修复**：实测 `cua_driver_native__list_apps` 的 `global=true / agent=true / scoped=false`，
+  解除本插件限制后宿主仍不交付（`applied:false / not-visible`）；过滤器里仍有一条 **56 条 deny** 的外部作用域过滤器。
+
 ## [0.16.7] - 2026-10-30
 
 ### 收紧（0.16.6 的跟随修正）

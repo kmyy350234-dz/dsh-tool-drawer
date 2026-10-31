@@ -8,6 +8,8 @@
 > one keyword, or a guard that catches the call and reopens it.
 
 **Status:** `0.16.x` — used daily on one DSH installation; the config surface may still change.
+
+Tested hosts: **DSH 2.0.20-next** and **2.0.21-next** (2.0.21 replaced `pwsh` with `ops_*`; the plugin does not branch on versions — the protected list is the union of both generations, and names a host does not have are no-ops).
 Issues and PRs are welcome, but maintenance is **best-effort**. If DSH ships native on-demand tool
 loading, this project should retire (see *Exit criteria*).
 

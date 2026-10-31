@@ -1332,6 +1332,22 @@ async function main() {
   assertJsonSafe(sNaN, 'status-nan')
   ok('expect 非法值被夹掉，status 仍 JSON-safe')
 
+  // 2026-10-31：DSH 2.0.21 起 dsh-ops 用 ops_* 取代官方 pwsh。两代用户都可能有，
+  // 所以保护清单用并集；这条测试钉住「两代都受保护」。
+  log('[59] 兼容两代宿主工具名：pwsh 与 ops_* 都受保护')
+  const worldHost = makeWorld()
+  for (const name of ['pwsh', 'ops_bash', 'ops_grep', 'other_tool']) {
+    worldHost.ctx.tools.register({ name, description: 'x', parameters: {}, output: {} })
+  }
+  apply(worldHost.ctx, { groups: [{ id: 'all', match: ['*'], defaultOn: false }], autoGroups: 'off' })
+  const agentHost = worldHost.createAgent('agent-host')
+  const denyHost = worldHost.denyByAgent.get(agentHost)
+  for (const name of ['pwsh', 'ops_bash', 'ops_grep']) {
+    assert.equal(denyHost.has(name), false, `${name} 是宿主工具，不许被手写组收起`)
+  }
+  assert.equal(denyHost.has('other_tool'), true, '普通工具仍应被这个组收起')
+  ok('两代宿主工具名（pwsh / ops_*）都在保护清单里')
+
   console.log(`\nsmoke: ${checks} 项全过`)
 }
 
