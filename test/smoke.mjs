@@ -572,7 +572,8 @@ async function main() {
   assert.equal('autoOpened' in autoHealth.stats, false, 'autoOpened 字段必须删干净')
   assert.equal('userMessages' in autoHealth.stats, false, 'userMessages 字段必须删干净')
   assert.equal(worldE.inboxListeners.length, 0, '0.17.0 不应再注册 inbox 监听（删不干净这条会红）')
-  assert.ok(autoHealth.errors.some((e) => String(e.where).includes('group config')), '旧配置里的 autoHints 必须记账，不许静默')
+  assert.equal(autoHealth.notes.filter((n) => String(n).includes('autoHints')).length, 1, '旧配置的 autoHints 提示每组只该出现一次（重复 push 会红）')
+  assert.equal(autoHealth.healthy, true, '兼容提示不许把 healthy 拖成 false（否则用户天天看红灯）')
   ok('autoHints 被忽略：不自动开组；stats 不再有 autoOpened / userMessages')
 
   log('[17] 设置页策略文件：只收认识的键')

@@ -2,6 +2,17 @@
 
 格式参照 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循语义化版本。
 
+## [0.17.2] - 2026-10-31
+
+### 修：第二轮独立冷读（修 0.17.1 时漏掉/新引入的）
+- README 中/英「装完就能用」不再承诺「说到截图就自动开组」——改为真实路径：显式 `enable`、守卫在调用被拒前放回；
+- README 的 health 说明去掉「自动打开」；冒烟数字 `63 项` → `69 项`；
+- 「例外 / 中途改表」口径统一为：显式 `enable`/`disable`/`mode`/`save_groups{applyNow}` + 自愈；
+- 英文首段把 `save_groups applied on the spot` 的误述改成 `lazy_tools_enable`（applyNow 是新建并收起组，不是拉回工具）；
+- **行为**：旧配置 `autoHints` 的兼容提示从 `errors` 改为 `notes`（按组一次），不再把 `healthy` 永久拖成 false；
+  `[16]` 增加 `healthy === true` 的断言；
+- 0.17.0 验证记录更正（0.17.1 只清了字面词，行为句由第二轮冷读抓出）。
+
 ## [0.17.1] - 2026-10-31
 
 ### 修：0.17.0 删除后的文档 / UI 残留（独立冷读发现）

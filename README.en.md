@@ -5,7 +5,7 @@
 > You installed a pile of plugins; the tool list keeps growing, and every request pays tokens for
 > tools this task will never touch. **Tool Drawer** keeps heavy groups collapsed, leaves the ones you
 > actually use on the bench, lets stale ones sink on their own — and brings a tool back with one call,
-> a guard that catches a real call and reopens it, or `save_groups` applied on the spot.
+> a guard that catches a real call and reopens it, or an explicit `lazy_tools_enable`.
 
 **Status:** `0.17.x` — used daily on one DSH installation; the config surface may still change.
 
@@ -21,7 +21,7 @@ The defaults are the whole feature set. **No settings page, no config file, noth
 
 - Four groups ship ready (`cua-screen` / `cua-input` / `browser-heavy` / `vision-heavy`), and they collapse by recent use;
 - A collapsed tool **comes back the moment you call it** (a guard catches the call and reopens it) — you never need to know which group it belongs to;
-- Saying "screenshot" or "look at that window" opens the matching group on its own;
+- When a capability is needed the model calls `lazy_tools_enable`; a guard also reopens the **single called tool** (not the whole group) before rejecting it;
 - To look around: `lazy_tools_status`; to open everything for this session: `lazy_tools_mode { idleDays: 0 }`.
 
 Install it, keep working.
@@ -41,7 +41,7 @@ Lightest first — all four places are plain text:
 
 Match patterns accept `*` globs and `re:` regexes; each group may carry `keep` (never collapse) and `expect` (lower bound on member count).
 
-**Three red lines** (this project holds itself to them too): do **not** change the tool table mid-session by default (two exceptions, both logged: self-heal and `save_groups { applyNow: true }`) · recovery tools never go into a group · failures must be reported. Details in [DESIGN.md](DESIGN.md).
+**Three red lines** (this project holds itself to them too): do **not** change the tool table mid-session by default (exceptions: explicit `enable`/`disable`/`mode`/`save_groups { applyNow: true }`, and self-heal — all logged) · recovery tools never go into a group · failures must be reported. Details in [DESIGN.md](DESIGN.md).
 
 ---
 
@@ -68,7 +68,7 @@ Convert to tokens with your own provider's tokenizer — only character counts a
 
 Reproduce it anytime with `lazy_tools_health { bench: true }`; every number in this README comes from that command.
 
-> **Cache accounting:** the numbers above are **characters of tool definitions**, not a matching discount on your bill. In steady state tool schemas are served from the prefix cache, which usually costs a fraction of a miss (the exact ratio is provider-specific — this project does not invent one). Changing the tool table **mid-session** invalidates that cache once; this plugin only does so when the user or the model needs a tool *right now* (self-heal, save_groups { applyNow: true }).
+> **Cache accounting:** the numbers above are **characters of tool definitions**, not a matching discount on your bill. In steady state tool schemas are served from the prefix cache, which usually costs a fraction of a miss (the exact ratio is provider-specific — this project does not invent one). Changing the tool table **mid-session** invalidates that cache once; this plugin only does so when the user or the model needs a tool *right now* (self-heal, or explicit enable/disable/mode/save_groups { applyNow: true }).
 
 ## Why
 
@@ -190,7 +190,7 @@ host half — no settings page.
 | `lazy_tools_health {tool?, layersFor?, bench?, full?}` | contract self-check; default is a **slim view** (`healthy`, per-group state, `warnings`, `stray`, `client`, `stats`); `{ full: true }` adds ledger `usage`, `contracts[].detail`, `nameProbe`, `filterReport`; `{ bench: true }` adds the schema-tax report |
 | `lazy_tools_save_groups {groups?, applyNow?}` | write groups to `~/.dsh/lazy-tools.groups.json` (next session unless `applyNow: true`); **without `groups`** it returns classification material instead (bare-named, ungrouped tools with descriptions) |
 
-`healthy: true` means: four contracts OK **and** no errors **and** no warnings.
+`healthy: true` means: four contracts OK **and** no errors (host dispose races excepted — they stay as evidence) **and** no warnings.
 
 ## Settings
 
