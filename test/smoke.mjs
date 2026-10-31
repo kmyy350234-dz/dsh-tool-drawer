@@ -1287,7 +1287,9 @@ async function main() {
   log('[56] 手写组 match:["*"] 不能吞掉常驻/自救工具')
   const worldStar = makeWorld()
   worldStar.ctx.tools.register({ name: 'other_tool', description: 'x', parameters: {}, output: {} })
-  apply(worldStar.ctx, { groups: [{ id: 'all', match: ['*'], defaultOn: false }], autoGroups: 'off' })
+  // 2026-10-31：万能匹配式（*）现在会被结构性防线忽略（见 [60]），所以这里用手写窄组
+  // 测「常驻/自救工具不许入组」：组匹配到 lazy_tools_status 也不能收它。
+  apply(worldStar.ctx, { groups: [{ id: 'all', match: ['lazy_tools_status', 'other_tool'], defaultOn: false }], autoGroups: 'off' })
   const agentStar = worldStar.createAgent('agent-star')
   const denyStar = worldStar.denyByAgent.get(agentStar)
   for (const name of ['lazy_tools_status', 'lazy_tools_enable', 'lazy_tools_disable', 'lazy_tools_mode', 'lazy_tools_save_groups', 'lazy_tools_list', 'lazy_tools_health']) {
@@ -1339,7 +1341,7 @@ async function main() {
   for (const name of ['pwsh', 'ops_bash', 'ops_grep', 'other_tool']) {
     worldHost.ctx.tools.register({ name, description: 'x', parameters: {}, output: {} })
   }
-  apply(worldHost.ctx, { groups: [{ id: 'all', match: ['*'], defaultOn: false }], autoGroups: 'off' })
+  apply(worldHost.ctx, { groups: [{ id: 'all', match: ['pwsh', 'ops_bash', 'ops_grep', 'other_tool'], defaultOn: false }], autoGroups: 'off' })
   const agentHost = worldHost.createAgent('agent-host')
   const denyHost = worldHost.denyByAgent.get(agentHost)
   for (const name of ['pwsh', 'ops_bash', 'ops_grep']) {
@@ -1347,6 +1349,21 @@ async function main() {
   }
   assert.equal(denyHost.has('other_tool'), true, '普通工具仍应被这个组收起')
   ok('两代宿主工具名（pwsh / ops_*）都在保护清单里')
+
+  // 2026-10-31：不靠名字清单的结构性防线 —— 手写组匹配到「整张可隐藏工具表」= 误配，忽略。
+  log('[60] 手写组匹配整张表 → 忽略并记账（不依赖宿主工具名）')
+  const worldGuard = makeWorld()
+  for (const name of ['biz_a', 'biz_b', 'biz_c', 'biz_d', 'biz_e', 'biz_f']) {
+    worldGuard.ctx.tools.register({ name, description: 'x', parameters: {}, output: {} })
+  }
+  apply(worldGuard.ctx, { groups: [{ id: 'all', match: ['*'], defaultOn: false }], autoGroups: 'off' })
+  const agentGuard = worldGuard.createAgent('agent-guard')
+  assert.equal(worldGuard.denyByAgent.get(agentGuard).size, 0, '匹配全部工具的手写组必须被忽略，一个都不许收')
+  const hGuard = await runTool(worldGuard, 'lazy_tools_health', {}, agentGuard)
+  assert.ok(hGuard.errors.some((e) => String(e.where).includes('group guard')), '必须留下可见记账')
+  const sGuard = await runTool(worldGuard, 'lazy_tools_status', {}, agentGuard)
+  assert.equal(sGuard.groups.find((g) => g.id === 'all').guarded, true, 'status 要如实标出这个组被忽略')
+  ok('全匹配手写组被忽略并可见记账（宿主换名字也照样兜住）')
 
   console.log(`\nsmoke: ${checks} 项全过`)
 }
