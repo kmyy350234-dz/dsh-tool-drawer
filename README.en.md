@@ -39,7 +39,7 @@ Lightest first — all four places are plain text:
 | `lazy_tools_list { ungrouped: true }` | Lists ungrouped tools with descriptions plus name-prefix buckets (absorbs the old `scan` / `classify`) |
 | `lazy_tools_save_groups` | Writes the chosen groups to `~/.dsh/lazy-tools.groups.json`; takes effect next session unless `applyNow: true` |
 
-Match patterns accept `*` globs and `re:` regexes; each group may carry `keep` (never collapse), `expect` (lower bound on member count) and `autoHints` (keywords that open it).
+Match patterns accept `*` globs and `re:` regexes; each group may carry `keep` (never collapse) and `expect` (lower bound on member count).
 
 **Three red lines** (this project holds itself to them too): do **not** change the tool table mid-session by default (two exceptions, both logged: keyword pre-open and self-heal) · recovery tools never go into a group · failures must be reported. Details in [DESIGN.md](DESIGN.md).
 
@@ -120,7 +120,7 @@ plugin_manager install_bundle  target: /absolute/path/to/dsh-tool-drawer
 
 That links the checkout into the profile, selects the bundle, and starts the client half. The bundle
 patch already ships four groups (`cua-screen` 19, `cua-input` 37, `browser-heavy` 28, `vision-heavy` 8);
-only the latter two carry `keep` lists, and all four carry `autoHints`. Edit `cordis.patch.yml` in the
+only the latter two carry `keep` lists. Edit `cordis.patch.yml` in the
 checkout (or override the row in the profile patch) to change members.
 
 Config changes apply on reload; **host code changes need a process restart**. The settings page is
@@ -176,7 +176,6 @@ host half — no settings page.
 | `keep` | tool names that must never be treated as "stray" — the ones you deliberately leave visible |
 | `expect` | **lower bound** on the group size; only `matched < expect` produces a `warnings[]` entry (absorbing match patterns grow, and that is fine) |
 | `defaultOn` | `false` = hidden unless enabled (almost always what you want) |
-| `autoHints` | optional phrases; when a user message contains one, the group is revealed before the model reads it (substring, case-insensitive). List the variants people actually type — `截图` does **not** match `截个图` |
 | `title` | free-form label shown by `lazy_tools_status` |
 
 ## Tools
@@ -226,7 +225,7 @@ the YAML defaults; delete that file to fall back.
 ## Why it *feels* automatic (without a model in the loop)
 
 Most people install a pile of plugins and use each of them rarely — but when the moment comes, the
-tool has to be there. Three deterministic mechanisms cover that, and none of them guesses:
+tool has to be there. Two deterministic mechanisms cover that, and none of them guesses:
 
 0. **Usage ledger + session-start decision** — every real call is recorded in
    `~/.dsh/lazy-tools.usage.json` (timestamps only). When a session starts, a group opens fully when
@@ -234,10 +233,7 @@ tool has to be there. Three deterministic mechanisms cover that, and none of the
    those warm tools are revealed (`only`); with none warm the group starts collapsed. Group-level
    timestamps are display-only (`lastUsed`) and no longer drive the decision. The decision happens
    **once, at the session boundary**, so it never invalidates an active prompt cache.
-1. **`autoHints`** — the host emits `agent/inbox/inserted` when a user message arrives; if the text
-   contains a configured phrase, the group is revealed *before the model reads the message*. It never
-   auto-hides, and every auto-open is counted (`autoOpened`) so you can audit false positives.
-2. **`lazy_tools_enable { name }` / self-heal** — on an `unknown tool` error, `enable { name }` finds the
+1. **Self-heal / `lazy_tools_enable { name }`** — on an `unknown tool` error, `enable { name }` finds the
    owning group and reveals just that tool; a dispatch guard also tries to reveal it *before* the call is
    rejected, and the model simply retries (only the guard bumps `stats.selfHealed`; `enable { name }` is not counted). The old `resolve` is now this entry point.
 

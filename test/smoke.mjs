@@ -555,7 +555,7 @@ async function main() {
   assert.equal(r3.found, false)
   ok('enable {name}：一步开一个（only 语义）、片段能匹配、找不到给提示')
 
-  log('[16] 关键词预开：用户说了 autoHints 里的词，工具自己出现')
+  log('[16] autoHints 已删除（0.17.0）：写它也不预开，更不计数')
   const worldE = makeWorld()
   const envE = `${NO_SUCH}.hint.usage.json`
   process.env.LAZY_TOOLS_USAGE_FILE = envE
@@ -565,13 +565,13 @@ async function main() {
     groups: [{ id: 'desktop', match: ['cua_driver_native__*'], autoHints: ['截图', '看窗口'], defaultOn: false }],
   })
   const agentE = worldE.createAgent('agent-auto')
-  assert.equal(worldE.denyByAgent.get(agentE).size, 1)
+  assert.equal(worldE.denyByAgent.get(agentE).size, 1, '组默认收起')
   worldE.fireUserMessage(agentE, '帮我截图看看这个窗口')
-  assert.equal(worldE.denyByAgent.get(agentE).size, 0)
+  assert.equal(worldE.denyByAgent.get(agentE).size, 1, '关键词预开已删除：用户消息不该再自动放组')
   const autoHealth = await runTool(worldE, 'lazy_tools_health', {}, agentE)
-  assert.equal(autoHealth.stats.autoOpened, 1)
-  assert.equal(autoHealth.stats.userMessages, 1)
-  ok('命中 autoHints → 自动开组，health 记 autoOpened=1 / userMessages=1')
+  assert.equal('autoOpened' in autoHealth.stats, false, 'autoOpened 字段必须删干净')
+  assert.equal('userMessages' in autoHealth.stats, false, 'userMessages 字段必须删干净')
+  ok('autoHints 被忽略：不自动开组；stats 不再有 autoOpened / userMessages')
 
   log('[17] 设置页策略文件：只收认识的键')
   assert.deepEqual(normalizePolicy({ level: 'high', idleDays: 7, minTools: 2, showDock: true, showClear: true }), {

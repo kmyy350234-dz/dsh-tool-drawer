@@ -2,6 +2,18 @@
 
 格式参照 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循语义化版本。
 
+## [0.17.0] - 2026-10-31
+
+### 删除：关键词预开（`autoHints`）
+- 起因：判定词无穷，用户（本机实测）几乎不用工具类词汇，主要靠「发文件 + 直接指令」。
+- 删掉：`autoHints` 字段支持、`agent/inbox/inserted` 监听（`host.onUserMessage`）、`stats.autoOpened`、
+  `stats.userMessages`、内置四组 patch 里的四张词表。**这是一次真实功能删除**（内置四组确实在用它）。
+- 保留：用量账本决策、`enable`/`only`、自愈守卫、自动分组、能力目录。自动入口只剩「自愈」一条，
+  其余靠模型主动 `enable`。
+- 测试：`[16]` 改成「写了 `autoHints` 也不预开、stats 不再有 `autoOpened`/`userMessages`」；冒烟仍 69 项全过。
+- 下一步（未做）：用「消息里的数据类型」（`kind: image/file`、`mediaType`）替代关键词预开——类型空间封闭，
+  不会像词表一样无限增长。
+
 ## [0.16.9] - 2026-10-31
 
 ### 改：手写组的「万能匹配式」直接忽略（结构性防线）

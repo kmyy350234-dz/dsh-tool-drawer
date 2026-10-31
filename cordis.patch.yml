@@ -13,7 +13,6 @@
             title: 桌面·看
             defaultOn: false
             expect: 19
-            autoHints: [截图, 截个图, 截屏, 看窗口, 屏幕截图, 这个窗口]
           - id: cua-input
             match:
               [
@@ -22,13 +21,6 @@
             title: 桌面·点
             defaultOn: false
             expect: 37
-            # 2026-10-30 补：37 个工具、小白最高频，原来唯独这组没有关键词预开，
-            # 于是「点一下 / 输个字 / 滚一下」全靠自愈（要模型先猜出 cua_driver_native__click）。
-            autoHints:
-              [
-                点击, 点一下, 点它, 双击, 右键, 拖动, 拖一下, 滚动, 滚一下, 按下, 敲一下,
-                输入, 打字, 输入框, 填一下, 快捷键, 打开应用, 启动应用, 关闭应用, 窗口最大化,
-              ]
           - id: browser-heavy
             match: [ 're:^dsh_browser_(?!open$|content$|a11y$|click$|type$|wait$)' ]
             keep:
@@ -43,7 +35,6 @@
             title: 浏览器·重
             defaultOn: false
             expect: 28
-            autoHints: [打开网页, 这个网址, 浏览器打开, 访问这个链接, 爬一下]
           - id: vision-heavy
             match: [ 're:^vision_(?!describe$|ocr$|crop$|bootstrap$|materialize$|present$)' ]
             keep:
@@ -58,4 +49,3 @@
             title: 视觉·重
             defaultOn: false
             expect: 8
-            autoHints: [看图, 识别图片, 图里写的, 这张图, OCR]
