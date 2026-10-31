@@ -6,7 +6,7 @@
 
 工具抽屉处理的就是这件事：平时用不上的工具组收起来，要用的时候再放出来。
 
-**状态：0.16.x。** 在一台机器上日常使用。配置面仍可能变化。Issue 和 PR 都欢迎，维护是尽力而为；需要稳定保证请自行 fork。DSH 若实现原生按需加载，这个项目应当退场。
+**状态：0.17.x。** 在一台机器上日常使用。配置面仍可能变化。Issue 和 PR 都欢迎，维护是尽力而为；需要稳定保证请自行 fork。DSH 若实现原生按需加载，这个项目应当退场。
 
 实测过的宿主：**DSH 2.0.20-next** 与 **2.0.21-next**（2.0.21 起 `pwsh` 被 `ops_*` 取代；插件不做版本分支，保护清单用两代并集，缺失的名字是空操作）。更早的版本未测。
 
@@ -36,7 +36,7 @@
 
 匹配式支持 `*` 通配和 `re:` 正则；每组可写 `keep`（永不收起）、`expect`（数量断言）。
 
-**三条红线**（这个项目自己也不越过）：**默认**不在会话中途改工具表（唯一例外是自愈补开，且要在日志里留痕）· 自救工具永不入组 · 失败必须报出来。展开在 [DESIGN.md](DESIGN.md)。
+**三条红线**（这个项目自己也不越过）：**默认**不在会话中途改工具表（两个例外：自愈补开、`save_groups {applyNow:true}`，都要在日志/账本里留痕）· 自救工具永不入组 · 失败必须报出来。展开在 [DESIGN.md](DESIGN.md)。
 
 ---
 
@@ -54,7 +54,7 @@
 > 这台机器上有 19 个工具（`cua_driver_native__*`）宿主压根没挂到会话里 —— 它们从没花过 token，所以**单列**，不并进「省下了多少」。工具全部挂载的机器上这一项为 0，数字会回到「收起 67 个 / 118,429 字符 / 58%」。
 > **缓存账（2026-10-30 补）**：上面报的是「工具 schema 不进请求」省下的**字符数**，不是账单上的等比值。
 > 稳态下工具定义本来就在前缀缓存里命中，命中价通常只有未命中的几分之一（具体倍率由服务商决定，这里不编数字）；
-> 而**会话中途改工具表**会让后续请求的缓存作废一次 —— 本插件有三条路径会中途改表：关键词预开、自愈、`save_groups {applyNow:true}`。
+> 而**会话中途改工具表**会让后续请求的缓存作废一次 —— 本插件有两条路径会中途改表：自愈、`save_groups {applyNow:true}`。
 > 它们都是「用户或模型当下就要用」，不是优化手段；如果一次会话都没触发，缓存一次都不会被打断。
 > **这组数是「冷启动 / 还没用热」时的实测**：用久了，热组会默认开着，收起量自然往下走 —— 那不是虚报，是插件的设计（按使用热度）。复现请跑 `lazy_tools_health { bench: true }`。
 > 另有 34 个**不在工具注册表里**的工具：33 个宿主内核（`read` / `write` / `pwsh` / `glob` / `web_fetch` …）+ 1 个 agent 作用域的 `ops_discover_tools` —— 它们不进注册表，也不上表统计，不会被收起。
@@ -280,7 +280,7 @@ MIT，见 [LICENSE](LICENSE)。
 ## English summary
 
 Tool Drawer for DeepSeek Harness: keeps heavy tool groups out of every request and restores them on
-demand (one call, a keyword, or a dispatch guard). The numbers are measured, not estimated — see the
+demand (one call, a dispatch guard that reopens it, or an on-demand enable). The numbers are measured, not estimated — see the
 table above (that table is the **only** place these figures live). No proxy, no embeddings, no judge model — real calls stay
 native. Install with `plugin_manager install_bundle`; configure in the DSH settings page. MIT,
 best-effort maintenance.

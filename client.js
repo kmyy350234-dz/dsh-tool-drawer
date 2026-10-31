@@ -238,7 +238,7 @@ window.__ModuleLoader__.load({
       return h(
         'div',
         { style: styles.wrap },
-        h('p', { style: styles.intro }, tr('重工具组默认收起，需要时由 AI 或关键词自动开回来。这里控制「自动收敛」的策略——它在每个会话开始时按历史使用决定默认开哪些组，不会在干活途中打断缓存。', 'Heavy tool groups stay collapsed and come back on demand. These settings control when groups collapse on their own: the decision is made once at session start, so it never breaks an active prompt cache.')),
+        h('p', { style: styles.intro }, tr('重工具组默认收起，需要时由 AI 主动放回、或在调用被拦时自动放回。这里控制「自动收敛」的策略——它在每个会话开始时按历史使用决定默认开哪些组，不会在干活途中打断缓存。', 'Heavy tool groups stay collapsed and come back on demand. These settings control when groups collapse on their own: the decision is made once at session start, so it never breaks an active prompt cache.')),
         stowedLine ? h('p', { style: styles.hint }, stowedLine) : null,
         h(
           'div',

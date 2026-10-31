@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "On-demand Tool Groups",
-    "description": "Keeps rarely used tool groups out of the context; opens them on demand, by keyword, or automatically at session start."
+    "description": "Keeps rarely used tool groups out of the context; opens them on demand, through a guard that reopens a called tool, or automatically at session start."
   }
 }

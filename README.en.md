@@ -5,9 +5,9 @@
 > You installed a pile of plugins; the tool list keeps growing, and every request pays tokens for
 > tools this task will never touch. **Tool Drawer** keeps heavy groups collapsed, leaves the ones you
 > actually use on the bench, lets stale ones sink on their own — and brings a tool back with one call,
-> one keyword, or a guard that catches the call and reopens it.
+> a guard that catches a real call and reopens it, or `save_groups` applied on the spot.
 
-**Status:** `0.16.x` — used daily on one DSH installation; the config surface may still change.
+**Status:** `0.17.x` — used daily on one DSH installation; the config surface may still change.
 
 Tested hosts: **DSH 2.0.20-next** and **2.0.21-next** (2.0.21 replaced `pwsh` with `ops_*`; the plugin does not branch on versions — the protected list is the union of both generations, and names a host does not have are no-ops).
 Issues and PRs are welcome, but maintenance is **best-effort**. If DSH ships native on-demand tool
@@ -41,7 +41,7 @@ Lightest first — all four places are plain text:
 
 Match patterns accept `*` globs and `re:` regexes; each group may carry `keep` (never collapse) and `expect` (lower bound on member count).
 
-**Three red lines** (this project holds itself to them too): do **not** change the tool table mid-session by default (two exceptions, both logged: keyword pre-open and self-heal) · recovery tools never go into a group · failures must be reported. Details in [DESIGN.md](DESIGN.md).
+**Three red lines** (this project holds itself to them too): do **not** change the tool table mid-session by default (two exceptions, both logged: self-heal and `save_groups { applyNow: true }`) · recovery tools never go into a group · failures must be reported. Details in [DESIGN.md](DESIGN.md).
 
 ---
 
@@ -68,7 +68,7 @@ Convert to tokens with your own provider's tokenizer — only character counts a
 
 Reproduce it anytime with `lazy_tools_health { bench: true }`; every number in this README comes from that command.
 
-> **Cache accounting:** the numbers above are **characters of tool definitions**, not a matching discount on your bill. In steady state tool schemas are served from the prefix cache, which usually costs a fraction of a miss (the exact ratio is provider-specific — this project does not invent one). Changing the tool table **mid-session** invalidates that cache once; this plugin only does so when the user or the model needs a tool *right now* (keyword pre-open, self-heal, save_groups { applyNow: true }).
+> **Cache accounting:** the numbers above are **characters of tool definitions**, not a matching discount on your bill. In steady state tool schemas are served from the prefix cache, which usually costs a fraction of a miss (the exact ratio is provider-specific — this project does not invent one). Changing the tool table **mid-session** invalidates that cache once; this plugin only does so when the user or the model needs a tool *right now* (self-heal, save_groups { applyNow: true }).
 
 ## Why
 
