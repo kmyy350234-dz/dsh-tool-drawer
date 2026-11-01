@@ -158,6 +158,40 @@ bundle 自带的 patch 已配好四组：
 | `defaultOn` | `false` 表示默认收起 |
 | `title` | 供 `status` 展示的中文名 |
 
+## 受管会话（managedRoles，默认关闭）
+
+多会话编排器（如 dsh-superagent）用 preset 区分角色。默认情况下本插件不区分角色，所有会话都按热度判断。给管理员准备的 `managedRoles` 可以把某个 preset 变成「受管角色」：策略在会话创建时解析一次，会话内不变（前缀稳定、不打断缓存）。
+
+```yaml
+managedRoles:
+  dsh-superagent-worker: { allowGroups: [fs, shell, jobs, skill, todo, delegation, web] }
+  dsh-superagent-router: { allowGroups: [fs, jobs, skill, shell] }
+  subagent: { allowGroups: [fs, shell, jobs, skill, todo, delegation, web] }
+```
+
+规则：
+
+- 只认结构信号：`agentPresets.composedPreset` 的 preset id，以及 `session.header.parentSession`（子代理 → `subagent` 键）；不认插件名、不认标题；
+- **封闭默认**：角色没授权的组、以及没有归组的工具，一律隐藏（`unknown: 'hide'`）；
+- 受管会话里 `enable` / `disable` 会被拒绝，自愈也不会绕过策略——改策略请改配置；
+- `health` 新增 `managed: { role, allowGroups, unknown }`，没有受管就是 `null`；
+- 不配置 `managedRoles` 时行为与旧版完全一致（默认关闭）。
+
+测试：冒烟 `[61]` 覆盖 worker / subagent / 普通会话三条路径与 enable 拒绝。
+
+## 会话级目录（0.18）
+
+常驻提示里列出的组，按**每个会话实际挂载的工具**算，不是一张全局固定清单：
+
+- 挂载集 = 本会话可见的工具 ∪ 本插件自己藏起来的工具，只列其中有成员的组；
+- **一组都没挂载时整段提示消失**（宿主会丢掉空段）——不会再出现「目录里列着一个这个会话根本碰不到的组」；
+- 被外部挡掉的（宿主的权限门、别的插件的 deny）**不算挂载**，不会被广告；
+- 「有 N 个工具没归组、去分组」这句提醒只在**默认 preset 的人工会话**里出现，角色会话不会被引导去改全局分组表；
+- 读不到会话信息（老宿主、服务缺失、认不出的作用域）时**退回 0.17.x 行为**：照旧列全部组。失败方向是「照旧」，不是「变短」。
+
+测试：冒烟 `[64]`（没挂 / 被外部挡的组不广告、空则空段、认不出作用域退回旧行为）与
+`[65]`（分类提示只在默认会话出现）。
+
 ## 七个工具
 
 | 工具 | 作用 |
@@ -229,9 +263,11 @@ schema 在运行时解析：扫描 `%USERPROFILE%\.dsh\profiles\*\` 查找 DSH �
 node test/smoke.mjs
 ```
 
-以 `node test/smoke.mjs` 的输出为准（当前 **69 项**），运行在假宿主上，不需要安装 DSH。
+以 `node test/smoke.mjs` 的输出为准（当前 **78 项**），运行在假宿主上，不需要安装 DSH。
 
-假宿主只实现本插件依赖的四个契约。宿主契约变化时，测试先失败，而不是会话先出问题。
+假宿主实现本插件依赖的四个**契约**（register / schemas / restrict / agent-created），外加宿主那条**可选**的
+`tools.view(scope)` 只读视图（提示段的主读路径就是它；视图缺失、返回空、抛错三种退化都有用例钉住）。
+宿主契约变化时，测试先失败，而不是会话先出问题。
 
 > 要改这个插件？先读 [MAINTAINING.md](MAINTAINING.md)：改客户端半边必须冷启动验证，恢复模式下用户无法操作。
 

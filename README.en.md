@@ -178,6 +178,18 @@ host half — no settings page.
 | `defaultOn` | `false` = hidden unless enabled (almost always what you want) |
 | `title` | free-form label shown by `lazy_tools_status` |
 
+## Per-session group list (0.18)
+
+The resident prompt lists the groups the **calling session** actually has mounted, not a fixed global list:
+
+- mounted = tools visible to that session ∪ tools this plugin itself collapsed; only groups with at least one member are listed;
+- **if nothing is mounted the whole section disappears** (the host drops empty sections) — no more advertising a group this session cannot reach;
+- tools blocked by another layer (a host permission gate, another plugin's deny) are **not** advertised;
+- the "N tools are ungrouped, go group them" nudge only appears in default-preset human sessions;
+- when the calling session cannot be resolved, the 0.17.x behavior (list every group) is kept — the failure direction is "unchanged", never "shorter".
+
+Tests: smoke `[64]` (filtering / empty section / unresolved scope falls back) and `[65]` (nudge only in default sessions).
+
 ## Tools
 
 | Tool | What it does |
@@ -258,8 +270,9 @@ already gives you** (a message, an error) instead of asking the model to remembe
 node test/smoke.mjs   # assertions against a fake host, no DSH required (count: use the `node test/smoke.mjs` output)
 ```
 
-The fake host implements exactly the four contracts this plugin depends on, so a contract change
-breaks the test before it breaks your session.
+The fake host implements the four contracts this plugin depends on, plus the host's **optional**
+`tools.view(scope)` read-only view (the prompt section's main read path; its three degraded shapes —
+absent, empty, throwing — each have a test). A contract change breaks the test before it breaks your session.
 
 > Changing this plugin? Read [MAINTAINING.md](MAINTAINING.md) first: any client-side change requires a cold boot, and recovery mode leaves the user unable to operate the UI.
 

@@ -57,6 +57,7 @@ function makeWorld() {
   const registered = new Map()
   const createdListeners = []
   const denyByAgent = new Map()
+  const externalByAgent = new Map() // 模拟别的插件的 deny：我们的 lift 撤不动
   const activeByAgent = new Map() // agent -> [{ names }]：当前**真正挂着**的限制（孤儿会在这里露出来）
   // rc.3 的撤销是同步通知的。默认关（不影响其它用例），需要复现重入的用例自己打开。
   let fireOnRestrict = false
@@ -67,11 +68,14 @@ function makeWorld() {
   const preExecuteListeners = []
   const guards = []
   const commands = []
+  const eventListeners = new Map()
   const unmounted = new Map() // agent -> Set(name)：宿主没挂到该会话的工具（不是我们 restrict 的）
 
   const ctx = {
     logger: { info() {}, warn() {}, error() {} },
     on(event, handler) {
+      if (!eventListeners.has(event)) eventListeners.set(event, [])
+      eventListeners.get(event).push(handler)
       if (event === 'agent/created') createdListeners.push(handler)
       if (event === 'tools/change') toolsChangeListeners.push(handler)
       if (event === 'agent/inbox/inserted') inboxListeners.push(handler)
@@ -109,13 +113,29 @@ function makeWorld() {
         if (!agent) return registered.get(name)
         const deny = denyByAgent.get(agent) || new Set()
         const miss = unmounted.get(agent) || new Set()
-        if (deny.has(name) || miss.has(name)) return undefined
+        const ext = externalByAgent.get(agent) || new Set()
+        if (deny.has(name) || miss.has(name) || ext.has(name)) return undefined
         return registered.get(name)
       },
       schemas(agent) {
         const deny = (agent && denyByAgent.get(agent)) || new Set()
         const miss = (agent && unmounted.get(agent)) || new Set()
-        return [...registered.keys()].filter((name) => !deny.has(name) && !miss.has(name)).map((name) => ({ name }))
+        const ext = (agent && externalByAgent.get(agent)) || new Set()
+        return [...registered.keys()].filter((name) => !deny.has(name) && !miss.has(name) && !ext.has(name)).map((name) => ({ name }))
+      },
+      // 宿主的同源视图（2026-11-01 新读路径）：与 schemas 同源、只给名字，代价是 Map 遍历而不是深拷贝。
+      // 假宿主必须建这一条：不建的话，插件里「有 view 就不拷 schema」的主路径一行代码都测不到
+      // （冷读把 `return [...visible.keys()]` 改成 `return []`，74 项照样全绿 —— 那就是假绿）。
+      view(agent) {
+        const deny = (agent && denyByAgent.get(agent)) || new Set()
+        const miss = (agent && unmounted.get(agent)) || new Set()
+        const ext = (agent && externalByAgent.get(agent)) || new Set()
+        const visible = new Map()
+        for (const [name, definition] of registered) {
+          if (deny.has(name) || miss.has(name) || ext.has(name)) continue
+          visible.set(name, definition)
+        }
+        return { visible }
       },
     },
   }
@@ -123,15 +143,22 @@ function makeWorld() {
   const makeAgent = (id) => {
     const agent = { id }
     denyByAgent.set(agent, new Set())
+    externalByAgent.set(agent, new Set())
     activeByAgent.set(agent, [])
     agent.ctx = {
+      // 受管角色测试：agentPresets 由 createAgent 的 setup 注入
+      get(key) {
+        if (key === 'agentPresets') return agent.presets
+        return undefined
+      },
       tools: {
         // 与注册表级 get 同语义：带 agent 时按该 agent 的作用域过滤（2026-10-30 冷读修）
         get(name, scopedAgent) {
           if (!scopedAgent) return registered.get(name)
           const denyS = denyByAgent.get(scopedAgent) || new Set()
           const missS = unmounted.get(scopedAgent) || new Set()
-          if (denyS.has(name) || missS.has(name)) return undefined
+          const extS = externalByAgent.get(scopedAgent) || new Set()
+          if (denyS.has(name) || missS.has(name) || extS.has(name)) return undefined
           return registered.get(name)
         },
         restrict(filter) {
@@ -179,6 +206,10 @@ function makeWorld() {
     }
   }
 
+  const fireEvent = (event, ...args) => {
+    for (const listener of eventListeners.get(event) || []) listener(...args)
+  }
+
   const fireGuard = (agent, name) => {
     let decision
     for (const guard of guards) {
@@ -223,6 +254,8 @@ function makeWorld() {
       return [...registered.keys()].filter((name) => !deny.has(name) && !miss.has(name))
     },
     createAgent,
+    fireEvent,
+    externalByAgent,
     makeAgent,
     living,
     createdListeners,
@@ -515,9 +548,9 @@ async function main() {
   assertJsonSafe(healthA, 'healthA')
   assert.equal(healthA.stats.restrictFailures, 0)
   assert.equal(healthA.stats.lastHidden.applied, false)
-  assert.ok(healthA.errors.some((e) => e.where.includes('agent 已销毁')), JSON.stringify(healthA.errors))
-  // 2026-10-30 实测抓到的回归：这条记录曾把 healthy 拖成 false（subagent 销毁后每轮报 unhealthy）。
-  // 修法是「记录保留、但不参与 healthy 判定」——所以这条断言必须在这里，[13] 才算真的守住。
+  // 2026-11-01（0.18）：竞态只进计数、不进 errors（否则 8 个错误槽会被多会话占满）。
+  assert.equal(healthA.errors.some((e) => e.where.includes('agent 已销毁')), false, JSON.stringify(healthA.errors))
+  assert.ok(healthA.stats.restrictSkipped >= 1, '竞态必须仍然计数')
   assert.equal(healthA.healthy, true, '销毁竞态不许把 healthy 拖成 false')
   ok('已销毁作用域的竞争不计失败，lastHidden.applied=false')
 
@@ -1367,6 +1400,286 @@ async function main() {
   const sGuard = await runTool(worldGuard, 'lazy_tools_status', {}, agentGuard)
   assert.equal(sGuard.groups.find((g) => g.id === 'all').guarded, true, 'status 要如实标出这个组被忽略')
   ok('全匹配手写组被忽略并可见记账（宿主换名字也照样兜住）')
+
+  // 2026-11-01：受管角色（默认关闭）—— preset / parentSession 决定策略，封闭默认，自愈不绕过。
+  log('[61] 受管角色：preset 决定策略、封闭默认、自愈不绕过')
+  const worldRole = makeWorld()
+  for (const name of ['role_fs_a', 'role_web_a', 'role_other_a']) {
+    worldRole.ctx.tools.register({ name, description: 'x', parameters: {}, output: {} })
+  }
+  apply(worldRole.ctx, {
+    groups: [
+      { id: 'role-fs', match: ['role_fs_*'] },
+      { id: 'role-web', match: ['role_web_*'] },
+    ],
+    autoGroups: 'off',
+    managedRoles: {
+      'dsh-superagent-worker': { allowGroups: ['role-fs'] },
+      subagent: { allowGroups: ['role-web'] },
+    },
+  })
+  const humanRole = worldRole.createAgent('role-human')
+  const workerRole = worldRole.createAgent('role-worker', (agent) => {
+    agent.presets = { defaultId: 'cordis', composedPreset: () => 'dsh-superagent-worker' }
+  })
+  const subRole = worldRole.createAgent('role-sub', (agent) => {
+    agent.session = { header: { parentSession: 'role-worker' } }
+  })
+  const dHuman = worldRole.denyByAgent.get(humanRole)
+  const dWorker = worldRole.denyByAgent.get(workerRole)
+  const dSub = worldRole.denyByAgent.get(subRole)
+  assert.equal(dWorker.has('role_fs_a'), false, 'worker 授权组必须可见')
+  assert.equal(dWorker.has('role_web_a'), true, 'worker 未授权组必须被藏')
+  assert.equal(dWorker.has('role_other_a'), true, 'worker 未归组工具必须被藏（封闭默认）')
+  assert.equal(dSub.has('role_web_a'), false, 'subagent 按 subagent 角色放行')
+  assert.equal(dSub.has('role_fs_a'), true, 'subagent 未授权组必须被藏')
+  assert.equal(dHuman.has('role_other_a'), false, '普通会话不受封闭默认影响（未归组不藏）')
+  assert.equal(worldRole.fireGuard(workerRole, 'role_web_a'), undefined, '受管会话自愈不得绕过策略')
+  assert.ok(worldRole.fireGuard(humanRole, 'role_web_a'), '普通会话仍然自愈')
+  const enableDef = worldRole.ctx.tools.get('lazy_tools_enable')
+  const deniedEnable = await enableDef.execute({ group: 'role-web' }, { agent: workerRole })
+  assert.ok(deniedEnable && deniedEnable.error && deniedEnable.error.includes('受管'), '受管会话里 enable 必须被拒')
+  ok('受管角色只认 preset/parentSession，封闭默认生效，自愈不绕过')
+
+
+  // 2026-11-01：受管角色的 preset 竞态 —— Web UI 可能先用默认 preset 创建，再切回角色 preset。
+  log('[62] 受管角色：preset 在创建后才选中（竞态）')
+  const worldRace2 = makeWorld()
+  for (const name of ['race_fs_a', 'race_web_a']) {
+    worldRace2.ctx.tools.register({ name, description: 'x', parameters: {}, output: {} })
+  }
+  apply(worldRace2.ctx, {
+    groups: [
+      { id: 'race-fs', match: ['race_fs_*'] },
+      { id: 'race-web', match: ['race_web_*'] },
+    ],
+    autoGroups: 'off',
+    managedRoles: {
+      'dsh-superagent-worker': { allowGroups: ['race-fs'] },
+    },
+  })
+  const raceAgent = worldRace2.createAgent('race-agent')
+  const dRace = worldRace2.denyByAgent.get(raceAgent)
+  assert.equal(dRace.has('race_fs_a'), true, '切换前（普通会话、全冷）授权组也是收起的')
+  raceAgent.presets = { defaultId: 'cordis', composedPreset: () => 'dsh-superagent-worker' }
+  worldRace2.fireEvent('agent-preset/selected', 'race-agent', 'dsh-superagent-worker')
+  assert.equal(dRace.has('race_fs_a'), false, '切换 preset 后授权组应被放行')
+  assert.equal(dRace.has('race_web_a'), true, '切换后未授权组仍藏')
+  ok('preset 晚选中也能重算角色并重建（竞态兜住）')
+
+
+  // 2026-11-01（0.18 隔离约束②）：我们放行后仍不可见的名字，必须标成外部 deny。
+  log('[63] 隔离：放行后仍不可见 ⇒ 标成外部 deny')
+  const worldExt = makeWorld()
+  worldExt.ctx.tools.register({ name: 'ext_a', description: 'x', parameters: {}, output: {} })
+  apply(worldExt.ctx, {
+    groups: [{ id: 'ext', match: ['ext_*'] }],
+    autoGroups: 'off',
+  })
+  const agentExt = worldExt.createAgent('agent-ext')
+  // 模拟另一个插件也 deny 它：直接写 fake host 的 deny 集合（不是我们的 lift 能撤的）
+  worldExt.externalByAgent.get(agentExt).add('ext_a')
+  await runTool(worldExt, 'lazy_tools_enable', { group: 'ext' }, agentExt)
+  const healthExt = await runTool(worldExt, 'lazy_tools_health', {}, agentExt)
+  assert.ok(healthExt.foreignDenied && healthExt.foreignDenied.sample.includes('ext_a'), JSON.stringify(healthExt.foreignDenied))
+  ok('外部 deny 交叉探测：放行后仍不可见的名字被标出来')
+
+  // 2026-11-01（0.18 第三条）：常驻提示段按**组装方会话**渲染，不再无脑列全部组。
+  log('[64] 会话级目录：只列本会话挂载的组，空则整段消失')
+  const makeSectionWorld = () => {
+    const world = makeWorld()
+    const sections = []
+    world.ctx.inject = (deps, callback) => {
+      assert.deepEqual(deps, ['systemPrompt'])
+      callback({
+        effect: (make) => make(),
+        systemPrompt: {
+          section(section) {
+            sections.push(section)
+            return () => {}
+          },
+        },
+      })
+    }
+    world.ctx.tools.register({ name: 'grp_a__one', description: 'x', parameters: {}, output: {} })
+    world.ctx.tools.register({ name: 'grp_b__one', description: 'x', parameters: {}, output: {} })
+    apply(world.ctx, {
+      groups: [
+        { id: 'grp-a', match: ['grp_a__*'], title: 'A组' },
+        { id: 'grp-b', match: ['grp_b__*'], title: 'B组' },
+      ],
+      autoGroups: 'off',
+    })
+    assert.equal(sections.length, 1)
+    return { world, text: sections[0].text }
+  }
+
+  // ① 宿主权限门挡住 B 组（模拟本机 computer-use 门）：B 不该被广告，A 照旧。
+  //    必须在 createAgent 之前挡住 —— 顺带验证「外部 deny 不并进挂载集」。
+  const sec1 = makeSectionWorld()
+  const secAgent = sec1.world.createAgent('agent-sec', (agent) => {
+    sec1.world.externalByAgent.get(agent).add('grp_b__one')
+  })
+  const scopedText = sec1.text({ scope: secAgent })
+  assert.match(scopedText, /grp-a/, `A 组没挂载却不见了：${scopedText.slice(0, 160)}`)
+  assert.ok(!scopedText.includes('grp-b'), `被外部挡掉的 B 组不该被广告：${scopedText.slice(0, 200)}`)
+  // ② 防御性：实测宿主只传 agent，但将来若换成 agent.ctx 也要认得（认不出会退回旧行为，不会乱删组）
+  const viaCtxText = sec1.text({ scope: secAgent.ctx })
+  assert.match(viaCtxText, /grp-a/, 'scope 传 agent.ctx 时也要认出来')
+  assert.ok(!viaCtxText.includes('grp-b'), 'scope 传 agent.ctx 时同样不许广告 B')
+
+  // ③ 一组都没挂载 ⇒ 空串（宿主会把空段整段丢掉）
+  const sec2 = makeSectionWorld()
+  const emptyAgent = sec2.world.createAgent('agent-empty', (agent) => {
+    sec2.world.unmount(agent, ['grp_a__one', 'grp_b__one'])
+  })
+  assert.equal(sec2.text({ scope: emptyAgent }), '')
+  assert.equal(sec2.text({ scope: emptyAgent.ctx }), '')
+
+  // ④ 认不出 scope / 根本没传 context ⇒ 退回旧行为（列全部组），绝不因为读不到就变短
+  const legacyText = sec1.text()
+  assert.match(legacyText, /grp-a/)
+  assert.match(legacyText, /grp-b/, '不传 context 时必须保持 0.17.2 行为')
+  assert.match(sec1.text({ scope: {} }), /grp-b/, '认不出的 scope 也退回旧行为，不许静默变短')
+  ok('会话级目录：没挂/被外部挡的组不广告、空则空段、认不出 scope 退回旧行为')
+
+  // 2026-11-01：催人分组的提示只在默认 preset 的人工会话里出现。
+  log('[65] 会话级目录：分类提示只在默认 preset 的会话里出现')
+  const sec3 = makeSectionWorld()
+  for (const name of ['loosealpha', 'loosebeta', 'loosegamma']) {
+    sec3.world.ctx.tools.register({ name, description: 'x', parameters: {}, output: {} })
+  }
+  const nudgeAgent = sec3.world.createAgent('agent-nudge')
+  const defaultSectionText = sec3.text({ scope: nudgeAgent })
+  assert.ok(
+    defaultSectionText.includes('lazy_tools_save_groups'),
+    `默认会话里应当催分组：${defaultSectionText.slice(0, 240)}`,
+  )
+  // 同一会话后来被切成角色 preset：能力目录照旧，但不许再催人去改全局分组表
+  nudgeAgent.presets = { defaultId: 'cordis', composedPreset: () => 'some-worker-role' }
+  const roleSectionText = sec3.text({ scope: nudgeAgent })
+  assert.ok(
+    !roleSectionText.includes('lazy_tools_save_groups'),
+    `角色会话不该被引导去改全局分组：${roleSectionText.slice(0, 240)}`,
+  )
+  assert.match(roleSectionText, /lazy_tools_status/, '基础段（能力目录本身）必须还在')
+  ok('分类提示只在默认 preset 会话出现；角色会话保留能力目录、不催分组')
+
+  // 2026-11-01（冷读第二轮）：view 是主读路径，必须单独钉住 —— 空视图、没有视图、视图抛错
+  // 三种情况都不许把「开着的组」静默弄没（那正是「失败方向变短」）。
+  // 这条用例特意用 defaultOn:true 的组：抽屉不会藏它，所以 mounted 里没有 hiddenNames 兜底，
+  // 空视图一旦被当成权威，组当场消失 —— 上一版用例没设这个前提，变异测试是绿的（假绿）。
+  log('[66] 会话级目录：视图路径的三种退化')
+  const worldView = makeWorld()
+  const viewSections = []
+  worldView.ctx.inject = (deps, callback) => {
+    callback({
+      effect: (make) => make(),
+      systemPrompt: {
+        section(section) {
+          viewSections.push(section)
+          return () => {}
+        },
+      },
+    })
+  }
+  worldView.ctx.tools.register({ name: 'vw_a__one', description: 'x', parameters: {}, output: {} })
+  apply(worldView.ctx, {
+    groups: [{ id: 'vw-a', match: ['vw_a__*'], title: 'A组', defaultOn: true }],
+    autoGroups: 'off',
+  })
+  const viewAgent = worldView.createAgent('agent-view')
+  const viewText = viewSections[0].text
+  assert.equal(worldView.denyByAgent.get(viewAgent).size, 0, 'defaultOn 组不该被抽屉收起（否则这条用例测不到空视图）')
+  const originalView = worldView.ctx.tools.view
+  assert.ok(typeof originalView === 'function', '假宿主必须有 view：否则主路径零覆盖')
+  assert.match(viewText({ scope: viewAgent }), /vw-a/, '正常视图路径：组要在')
+
+  // ① 视图返回空 Map（宿主视图没建好）⇒ 用 schemas 复核，组不许消失
+  worldView.ctx.tools.view = () => ({ visible: new Map() })
+  assert.match(viewText({ scope: viewAgent }), /vw-a/, '空视图必须回退 schemas 复核，不许静默丢组')
+  // ② 视图抛错 ⇒ 同样退回 schemas
+  worldView.ctx.tools.view = () => {
+    throw new Error('view boom')
+  }
+  assert.match(viewText({ scope: viewAgent }), /vw-a/, '视图抛错必须退回 schemas')
+  // ③ 宿主根本没有 view ⇒ 退回 schemas
+  delete worldView.ctx.tools.view
+  assert.match(viewText({ scope: viewAgent }), /vw-a/, '没有 view 的宿主必须退回 schemas')
+  worldView.ctx.tools.view = originalView
+  ok('视图路径：空视图/抛错/没有视图都退回 schemas，组不丢')
+
+  // 2026-11-01：一个分组工具都没挂、但有散装工具时，段不能整个消失 ——
+  // 「有 N 个工具没归组，请去分组」恰恰是这种会话里唯一有用的一句（冷读抓到的早退 bug）。
+  log('[67] 会话级目录：只有提醒、没有目录时也不许空段')
+  const sec5 = makeSectionWorld()
+  const looseAgent = sec5.world.createAgent('agent-loose', (agent) => {
+    sec5.world.unmount(agent, ['grp_a__one', 'grp_b__one'])
+  })
+  for (const name of ['loosealpha2', 'loosebeta2', 'loosegamma2']) {
+    sec5.world.ctx.tools.register({ name, description: 'x', parameters: {}, output: {} })
+  }
+  const looseText = sec5.text({ scope: looseAgent })
+  assert.ok(looseText.includes('lazy_tools_save_groups'), `只有提醒时也要说话：${looseText.slice(0, 240)}`)
+  assert.ok(!looseText.includes('grp-a'), `没有挂载的组不许出现在目录里：${looseText.slice(0, 240)}`)
+  ok('一个分组工具都没挂 + 有散装工具 ⇒ 只输出提醒，不整段消失')
+
+  // 2026-11-01：受管会话里没授权的组不该被广告（enable 会被拒，列出来就是骗模型）。
+  log('[68] 会话级目录：受管角色不广告未授权的组')
+  const worldManaged = makeWorld()
+  const managedSections = []
+  worldManaged.ctx.inject = (deps, callback) => {
+    callback({
+      effect: (make) => make(),
+      systemPrompt: {
+        section(section) {
+          managedSections.push(section)
+          return () => {}
+        },
+      },
+    })
+  }
+  worldManaged.ctx.tools.register({ name: 'mgr_a__one', description: 'x', parameters: {}, output: {} })
+  worldManaged.ctx.tools.register({ name: 'mgr_b__one', description: 'x', parameters: {}, output: {} })
+  apply(worldManaged.ctx, {
+    groups: [
+      { id: 'mgr-a', match: ['mgr_a__*'], title: 'A组' },
+      { id: 'mgr-b', match: ['mgr_b__*'], title: 'B组' },
+    ],
+    autoGroups: 'off',
+    managedRoles: { 'role-x': { allowGroups: ['mgr-a'] } },
+  })
+  const managedAgent = worldManaged.createAgent('agent-managed', (agent) => {
+    agent.presets = { defaultId: 'cordis', composedPreset: () => 'role-x' }
+  })
+  const managedText = managedSections[0].text({ scope: managedAgent })
+  assert.match(managedText, /mgr-a/, '授权组要列出来')
+  assert.ok(!managedText.includes('mgr-b'), `未授权组不许被广告：${managedText.slice(0, 200)}`)
+  ok('受管角色：只列授权组，未授权组即使被我们藏了也不广告')
+
+  // 2026-11-01（真宿主实测撞到）：组开关拨了不等于工具回来了 —— 外部 deny 挡着时不许报成功。
+  log('[69] enable 回读：外部挡着时不许报「成功」')
+  const worldBlocked = makeWorld()
+  worldBlocked.ctx.tools.register({ name: 'blk_a__one', description: 'x', parameters: {}, output: {} })
+  worldBlocked.ctx.tools.register({ name: 'blk_b__one', description: 'x', parameters: {}, output: {} })
+  apply(worldBlocked.ctx, {
+    groups: [
+      { id: 'blk-a', match: ['blk_a__*'] },
+      { id: 'blk-b', match: ['blk_b__*'] },
+    ],
+    autoGroups: 'off',
+  })
+  const blockedAgent = worldBlocked.createAgent('agent-blocked')
+  // 模拟宿主权限门：这一层 deny 不在我们手里，我们 lift 之后它依然挡着
+  worldBlocked.externalByAgent.get(blockedAgent).add('blk_a__one')
+  const enableBlocked = await runTool(worldBlocked, 'lazy_tools_enable', { group: 'blk-a' }, blockedAgent)
+  assert.equal(enableBlocked.applied, false, `外部挡着时必须报 applied:false，实际：${JSON.stringify(enableBlocked)}`)
+  assert.ok(Array.isArray(enableBlocked.blocked) && enableBlocked.blocked.includes('blk-a'))
+  assert.match(String(enableBlocked.hint), /不是抽屉收的/)
+  // 正常组仍要报成功（不许为了这条修成一律 applied:false）
+  const enableOk = await runTool(worldBlocked, 'lazy_tools_enable', { group: 'blk-b' }, blockedAgent)
+  assert.notEqual(enableOk.applied, false, `正常的组不许被误报成失败：${JSON.stringify(enableOk)}`)
+  ok('enable 回读：外部挡着报 applied:false，正常组照旧成功')
 
   console.log(`\nsmoke: ${checks} 项全过`)
 }
