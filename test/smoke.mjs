@@ -8,9 +8,10 @@
 
 import assert from 'node:assert/strict'
 import { apply } from '../lib/index.js'
-import { normalizePolicy } from '../lib/api.js'
+import { normalizePolicy, mergePolicyForStorage } from '../lib/api.js'
 import { isToolHot, recordUsage, LEVEL_DAYS, DAY } from '../lib/usage.js'
-import { readFileSync, writeFileSync, rmSync } from 'node:fs'
+import { auditManagedRoles, roleFromLabel, labelOfSession } from '../lib/roles.js'
+import { readFileSync, writeFileSync, rmSync, utimesSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -604,7 +605,10 @@ async function main() {
   const autoHealth = await runTool(worldE, 'lazy_tools_health', {}, agentE)
   assert.equal('autoOpened' in autoHealth.stats, false, 'autoOpened 字段必须删干净')
   assert.equal('userMessages' in autoHealth.stats, false, 'userMessages 字段必须删干净')
-  assert.equal(worldE.inboxListeners.length, 0, '0.17.0 不应再注册 inbox 监听（删不干净这条会红）')
+  // 2026-11-03：这条原来断言「一条 inbox 监听都不许有」（0.17.0 删关键词预开时的红线）。
+  // 现在**有意**保留一条：role-inbox 的 `agent/inbox/spliced`（子代理首条消息里的 [role:xxx]）。
+  // 它不参与任何"按词预开"——上面两条断言（普通消息不改工具面）仍然守着那件事。
+  assert.equal(worldE.inboxListeners.length, 1, '只允许 role-inbox 的那一条 inserted 监听（spliced 走事件表）')
   assert.equal(autoHealth.notes.filter((n) => String(n).includes('autoHints')).length, 1, '旧配置的 autoHints 提示每组只该出现一次（重复 push 会红）')
   assert.equal(autoHealth.healthy, true, '兼容提示不许把 healthy 拖成 false（否则用户天天看红灯）')
   ok('autoHints 被忽略：不自动开组；stats 不再有 autoOpened / userMessages')
@@ -1342,7 +1346,7 @@ async function main() {
   log('[57] 配置里的组全无效：不许静默零注册')
   const worldBad = makeWorld()
   apply(worldBad.ctx, { groups: [null, {}, { id: 'g' }] })
-  assert.equal(worldBad.registered.size, 7, `组全无效时也要注册 7 个工具，实际 ${worldBad.registered.size}`)
+  assert.equal(worldBad.registered.size, 8, `组全无效时也要注册 8 个工具，实际 ${worldBad.registered.size}`)
   const agentBad = worldBad.createAgent('agent-bad')
   const hBad = await runTool(worldBad, 'lazy_tools_health', {}, agentBad)
   assert.ok(hBad.errors.some((e) => String(e.where).includes('group')), '必须留下可见的错误记录')
@@ -1352,7 +1356,7 @@ async function main() {
   const worldMix = makeWorld()
   worldMix.ctx.tools.register({ name: 'ok_a', description: 'x', parameters: {}, output: {} })
   apply(worldMix.ctx, { groups: [{ id: 'ok', match: ['ok_*'], defaultOn: false }, null, {}], autoGroups: 'off' })
-  assert.equal(worldMix.registered.size, 8, '1 个业务工具 + 7 个自救工具')
+  assert.equal(worldMix.registered.size, 9, '1 个业务工具 + 8 个自救工具')
   const agentMix = worldMix.createAgent('agent-mix')
   const sMix = await runTool(worldMix, 'lazy_tools_status', {}, agentMix)
   assert.equal(sMix.groups.length, 1, '混合输入只保留 1 个合法组')
@@ -1680,6 +1684,674 @@ async function main() {
   const enableOk = await runTool(worldBlocked, 'lazy_tools_enable', { group: 'blk-b' }, blockedAgent)
   assert.notEqual(enableOk.applied, false, `正常的组不许被误报成失败：${JSON.stringify(enableOk)}`)
   ok('enable 回读：外部挡着报 applied:false，正常组照旧成功')
+
+  // 2026-11-02（用户转述同行的判断，回去查实）：POST /policy 原来把**补丁**直接写盘，
+  // 部分字段提交会把文件里其余设置冲掉；运行时看着正常，一重启就丢。
+  log('[70] 策略落盘：部分补丁不许冲掉其他设置')
+  const storedPolicy = {
+    level: 'medium',
+    idleDays: 7,
+    minTools: 3,
+    presets: { low: 14, medium: 7, high: 3 },
+    classifyNudge: true,
+    showDock: true,
+    showClear: true,
+    autoGroups: 'on',
+  }
+  const mergedLevel = mergePolicyForStorage({ level: 'high' }, storedPolicy)
+  assert.equal(mergedLevel.level, 'high', '补丁里的档位要生效')
+  assert.equal(mergedLevel.idleDays, 3, '只给档位时天数要跟着档位走')
+  assert.equal(mergedLevel.showDock, true, '没提交的设置必须留在盘上（这条就是那个 bug）')
+  assert.equal(mergedLevel.showClear, true, '同上：showClear 不许消失')
+  assert.equal(mergedLevel.minTools, 3, '同上：minTools 不许消失')
+  assert.deepEqual(mergedLevel.presets, { low: 14, medium: 7, high: 3 }, '同上：三档天数不许消失')
+  assert.equal(mergedLevel.autoGroups, 'on', '同上：autoGroups 不许消失')
+  // 显式给天数时不被档位覆盖
+  const mergedExplicit = mergePolicyForStorage({ level: 'low', idleDays: 0 }, storedPolicy)
+  assert.equal(mergedExplicit.idleDays, 0, '显式给 0（不按时间收敛）必须保留')
+  // 2026-11-03 回归：managedRoles 必须活过"保存设置"这一趟。
+  // 事故：normalizePolicy 曾经把它**整个剥掉** —— 于是 ① policy.json 里配的角色从来没生效；
+  // ② 任何一次保存设置都会把角色配置静默删掉（与档案 #78 同一类：写成功但内容不对）。
+  const storedWithRoles = { ...storedPolicy, managedRoles: { hermes: { allowGroups: ['write'] } } }
+  const readBack = normalizePolicy(JSON.parse(JSON.stringify(storedWithRoles)))
+  assert.deepEqual(readBack.managedRoles, { hermes: { allowGroups: ['write'] } }, 'normalizePolicy 不许吃掉 managedRoles')
+  const mergedRoles = mergePolicyForStorage({ level: 'low' }, storedWithRoles)
+  assert.ok(mergedRoles.managedRoles && mergedRoles.managedRoles.hermes, '保存设置不许把角色配置删掉')
+  // 没有旧文件时等同首存
+  const mergedFresh = mergePolicyForStorage({ level: 'medium' }, null)
+  assert.equal(mergedFresh.level, 'medium')
+  ok('策略落盘：补丁合并进旧策略，未提交的键不丢')
+
+  // 2026-11-02（外部评审指出、复现属实）：allowGroups 写不存在 id ⇒ 受管会话把组全藏，
+  // 而受管会话里 enable/disable 被拒、自愈也不绕过 ⇒ 会话内零自救路径，且全程静默。
+  log('[71] 受管角色：allowGroups 写错不许把会话锁死')
+  // ① 纯函数：全错 → 该角色被停用；半错 → 只报不删；'*' → 放行
+  const auditAll = auditManagedRoles({ typo: { allowGroups: ['fs', 'shell'] } }, ['rf-a'])
+  assert.deepEqual(auditAll.dropped, ['typo'], '全部 id 都不认识时必须停用该角色')
+  assert.deepEqual(auditAll.unknown[0].ids, ['fs', 'shell'])
+  const auditHalf = auditManagedRoles({ half: { allowGroups: ['rf-a', 'nope'] } }, ['rf-a'])
+  assert.deepEqual(auditHalf.dropped, [], '有一半能用就不许删角色')
+  assert.deepEqual(auditHalf.unknown[0].ids, ['nope'])
+  assert.deepEqual(auditManagedRoles({ star: { allowGroups: ['*'] } }, []), { unknown: [], dropped: [] }, "'*' 不算写错")
+  // 2026-11-03 冷读红 4a：auto-* **不再豁免**。
+  // 以前它被跳过，于是 mnemon 停用后 `auto-mnemon` 消失时角色照常生效却一个组都没允许 →
+  // 全部 hide、只剩核心工具、enable/disable 还被拒（#71 原地复活）。现在它和普通 id 一样参与判定。
+  const auditAuto = auditManagedRoles({ auto: { allowGroups: ['auto-xxx'] } }, [])
+  assert.deepEqual(auditAuto.dropped, ['auto'], 'auto-* 不存在时也要按"全错"停用角色')
+  assert.deepEqual(auditAuto.unknown[0].ids, ['auto-xxx'], '并且要报出来')
+
+  // ② 集成：全错的角色不生效（health.managed 为 null）+ health.errors 里有证据
+  const worldAudit = makeWorld()
+  worldAudit.ctx.tools.register({ name: 'rf_a__one', description: 'x', parameters: {}, output: {} })
+  apply(worldAudit.ctx, {
+    groups: [{ id: 'rf-a', match: ['rf_a__*'] }],
+    autoGroups: 'off',
+    managedRoles: {
+      'role-typo': { allowGroups: ['fs', 'shell'] },
+      'role-half': { allowGroups: ['rf-a', 'nope'] },
+    },
+  })
+  const typoAgent = worldAudit.createAgent('agent-typo', (agent) => {
+    agent.presets = { defaultId: 'cordis', composedPreset: () => 'role-typo' }
+  })
+  const healthTypo = await runTool(worldAudit, 'lazy_tools_health', {}, typoAgent)
+  assert.equal(healthTypo.managed, null, '全写错的角色必须被停用（否则会话被锁到只剩核心工具）')
+  assert.ok(
+    healthTypo.errors.some((e) => String(e.message).includes('role-typo') && String(e.message).includes('不存在')),
+    `health.errors 里必须响：${JSON.stringify(healthTypo.errors)}`,
+  )
+  // 半错的角色仍然生效（不是一刀切停用）
+  const halfAgent = worldAudit.createAgent('agent-half', (agent) => {
+    agent.presets = { defaultId: 'cordis', composedPreset: () => 'role-half' }
+  })
+  const healthHalf = await runTool(worldAudit, 'lazy_tools_health', {}, halfAgent)
+  assert.ok(healthHalf.managed && healthHalf.managed.role === 'role-half', '半错角色仍要生效')
+  ok('受管角色：allowGroups 写错会响；全错停用不锁死；部分错只报不删')
+
+  // 2026-11-03（第 1 批重构）：提示段搬去 lib/prompt.js，顺带产出「会话快照」。
+  // 这条钉住：health.session 与提示段**同一份判据**（该列哪些组），且能指出被外部挡掉的组。
+  log('[72] 会话快照：health.session 与提示段同一份判定')
+  const worldSnap = makeWorld()
+  const snapSections = []
+  worldSnap.ctx.inject = (deps, callback) => {
+    callback({
+      effect: (make) => make(),
+      systemPrompt: {
+        section(section) {
+          snapSections.push(section)
+          return () => {}
+        },
+      },
+    })
+  }
+  worldSnap.ctx.tools.register({ name: 'snap_a__one', description: 'x', parameters: {}, output: {} })
+  worldSnap.ctx.tools.register({ name: 'snap_b__one', description: 'x', parameters: {}, output: {} })
+  worldSnap.ctx.tools.register({ name: 'snap_c__one', description: 'x', parameters: {}, output: {} })
+  apply(worldSnap.ctx, {
+    groups: [
+      { id: 'snap-a', match: ['snap_a__*'], title: 'A' },
+      { id: 'snap-b', match: ['snap_b__*'], title: 'B' },
+      { id: 'snap-c', match: ['snap_c__*'], title: 'C' },
+    ],
+    autoGroups: 'off',
+  })
+  // C 组被外部挡掉（不是我们收的）：会话快照要能指出来。
+  // 必须在 createAgent 之前挡：这样首次 rebuild 就看到它不可见，不会把它算进我们的藏匿集。
+  const snapAgent = worldSnap.createAgent('agent-snap', (agent) => {
+    worldSnap.externalByAgent.get(agent).add('snap_c__one')
+  })
+  const healthSnap = await runTool(worldSnap, 'lazy_tools_health', {}, snapAgent)
+  assert.ok(healthSnap.session, 'health.session 必须存在')
+  assert.ok(Array.isArray(healthSnap.session.groupsListed), 'groupsListed 必须是数组')
+  // 2026-11-03 夜（挑刺）：role / blockedGroups 已砍——前者与 managed 重复，后者是第二个更弱的判据
+  assert.ok(!('role' in healthSnap.session), 'session 不该重复 managed 里的 role')
+  assert.ok(!('blockedGroups' in healthSnap.session), 'blockedGroups 已移除（health.groups[].blocked 是唯一入口）')
+  const sectionTextSnap = snapSections[0].text({ scope: snapAgent })
+  for (const id of healthSnap.session.groupsListed) {
+    assert.ok(sectionTextSnap.includes(id), `快照说列了 ${id}，提示段里却没有：${sectionTextSnap}`)
+  }
+  // 反向：提示段里出现的组也必须在快照里（同一份判定，双向都对）
+  for (const g of [
+    { id: 'snap-a', re: /snap-a\(/ },
+    { id: 'snap-b', re: /snap-b\(/ },
+    { id: 'snap-c', re: /snap-c\(/ },
+  ]) {
+    if (g.re.test(sectionTextSnap)) assert.ok(healthSnap.session.groupsListed.includes(g.id), `提示段有 ${g.id}，快照却没有`)
+  }
+  assert.ok(healthSnap.session.visible >= 1 && healthSnap.session.hidden >= 1, '可见/隐藏计数要有')
+  // visible 要等于「注册表 − 我们藏的 − 外部挡的」：注意假宿主的 visibleNames() 辅助函数**不过滤外部 deny**，
+  // 所以这里自己按同一口径算，别拿两套定义互比。
+  const snapDenied = worldSnap.denyByAgent.get(snapAgent) || new Set()
+  const snapExternal = worldSnap.externalByAgent.get(snapAgent) || new Set()
+  const expectedVisible = [...worldSnap.registered.keys()].filter(
+    (name) => !snapDenied.has(name) && !snapExternal.has(name),
+  ).length
+  assert.equal(healthSnap.session.visible, expectedVisible, 'visible 必须等于本会话真正可见的工具数')
+
+  // **读不到时不许编数字**（挑刺的红项）：视图与 schemas 同时抛错 ⇒ visible 必须是 null，不是 0
+  const realView = worldSnap.ctx.tools.view
+  const realSchemas = worldSnap.ctx.tools.schemas
+  worldSnap.ctx.tools.view = () => {
+    throw new Error('view boom')
+  }
+  worldSnap.ctx.tools.schemas = () => {
+    throw new Error('schemas boom')
+  }
+  const healthBroken = await runTool(worldSnap, 'lazy_tools_health', {}, snapAgent)
+  assert.equal(
+    healthBroken.session.visible,
+    null,
+    `读不到工具表时必须给 null，不许用 0 冒充：${JSON.stringify(healthBroken.session)}`,
+  )
+  assert.ok(Array.isArray(healthBroken.session.groupsListed), '读不到时 groupsLeft 仍要给（退回旧行为：列全部组）')
+  worldSnap.ctx.tools.view = realView
+  worldSnap.ctx.tools.schemas = realSchemas
+  ok('会话快照：列出的组与提示段同一份判定；读不到工具表时 visible=null，不编数字')
+
+  // 2026-11-03：子代理的角色标记。宿主不给 subagent 工具传 preset/metadata，
+  // 所以角色走「父会话在派工提示首行写 [role:xxx]」这条约定，由 role-inbox 在首轮前收紧。
+  log('[73] 角色标记：子代理首条消息里的 [role:xxx] 在首轮前收紧工具面')
+  const worldRI = makeWorld()
+  worldRI.ctx.tools.register({ name: 'ri_a__one', description: 'x', parameters: {}, output: {} })
+  worldRI.ctx.tools.register({ name: 'ri_b__one', description: 'x', parameters: {}, output: {} })
+  apply(worldRI.ctx, {
+    groups: [
+      { id: 'ri-a', match: ['ri_a__*'] },
+      { id: 'ri-b', match: ['ri_b__*'] },
+    ],
+    autoGroups: 'off',
+    managedRoles: { researcher: { allowGroups: ['ri-a'] } },
+  })
+
+  // ① 子会话 + 已配置的角色 → 收紧（未授权组被藏、授权组放出）
+  const childRI = worldRI.createAgent('agent-child-ri', (agent) => {
+    agent.session = { header: { parentSession: 'parent-1' } }
+  })
+  worldRI.fireEvent('agent/inbox/spliced', {
+    agent: childRI,
+    data: { inserted: [{ content: [{ type: 'text', text: '[role:researcher] 去研究一下' }] }] },
+  })
+  const healthRI = await runTool(worldRI, 'lazy_tools_health', {}, childRI)
+  assert.equal(healthRI.managed && healthRI.managed.role, 'researcher', `子会话的角色标记必须生效：${JSON.stringify(healthRI.managed)}`)
+  const denyRI = worldRI.denyByAgent.get(childRI)
+  assert.ok(denyRI.has('ri_b__one'), '未授权的组必须被藏')
+  assert.ok(!denyRI.has('ri_a__one'), '授权的组必须放出来')
+
+  // ② 普通会话里手打标记 → 不许改自己的工具面
+  const humanRI = worldRI.createAgent('agent-human-ri')
+  worldRI.fireEvent('agent/inbox/spliced', {
+    agent: humanRI,
+    data: { inserted: [{ content: [{ type: 'text', text: '[role:researcher] 我只是顺手打的' }] }] },
+  })
+  const healthHuman = await runTool(worldRI, 'lazy_tools_health', {}, humanRI)
+  assert.equal(healthHuman.managed, null, '普通会话里的标记不该改变工具面')
+
+  // ③ 标了没配的角色 → 必须响，且不改工具面
+  const childUnknown = worldRI.createAgent('agent-child-unknown', (agent) => {
+    agent.session = { header: { parentSession: 'parent-1' } }
+  })
+  worldRI.fireEvent('agent/inbox/spliced', {
+    agent: childUnknown,
+    data: { inserted: [{ content: [{ type: 'text', text: '[role:nobody] 不存在的角色' }] }] },
+  })
+  const healthUnknown = await runTool(worldRI, 'lazy_tools_health', {}, childUnknown)
+  assert.equal(healthUnknown.managed, null, '没配的角色不许生效')
+  assert.ok(
+    healthUnknown.errors.some((e) => String(e.message).includes('nobody')),
+    `写了标记却没配角色必须响：${JSON.stringify(healthUnknown.errors)}`,
+  )
+  ok('角色标记：子会话生效；普通会话与未配置角色不动工具面（后者要响）')
+
+  // 2026-11-03：**厂商无关**的角色信号 —— 从会话标签尾段认角色。
+  // 生态里写法各异（MyGO `dsh-my-go:hermes`、team-conductor `team:reviewer`），我们不认厂商，
+  // 只认「最后一段」，并且**只有 managedRoles 里配了那个键才生效**。
+  log('[74] 角色来源：label 尾段（厂商无关）')
+  const labelCases = [
+    ['dsh-my-go:hermes', 'hermes'],
+    ['dsh-my-go/hermes', 'hermes'],
+    ['team:reviewer', 'reviewer'],
+    ['MyGO Explore', 'explore'],
+    ['plainnoprefix', 'plainnoprefix'],
+    ['尾段有中文:中文角色', null],
+    ['', null],
+    [undefined, null],
+  ]
+  for (const [input, expected] of labelCases) {
+    assert.equal(roleFromLabel(input), expected, `roleFromLabel(${JSON.stringify(input)}) 应为 ${expected}`)
+  }
+
+  const worldLabel = makeWorld()
+  worldLabel.ctx.tools.register({ name: 'lb_a__one', description: 'x', parameters: {}, output: {} })
+  worldLabel.ctx.tools.register({ name: 'lb_b__one', description: 'x', parameters: {}, output: {} })
+  apply(worldLabel.ctx, {
+    groups: [
+      { id: 'lb-a', match: ['lb_a__*'] },
+      { id: 'lb-b', match: ['lb_b__*'] },
+    ],
+    autoGroups: 'off',
+    managedRoles: {
+      hermes: { allowGroups: ['lb-a'] },
+      subagent: { allowGroups: ['lb-b'] },
+    },
+  })
+
+  // ① 标签尾段命中 ⇒ 用它（精确），且 source=label
+  const labelChild = worldLabel.createAgent('agent-label', (agent) => {
+    agent.session = { header: { parentSession: 'p', label: 'dsh-my-go:hermes' } }
+  })
+  const healthLabel = await runTool(worldLabel, 'lazy_tools_health', {}, labelChild)
+  assert.equal(healthLabel.managed && healthLabel.managed.role, 'hermes', `label 尾段必须认出来：${JSON.stringify(healthLabel.managed)}`)
+  assert.equal(healthLabel.managed.source, 'label', 'source 要写明是 label 认出来的')
+  const denyLabel = worldLabel.denyByAgent.get(labelChild)
+  assert.ok(denyLabel.has('lb_b__one'), 'hermes 只允许 lb-a，lb-b 必须藏')
+  assert.ok(!denyLabel.has('lb_a__one'), 'lb-a 必须放出来')
+
+  // ② 标签尾段没配 ⇒ 退回 subagent 通用键，source=subagent
+  const fallbackChild = worldLabel.createAgent('agent-label-fallback', (agent) => {
+    agent.session = { header: { parentSession: 'p', label: 'unknown-vendor:nobody' } }
+  })
+  const healthFallback = await runTool(worldLabel, 'lazy_tools_health', {}, fallbackChild)
+  assert.equal(healthFallback.managed && healthFallback.managed.role, 'subagent', '认不出的 label 要退回 subagent 键')
+  assert.equal(healthFallback.managed.source, 'subagent')
+
+  // ③ 非子会话带 label ⇒ 不许生效（label 只在子会话上认）
+  const humanLabel = worldLabel.createAgent('agent-label-human', (agent) => {
+    agent.session = { header: { label: 'dsh-my-go:hermes' } }
+  })
+  const healthHumanLabel = await runTool(worldLabel, 'lazy_tools_health', {}, humanLabel)
+  assert.equal(healthHumanLabel.managed, null, '普通会话的 label 不该改变工具面')
+  ok('角色来源：label 尾段优先于 subagent 键，非子会话不认 label')
+
+  // 2026-11-03：**改完 policy.json 不用重启**（用户点名"配置很麻烦"）。
+  // 判据是 mtime；读不到 mtime 就永不重载（退回旧行为）。AI 配的角色要能自证来源。
+  log('[75] policy 热重载：改文件即生效，且能看出是谁配的')
+  const tmpPolicy = join(tmpdir(), `lazy-tools.policy.reload.${Date.now()}.json`)
+  const prevPolicyEnv = process.env.LAZY_TOOLS_POLICY_FILE
+  process.env.LAZY_TOOLS_POLICY_FILE = tmpPolicy
+  try {
+    writeFileSync(tmpPolicy, JSON.stringify({ managedRoles: { alpha: { allowGroups: ['hl-a'] } } }), 'utf8')
+    const worldReload = makeWorld()
+    worldReload.ctx.tools.register({ name: 'hl_a__one', description: 'x', parameters: {}, output: {} })
+    worldReload.ctx.tools.register({ name: 'hl_b__one', description: 'x', parameters: {}, output: {} })
+    apply(worldReload.ctx, {
+      groups: [
+        { id: 'hl-a', match: ['hl_a__*'] },
+        { id: 'hl-b', match: ['hl_b__*'] },
+      ],
+      autoGroups: 'off',
+    })
+    const mkChild = (id, label) =>
+      worldReload.createAgent(id, (agent) => {
+        agent.session = { header: { parentSession: 'p', label } }
+      })
+
+    const charlie1 = mkChild('agent-reload-1', 'v:alpha')
+    const health1 = await runTool(worldReload, 'lazy_tools_health', {}, charlie1)
+    assert.equal(health1.managed && health1.managed.role, 'alpha', '启动时读到的角色要生效')
+    assert.equal(health1.managed.createdBy, null, '人手写的角色没有 createdBy')
+
+    // 改文件（换成 beta，并带上 AI 的来源标记），把 mtime 推到未来确保能被判成"变过"
+    writeFileSync(
+      tmpPolicy,
+      JSON.stringify({ managedRoles: { beta: { allowGroups: ['hl-b'], createdBy: 'ai', basis: 'smoke 测试' } } }),
+      'utf8',
+    )
+    const future = new Date(Date.now() + 5000)
+    utimesSync(tmpPolicy, future, future)
+
+    const charlie2 = mkChild('agent-reload-2', 'v:beta')
+    const health2 = await runTool(worldReload, 'lazy_tools_health', {}, charlie2)
+    assert.equal(health2.managed && health2.managed.role, 'beta', '改完文件新建会话就该用新角色（不用重启）')
+    assert.equal(health2.managed.createdBy, 'ai', 'AI 配的角色要能看出是谁配的')
+    assert.equal(health2.managed.basis, 'smoke 测试', '依据要能透出来')
+
+    // 旧角色已经不在配置里 ⇒ 新会话不再受管（subagent 键也没配）
+    const charlie3 = mkChild('agent-reload-3', 'v:alpha')
+    const health3 = await runTool(worldReload, 'lazy_tools_health', {}, charlie3)
+    assert.equal(health3.managed, null, '被删掉的角色不该继续生效')
+  } finally {
+    if (prevPolicyEnv === undefined) delete process.env.LAZY_TOOLS_POLICY_FILE
+    else process.env.LAZY_TOOLS_POLICY_FILE = prevPolicyEnv
+    rmSync(tmpPolicy, { force: true })
+  }
+  ok('policy 热重载：mtime 变了就重读，AI 配的角色带 createdBy/basis')
+
+  // 2026-11-03：**AI 自己配角色**（用户：大部分人懒得写，给喜欢折腾的留个口子）。
+  // 工具层强制三条不变量：组必须存在、不许 `*`、必须带 basis。
+  log('[76] lazy_tools_roles：AI 自己配角色，工具层守住三条不变量')
+  const tmpRoles = join(tmpdir(), `lazy-tools.roles.${Date.now()}.json`)
+  const prevRolesEnv = process.env.LAZY_TOOLS_POLICY_FILE
+  process.env.LAZY_TOOLS_POLICY_FILE = tmpRoles
+  try {
+    const worldRoles = makeWorld()
+    worldRoles.ctx.tools.register({ name: 'rl_a__one', description: 'x', parameters: {}, output: {} })
+    worldRoles.ctx.tools.register({ name: 'rl_b__one', description: 'x', parameters: {}, output: {} })
+    apply(worldRoles.ctx, {
+      groups: [
+        { id: 'rl-a', match: ['rl_a__*'] },
+        { id: 'rl-b', match: ['rl_b__*'] },
+      ],
+      autoGroups: 'off',
+    })
+    const boss = worldRoles.createAgent('agent-roles-boss')
+
+    // 只读
+    const readOnly = await runTool(worldRoles, 'lazy_tools_roles', {}, boss)
+    assert.deepEqual(readOnly.groupIds, ['rl-a', 'rl-b'], '只读模式要给出可用组')
+    assert.deepEqual(readOnly.roles, [], '一开始没有角色')
+
+    // 不变量 ①：组必须存在
+    const badGroup = await runTool(worldRoles, 'lazy_tools_roles', { role: 'hermes', allowGroups: ['nope'], basis: 'x' }, boss)
+    assert.ok(String(badGroup.error || '').includes('不存在'), '不存在的组必须拒绝')
+
+    // 不变量 ②：AI 不许写 *
+    const star = await runTool(worldRoles, 'lazy_tools_roles', { role: 'hermes', allowGroups: ['*'], basis: 'x' }, boss)
+    assert.ok(
+      String(star.error || '').includes('逃生口'),
+      `AI 不许写 * —— 拒绝理由必须是"放开限制"这条，不能是碰巧"组不存在"：${JSON.stringify(star)}`,
+    )
+
+    // 不变量 ③：必须给 basis
+    const noBasis = await runTool(worldRoles, 'lazy_tools_roles', { role: 'hermes', allowGroups: ['rl-a'] }, boss)
+    assert.ok(String(noBasis.error || '').includes('basis'), '没依据必须拒绝')
+
+    // 正常写入 → 文件真的落盘 + 新子会话按它收紧
+    const written = await runTool(
+      worldRoles,
+      'lazy_tools_roles',
+      { role: 'hermes', allowGroups: ['rl-a'], basis: '写模块，只用写类组' },
+      boss,
+    )
+    assert.equal(written.ok, true, `写入应成功：${JSON.stringify(written)}`)
+    const onDisk = JSON.parse(readFileSync(tmpRoles, 'utf8'))
+    assert.equal(onDisk.managedRoles.hermes.createdBy, 'ai', '落盘要标明是 AI 配的')
+    assert.equal(onDisk.managedRoles.hermes.basis, '写模块，只用写类组', '依据要落盘')
+
+    const hermesChild = worldRoles.createAgent('agent-roles-child', (agent) => {
+      agent.session = { header: { parentSession: 'p', label: 'v:hermes' } }
+    })
+    const healthHermes = await runTool(worldRoles, 'lazy_tools_health', {}, hermesChild)
+    assert.equal(healthHermes.managed && healthHermes.managed.role, 'hermes', '新子会话要用刚配的角色')
+    assert.equal(healthHermes.managed.createdBy, 'ai')
+    const denyHermes = worldRoles.denyByAgent.get(hermesChild)
+    assert.ok(denyHermes.has('rl_b__one'), '未授权的组要被藏')
+  } finally {
+    if (prevRolesEnv === undefined) delete process.env.LAZY_TOOLS_POLICY_FILE
+    else process.env.LAZY_TOOLS_POLICY_FILE = prevRolesEnv
+    rmSync(tmpRoles, { force: true })
+  }
+  ok('lazy_tools_roles：AI 配角色——不存在的组 / * / 缺 basis 全被拒，写入即生效')
+
+  // 2026-11-03（盲测指出的失败模式）：子会话自称一个没配的角色时，它会悄悄落到默认工具面。
+  // 认不出就不动仍然是对的，但**必须能查**：health.session.roleHint 要把它点名。
+  log('[77] 角色没配时要说出来：health.session.roleHint')
+  const worldHint = makeWorld()
+  worldHint.ctx.tools.register({ name: 'rh_a__one', description: 'x', parameters: {}, output: {} })
+  apply(worldHint.ctx, {
+    groups: [{ id: 'rh-a', match: ['rh_a__*'] }],
+    autoGroups: 'off',
+    managedRoles: { hermes: { allowGroups: ['rh-a'] } },
+  })
+  const hintChild = worldHint.createAgent('agent-hint', (agent) => {
+    agent.session = { header: { parentSession: 'p', label: 'vendor:nobody' } }
+  })
+  const healthHint = await runTool(worldHint, 'lazy_tools_health', {}, hintChild)
+  assert.equal(healthHint.managed, null, '没配的角色不许生效')
+  assert.ok(healthHint.session && healthHint.session.roleHint, '没配的角色必须在 session.roleHint 里点名')
+  assert.equal(healthHint.session.roleHint.role, 'nobody')
+  assert.ok(String(healthHint.session.roleHint.hint).includes('lazy_tools_roles'), '提示要给出下一步怎么做')
+
+  const configuredChild = worldHint.createAgent('agent-hint-ok', (agent) => {
+    agent.session = { header: { parentSession: 'p', label: 'vendor:hermes' } }
+  })
+  const healthNoHint = await runTool(worldHint, 'lazy_tools_health', {}, configuredChild)
+  assert.equal(healthNoHint.session.roleHint, undefined, '配好了就不该再提示')
+  ok('角色没配：session.roleHint 点名 + 给出下一步；配好了就不吵')
+
+  // 2026-11-03 冷读红的回归（红 2 / 红 3）：坏 policy.json 不许把角色清零；写角色不许洗掉别的设置。
+  log('[78] 冷读回归：坏 policy 不清角色；写角色不洗设置')
+  const tmpRed = join(tmpdir(), `lazy-tools.reds.${Date.now()}.json`)
+  const prevRedEnv = process.env.LAZY_TOOLS_POLICY_FILE
+  process.env.LAZY_TOOLS_POLICY_FILE = tmpRed
+  try {
+    writeFileSync(tmpRed, JSON.stringify({ level: 'medium', managedRoles: { alpha: { allowGroups: ['rd-a'] } } }), 'utf8')
+    const worldRed = makeWorld()
+    worldRed.ctx.tools.register({ name: 'rd_a__one', description: 'x', parameters: {}, output: {} })
+    worldRed.ctx.tools.register({ name: 'rd_b__one', description: 'x', parameters: {}, output: {} })
+    apply(worldRed.ctx, {
+      groups: [
+        { id: 'rd-a', match: ['rd_a__*'] },
+        { id: 'rd-b', match: ['rd_b__*'] },
+      ],
+      autoGroups: 'off',
+    })
+    const mk = (id) =>
+      worldRed.createAgent(id, (agent) => {
+        agent.session = { header: { parentSession: 'p', label: 'v:alpha' } }
+      })
+    const okChild = mk('agent-red-ok')
+    assert.equal((await runTool(worldRed, 'lazy_tools_health', {}, okChild)).managed.role, 'alpha', '起始角色生效')
+
+    // 红 2：文件坏掉 + mtime 变新 → 角色必须保持，且要响
+    writeFileSync(tmpRed, '{ "level": "medium", }', 'utf8') // 尾逗号 = 坏 JSON
+    const future = new Date(Date.now() + 8000)
+    utimesSync(tmpRed, future, future)
+    const afterBad = mk('agent-red-bad')
+    const healthBad = await runTool(worldRed, 'lazy_tools_health', {}, afterBad)
+    assert.equal(healthBad.managed && healthBad.managed.role, 'alpha', '坏 policy.json 不许把角色清零')
+    assert.ok(
+      healthBad.errors.some((e) => String(e.message).includes('读不出来')),
+      '坏 policy.json 必须响（否则用户以为改生效了）',
+    )
+
+    // 红 3：坏文件时写角色必须拒绝（不许把文件洗成只剩 managedRoles）
+    const bossRed = worldRed.createAgent('agent-red-boss')
+    const writeBad = await runTool(worldRed, 'lazy_tools_roles', { role: 'beta', allowGroups: ['rd-b'], basis: 'x' }, bossRed)
+    assert.ok(String(writeBad.error || '').includes('不写'), '坏 policy.json 时写角色必须拒绝')
+    assert.equal(readFileSync(tmpRed, 'utf8').includes('{ "level": "medium", }'), true, '坏文件一个字节都不该被动')
+
+    // 红 3：好文件时写角色必须保住 level 等键
+    writeFileSync(
+      tmpRed,
+      JSON.stringify({ level: 'medium', presets: { low: 14, medium: 7, high: 3 }, managedRoles: { alpha: { allowGroups: ['rd-a'] } } }),
+      'utf8',
+    )
+    const writeGood = await runTool(worldRed, 'lazy_tools_roles', { role: 'beta', allowGroups: ['rd-b'], basis: 'y' }, bossRed)
+    assert.equal(writeGood.ok, true, `写入应成功：${JSON.stringify(writeGood)}`)
+    const kept = JSON.parse(readFileSync(tmpRed, 'utf8'))
+    assert.equal(kept.level, 'medium', '写角色不许把 level 洗掉（#78 同类）')
+    assert.deepEqual(kept.presets, { low: 14, medium: 7, high: 3 }, '写角色不许把 presets 洗掉')
+    assert.equal(kept.managedRoles.alpha.allowGroups[0], 'rd-a', '已有角色不许被覆盖')
+  } finally {
+    if (prevRedEnv === undefined) delete process.env.LAZY_TOOLS_POLICY_FILE
+    else process.env.LAZY_TOOLS_POLICY_FILE = prevRedEnv
+    rmSync(tmpRed, { force: true })
+  }
+  ok('冷读回归：坏文件不清角色且要响；写角色拒绝洗文件、保留 level/presets/已有角色')
+
+  // 2026-11-03 冷读第二轮（红 1 / 红 2 启动 / 红 4a）：
+  log('[79] 冷读第二轮回归：投影 label / 启动读失败要响 / auto-* 角色不许被误删')
+  // ① label 走 sessionProjections（真机唯一通道）
+  const fakeSession = { id: 's1' }
+  const agentProj = {
+    session: fakeSession,
+    ctx: {
+      get: (name) =>
+        name === 'sessionProjections'
+          ? { stateOf: (session, key) => (key === 'subagent' ? { identity: { label: 'dsh-my-go:hermes' } } : null) }
+          : null,
+    },
+  }
+  assert.equal(roleFromLabel(labelOfSession(agentProj, { parentSession: 'p' })), 'hermes', '投影里的 label 必须认出来')
+  assert.equal(labelOfSession({ session: fakeSession, ctx: { get: () => null } }, { parentSession: 'p' }), null, '拿不到投影就返回 null，不猜')
+
+  // ② 启动时 policy.json 坏了：必须响（healthy=false），不许静默退回默认
+  const tmpBoot = join(tmpdir(), `lazy-tools.boot.${Date.now()}.json`)
+  const prevBootEnv = process.env.LAZY_TOOLS_POLICY_FILE
+  process.env.LAZY_TOOLS_POLICY_FILE = tmpBoot
+  try {
+    writeFileSync(tmpBoot, '{ "level": "high", }', 'utf8') // 尾逗号 = 坏 JSON
+    const worldBoot = makeWorld()
+    apply(worldBoot.ctx, { autoGroups: 'off' })
+    const bootAgent = worldBoot.createAgent('agent-boot')
+    const healthBoot = await runTool(worldBoot, 'lazy_tools_health', {}, bootAgent)
+    assert.ok(
+      healthBoot.errors.some((e) => String(e.message).includes('policy.json 读不出来')),
+      '启动时读失败必须记账，不许静默退回默认',
+    )
+    assert.equal(healthBoot.healthy, false, '读失败必须让 healthy 变红（否则用户以为设置生效了）')
+  } finally {
+    if (prevBootEnv === undefined) delete process.env.LAZY_TOOLS_POLICY_FILE
+    else process.env.LAZY_TOOLS_POLICY_FILE = prevBootEnv
+    rmSync(tmpBoot, { force: true })
+  }
+
+  // ③ auto-* 角色：审计必须等 autoGroups 之后。否则合法角色被当成"组不存在"删掉（fail-open）
+  const worldAutoRole = makeWorld()
+  worldAutoRole.ctx.tools.register({ name: 'mnemon__search', description: 'x', parameters: {}, output: {} })
+  worldAutoRole.ctx.tools.register({ name: 'mnemon__create', description: 'x', parameters: {}, output: {} })
+  worldAutoRole.ctx.tools.register({ name: 'mnemon__recall', description: 'x', parameters: {}, output: {} })
+  apply(worldAutoRole.ctx, {
+    autoGroups: 'on',
+    managedRoles: { reviewer: { allowGroups: ['auto-mnemon'] } },
+  })
+  const reviewerChild = worldAutoRole.createAgent('agent-auto-reviewer', (agent) => {
+    agent.session = { header: { parentSession: 'p', label: 'v:reviewer' } }
+  })
+  const healthAuto = await runTool(worldAutoRole, 'lazy_tools_health', {}, reviewerChild)
+  assert.equal(
+    healthAuto.managed && healthAuto.managed.role,
+    'reviewer',
+    `auto-* 角色不许在启动时被误删（managed 应为 reviewer，实际 ${JSON.stringify(healthAuto.managed)}）`,
+  )
+  ok('冷读第二轮回归：投影 label 认得出；启动读失败会红；auto-* 角色不被误删')
+
+  // 2026-11-03 冷读第三轮回归
+  log('[80] 冷读第三轮回归：组晚到后 auto-* 角色自动恢复；合法非对象 policy 要响；热重载坏形状保持旧值')
+  // ① 审计只在第一次会话跑 + 就地删 ⇒ 晚到的 auto 组永远不会被重审，合法角色被永久删掉（fail-open）
+  {
+    const worldLate = makeWorld()
+    apply(worldLate.ctx, { autoGroups: 'on', managedRoles: { reviewer: { allowGroups: ['auto-mnemon'] } } })
+    const early = worldLate.createAgent('agent-early')
+    await runTool(worldLate, 'lazy_tools_health', {}, early)
+    for (const name of ['mnemon__search', 'mnemon__create', 'mnemon__recall']) {
+      worldLate.ctx.tools.register({ name, description: 'x', parameters: {}, output: {} })
+    }
+    const lateChild = worldLate.createAgent('agent-late', (agent) => {
+      // 真机的 label 不在 header 上，只在 sessionProjections 的 subagent 投影里（冷读红 1）
+      agent.session = { header: { parentSession: 'p' } }
+      const get = agent.ctx.get.bind(agent.ctx)
+      agent.ctx.get = (key) =>
+        key === 'sessionProjections' ? { stateOf: () => ({ identity: { label: 'v:reviewer' } }) } : get(key)
+    })
+    const lateHealth = await runTool(worldLate, 'lazy_tools_health', {}, lateChild)
+    assert.equal(
+      lateHealth.managed && lateHealth.managed.role,
+      'reviewer',
+      `组晚到后角色必须自动恢复（实际 ${JSON.stringify(lateHealth.managed)}）`,
+    )
+    assert.deepEqual(
+      (lateHealth.errors || []).filter((e) => String(e.message).includes('auto-mnemon')),
+      [],
+      'auto-* 组还没建出来不许拉红（假错误会训练人忽略红灯）',
+    )
+  }
+
+  // ② 合法 JSON 但「不是可用的策略」：必须当「读不出来」/「这一项写坏了」，健康灯要红；
+  //    合法的空对象 {} 不许误报。
+  {
+    const prevPolicyEnv = process.env.LAZY_TOOLS_POLICY_FILE
+    const tmpShape = join(tmpdir(), `lazy-tools.shape.${Date.now()}.json`)
+    try {
+      const cases = [
+        ['null', 'null', '顶层不是对象', false],
+        ['array', '[]', '顶层不是对象', false],
+        ['string', '"hi"', '顶层不是对象', false],
+        ['roles-string', JSON.stringify({ managedRoles: 'cua-screen' }), 'managedRoles 形状不合法', false],
+        ['roles-array', JSON.stringify({ managedRoles: [] }), 'managedRoles 形状不合法', false],
+        ['roles-empty', JSON.stringify({ managedRoles: {} }), null, true],
+      ]
+      for (const [label, content, expectError, healthyExpected] of cases) {
+        writeFileSync(tmpShape, content, 'utf8')
+        process.env.LAZY_TOOLS_POLICY_FILE = tmpShape
+        const worldShape = makeWorld()
+        apply(worldShape.ctx, { autoGroups: 'off' })
+        const agentShape = worldShape.createAgent(`agent-shape-${label}`)
+        const healthShape = await runTool(worldShape, 'lazy_tools_health', {}, agentShape)
+        if (expectError === null) {
+          assert.equal(healthShape.healthy, true, `${label} 是合法写法，不许拉红`)
+          assert.deepEqual(
+            (healthShape.errors || []).filter((e) => String(e.message).includes('managedRoles')),
+            [],
+            `${label} 不许报 managedRoles 错`,
+          )
+        } else {
+          assert.equal(healthShape.healthy, false, `${label} 必须让健康灯变红`)
+          assert.ok(
+            (healthShape.errors || []).some((e) => String(e.message).includes(expectError)),
+            `${label} 要报「${expectError}」`,
+          )
+        }
+      }
+    } finally {
+      if (prevPolicyEnv === undefined) delete process.env.LAZY_TOOLS_POLICY_FILE
+      else process.env.LAZY_TOOLS_POLICY_FILE = prevPolicyEnv
+      rmSync(tmpShape, { force: true })
+    }
+  }
+
+  // ③ 热重载：managedRoles 写坏形状时必须保持旧值 + 记账（不许静默清空）
+  {
+    const prevPolicyEnv = process.env.LAZY_TOOLS_POLICY_FILE
+    const tmpReload = join(tmpdir(), `lazy-tools.reload.${Date.now()}.json`)
+    try {
+      writeFileSync(tmpReload, JSON.stringify({ level: 'high', managedRoles: { reviewer: { allowGroups: ['cua-screen'] } } }), 'utf8')
+      process.env.LAZY_TOOLS_POLICY_FILE = tmpReload
+      const worldReload = makeWorld()
+      apply(worldReload.ctx, { autoGroups: 'off' })
+      const firstReload = worldReload.createAgent('agent-reload-1')
+      const healthFirst = await runTool(worldReload, 'lazy_tools_health', {}, firstReload)
+      assert.ok(healthFirst.policy.managedRoles && healthFirst.policy.managedRoles.reviewer, '初始角色要读进来')
+      writeFileSync(tmpReload, JSON.stringify({ level: 'high', managedRoles: 'cua-screen' }), 'utf8')
+      const future = new Date(Date.now() + 4000)
+      utimesSync(tmpReload, future, future)
+      worldReload.createAgent('agent-reload-2')
+      const healthSecond = await runTool(worldReload, 'lazy_tools_health', {}, firstReload)
+      assert.ok(
+        (healthSecond.errors || []).some((e) => String(e.message).includes('managedRoles 形状不合法')),
+        '热重载读到坏形状必须记账',
+      )
+      assert.ok(
+        healthSecond.policy.managedRoles && healthSecond.policy.managedRoles.reviewer,
+        '坏形状不许清空旧角色',
+      )
+      // 形状对、但条目全没用：会清空（fail-open 是对的），但必须记账，不许静默
+      writeFileSync(tmpReload, JSON.stringify({ level: 'high', managedRoles: { alpha: {} } }), 'utf8')
+      const more = new Date(Date.now() + 8000)
+      utimesSync(tmpReload, more, more)
+      worldReload.createAgent('agent-reload-3')
+      const healthThird = await runTool(worldReload, 'lazy_tools_health', {}, firstReload)
+      assert.ok(
+        (healthThird.errors || []).some((e) => String(e.message).includes('没有任何可用条目')),
+        '条目全没用导致清空时必须记账',
+      )
+      // 改回合法配置：角色要能回来（热重载不是单向门）
+      writeFileSync(tmpReload, JSON.stringify({ level: 'high', managedRoles: { reviewer: { allowGroups: ['cua-screen'] } } }), 'utf8')
+      const evenMore = new Date(Date.now() + 12000)
+      utimesSync(tmpReload, evenMore, evenMore)
+      worldReload.createAgent('agent-reload-4')
+      const healthFourth = await runTool(worldReload, 'lazy_tools_health', {}, firstReload)
+      assert.ok(
+        healthFourth.policy.managedRoles && healthFourth.policy.managedRoles.reviewer,
+        '改回合法配置后角色必须回来',
+      )
+    } finally {
+      if (prevPolicyEnv === undefined) delete process.env.LAZY_TOOLS_POLICY_FILE
+      else process.env.LAZY_TOOLS_POLICY_FILE = prevPolicyEnv
+      rmSync(tmpReload, { force: true })
+    }
+  }
+  ok('冷读第三轮回归：组晚到恢复 / 非对象 policy 要响 / 热重载坏形状保旧值')
 
   console.log(`\nsmoke: ${checks} 项全过`)
 }

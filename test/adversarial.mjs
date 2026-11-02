@@ -160,7 +160,7 @@ const sixTools = (world) => {
 }
 
 async function main() {
-  console.log('=== A. 配置畸形（要求：不抛 + 7 个自救工具注册）===')
+  console.log('=== A. 配置畸形（要求：不抛 + 8 个自救工具注册）===')
 
   const badConfigs = [
     ['groups=null', { groups: null }],
@@ -179,7 +179,7 @@ async function main() {
     await check(`A ${label}`, () => {
       const world = makeWorld()
       apply(world.ctx, cfg)
-      assert(lazyToolCount(world) === 7, `注册数=${lazyToolCount(world)}，应 7`)
+      assert(lazyToolCount(world) === 8, `注册数=${lazyToolCount(world)}，应 8`)
       return '可加载'
     })
   }
@@ -189,7 +189,7 @@ async function main() {
     sixTools(world)
     const groups = Array.from({ length: 1000 }, (_, i) => ({ id: `g${i}`, match: [`biz_${i}`], defaultOn: false }))
     apply(world.ctx, { groups, autoGroups: 'off' })
-    assert(lazyToolCount(world) === 7, '工具没注册全')
+    assert(lazyToolCount(world) === 8, '工具没注册全')
     return '1000 组可加载'
   }, { maxMs: 3000 })
 
@@ -232,7 +232,7 @@ async function main() {
     sixTools(world)
     const long = 'biz_' + 'x'.repeat(100000)
     apply(world.ctx, { groups: [{ id: 'long', match: [long], defaultOn: false }], autoGroups: 'off' })
-    assert(lazyToolCount(world) === 7, '工具没注册全')
+    assert(lazyToolCount(world) === 8, '工具没注册全')
     return '可加载'
   }, 'V8 在首次 test() 时才编译超长正则（lib/index.js:161）；需手写约 10 万字符才触发，按可达性属绿')
 
@@ -279,7 +279,7 @@ async function main() {
     process.env.LAZY_TOOLS_GROUPS_FILE = writeTmp('obj-groups.json', '{"id":"x"}')
     const world = makeWorld()
     apply(world.ctx, { groups: [{ id: 'ok', match: ['biz_*'] }], autoGroups: 'off' })
-    assert(lazyToolCount(world) === 7, '工具没注册全')
+    assert(lazyToolCount(world) === 8, '工具没注册全')
     process.env.LAZY_TOOLS_GROUPS_FILE = `${NO_SUCH}.groups.json`
     return '可加载'
   })
@@ -382,7 +382,7 @@ async function main() {
   await check('E 组 id 与出厂组重名', () => {
     const world = makeWorld()
     apply(world.ctx, { groups: [{ id: 'cua-screen', match: ['biz_*'], defaultOn: false }], autoGroups: 'off' })
-    assert(lazyToolCount(world) === 7, '工具没注册全')
+    assert(lazyToolCount(world) === 8, '工具没注册全')
     return '可加载'
   })
 

@@ -2,6 +2,83 @@
 
 格式参照 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循语义化版本。
 
+## [0.18.1] - 2026-11-03
+
+### 修：四轮独立冷读挖出来的「静默」路径（发版前）
+- **角色配置静默消失的三种长相**，现在都要么响、要么保旧值：
+  ① `policy.json` 是合法 JSON 但顶层不是对象（`null` / `[]` / 字符串）⇒ 启动按默认跑，但 `healthy=false` + 记账（以前整份设置静默回默认、健康灯还是绿）；
+  ② 文件里 `managedRoles` 形状写坏（字符串 / 数组）⇒ 启动忽略该项并记账；**热重载保持旧角色**、不推进 mtime（改好文件会重新读）；
+  ③ 形状对但条目全没用（`{"r":{}}`）⇒ 会清空（失败方向放开）并记账；合法的 `{"managedRoles":{}}` 不再误报。
+- **角色审计不再就地删除**：组表会随晚注册的工具家族增长（`auto-mnemon` 之类），以前「第一次会话早于家族注册」会把合法 `auto-*` 角色永久删掉（fail-open，还留一条假错误）。现在保留配置源、组表变了就重新派生 —— 角色在组补上后自动恢复，自动组晚到只记日志不拉红。
+- **policy.json 写盘改原子**（临时文件 + rename），不再有「半写文件」；`lazy_tools_roles` 遇到文件里 `managedRoles` 不是对象时**拒绝写**（以前会把字符串摊成 `"0"/"1"` 数字键写进文件）。
+- 角色来源已按真宿主核实：`label` 走 `sessionProjections` 的 `subagent` 投影（`agent.ctx.sessionProjections.stateOf(session,'subagent')`），`health.managed.source` 能区分 `prompt` / `label` / `subagent` / `preset`。
+- 覆盖：冒烟 `[79]` / `[80]`（→ **89 项**）；四轮冷读记录在仓库的 `perf-/冷读-0.18.1.md`。
+- 口径（冷读第四轮提的）：热重载遇到「条目全没用」是**清空 + 记账**，不是保持旧值 —— 失败方向放开，且必须看得见。
+
+### 重构：8 个工具定义搬去 `lib/tools/`（发版前）
+- `groups.js`（status / enable / disable / mode / save_groups / list）+ `roles.js` + `health.js`（含只被它用的 bench）+ `tools/index.js`（按对外顺序装配）。
+- `lib/index.js` 2064 → **1149 行**；8 个工具定义逐字节校验一致、注册顺序不变（变异检验：改坏 `status.execute` ⇒ 冒烟变红）。
+- 跨模块写 `let`（`roleSource` / `policyMtime`）改成**显式 setter 注入** —— 少一层看不见的闭包。
+
+### 新增：`lazy_tools_roles` —— AI 自己配角色（2026-11-03 深夜）
+- 用户原话：「大部分人懒得写」「给喜欢折腾的开个口子就行」。所以配置改成**AI 生成、人只审结果**：
+  不传参数 = 只读（角色 / 来源 / 依据 / 可用组）；传 `role + allowGroups + basis` = 写入并即时生效。
+- 工具层强制三条不变量（比人手写 JSON 可靠）：① 组 id 必须真实存在（写错=会话被锁到只剩核心工具，#71）；
+  ② **AI 不许写 `*`**（放开限制的逃生口，只允许人手改文件）；③ 必须带 `basis`，自动盖 `createdBy: ai` + `at`。
+- **policy.json 改完不用重启**：`agent/created` 时比对 mtime，变过就重读并走同一套组 id 校验。
+  这是"配置很麻烦"的真正来源之一 —— 改文件 → 下一个会话生效。
+- 人手改 `policy.json` 的口子照旧有效（可以写 `*`、可以不带 basis）—— 留给喜欢折腾的人。
+
+### 修：`managedRoles` 在 policy.json 里**从来没生效**（2026-11-03，写测试时抓到）
+- `normalizePolicy` 不认识 `managedRoles`，归一化时把它整个剥掉了 ⇒ ① README 说的"写进 policy.json"是假的，
+  只有插件 config 里的能生效；② 更糟：保存设置时 `mergePolicyForStorage` 先把存盘策略读回来（已被剥掉），
+  再合并写回 ⇒ **随便存一次设置就把角色配置静默删掉**（与翻车档案 #78 同一类：写成功但内容不对）。
+- 修法：`normalizePolicy` 透传 `managedRoles`（形状检查，校验仍交给 `normalizeManagedRoles`）；
+  回归用例：`[70]` 里断言"normalizePolicy 不许吃 managedRoles"「保存设置不许把它删掉」。
+
+### 新增：角色来源的**通用**解析（2026-11-03 深夜）
+- 生态里各家给子会话打「角色」的写法不同：MyGO 用 `session.header.label = dsh-my-go:<工种>`，
+  team-conductor 用独立会话 + 侧车 roster，还有用提示标记的。**我们不认厂商名**，只认一条规则：
+  取 `label` 的**最后一段**（`:` `/` `|` 空白分隔）、小写；**只有 `managedRoles` 里配过这个键才生效**。
+- 解析顺序（每一级都要求"配了才生效"，失败方向放开）：`[role:xxx]` 提示标记 → **label 尾段** →
+  `subagent` 通用键 → preset。label **只在子会话上认**（`header.parentSession`），普通会话手打标签不生效。
+- `health.managed` 新增 `source`：`prompt` / `label` / `subagent` / `preset` ——
+  出问题时先看这一格，就知道这个角色是从哪认来的。
+- 覆盖：冒烟 `[74]`（→ 83 项）；变异检验：去掉 label 分支 ⇒ `[74]` 立刻红。
+
+### 新增：子代理的角色标记 `[role:xxx]`（2026-11-03）
+- 背景：宿主的 `subagent` 工具**不给** preset/metadata ⇒ 子代理都继承父会话 preset，
+  「按 preset 分角色」对它们完全失效（基线实验：两个不同角色的子代理，工具面一模一样）。
+- 做法：派工时在提示首行写 `[role:xxx]`；插件监听 **`agent/inbox/spliced`**（子会话日志实测的真事件名，
+  `inserted` 不触发），在**首轮组装之前**解析标记，并按 `managedRoles[xxx]` 收紧该子会话的工具面。
+- 边界：只在子会话生效（`header.parentSession`）；只看**第一条**消息；角色没配 ⇒ 记一条错误、工具面不动。
+- 复用：不新增工具、不新增配置项 —— 角色定义就在 `managedRoles` 里。
+- 覆盖：冒烟 `[73]`（→ 82 项）；变异检验：把角色注入去掉 ⇒ `[73]` 立刻红。
+- 旧测试订正：`[16]` 里「一条 inbox 监听都不许有」改成「只允许 role-inbox 这两条」——
+  0.17.0 删掉的是**按关键词预开**，不是「读消息」这件事本身。
+
+### 修：0.18.0 之后的外部评审（2026-11-02，四条全部复现属实）
+- **受管角色写错组 id 会把会话锁死**：受管会话里 `enable` / `disable` 被拒、自愈也不绕过，于是
+  `allowGroups` 全写成不存在的 id（照抄旧文档示例就会这样）⇒ 工具面被收到只剩 CORE_TOOLS，
+  会话内零自救路径，而且**全程静默**（违反红线三）。现在启动时校验 `allowGroups`：
+  不认识的 id 进 `health.errors`；**全都不认识的角色直接停用**（退回普通会话行为），不再锁死；
+  另加 `allowGroups: ["*"]` 逃生口。冒烟 `[71]`（→ 80 项）。
+- README：状态行 `0.17.x` → `0.18.x`；受管会话示例从「superagent 的概念组名」改成**真实存在的组 id**，
+  并写明配置落在 `~/.dsh/lazy-tools.policy.json`（**JSON**）或 profile 的 YAML，两处都有以 policy.json 为准；
+  补一句定位说明——**受管角色只能收紧，不能放行**（`restrict` 在作用域链上取交集）。
+- 英文 README 补上受管角色一节（原来完全没写）。
+
+### 重构：第 1 批 —— 提示段搬去 `lib/prompt.js`（2026-11-03）
+- `apply()` 里约 212 行的提示段 + 三个判定函数搬到 `lib/prompt.js`，依赖显式注入、可单测；
+  `index.js` 1959 → **1780 行**（净 -179），新增 `lib/prompt.js` **272 行**。
+- 新增 **`health.session`**：本会话列了哪些组 + 可见数 + 我们藏了几个。
+  `groupsListed` 与提示段走**同一个函数**（`createPrompt().view`）；`visible` 走便宜视图，
+  **读不到时给 `null`，不许用 0 冒充**（挑刺抓到的红项：同一份回答里既说"列了"又说"被挡"）。
+- 第一版还带过 `role` 与 `blockedGroups`，被挑刺否掉并删除：前者与既有 `managed` 重复且形状不同；
+  后者是第二套更弱的判据（会把"我们自己没撤掉的限制"报成"外部挡"），而 `health.groups[].blocked`
+  与 `warnings` 已经分得清三种根因。**同一判据只允许一个入口。**
+- 冒烟 `[72]`（→ 81 项）。变异检验两条：`visible` 失败时给 0 ⇒ 红；`groupsListed` 与提示段脱钩 ⇒ 红。
+
 ## [0.18.0] - 2026-11-01
 
 ### 新增：受管角色（managedRoles，默认关闭）

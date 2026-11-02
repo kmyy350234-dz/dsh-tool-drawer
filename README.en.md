@@ -178,6 +178,50 @@ host half — no settings page.
 | `defaultOn` | `false` = hidden unless enabled (almost always what you want) |
 | `title` | free-form label shown by `lazy_tools_status` |
 
+## Managed roles (`managedRoles`, off by default)
+
+> **It only narrows.** `restrict` intersects along the scope chain, so a managed role can never *add* tools the
+> orchestrator did not grant — it only removes tools a role session should not see.
+
+Set `managedRoles` in `~/.dsh/lazy-tools.policy.json` (**JSON**, same file as the saved policy), or in the
+plugin config (profile YAML); the policy file wins when both exist.
+
+```json
+{
+  "managedRoles": {
+    "dsh-superagent-worker": { "allowGroups": ["cua-screen", "browser-heavy"] },
+    "subagent": { "allowGroups": ["*"] }
+  }
+}
+```
+
+- Group ids must exist on this machine — check `lazy_tools_status` → `groups[].id`.
+- Unknown ids are reported in `health.errors`; a role whose ids are **all** unknown is disabled instead of
+  locking that session down to CORE tools (managed sessions reject `enable`/`disable`, and self-heal does not
+  bypass the policy, so a wrong config would otherwise have no escape inside the session).
+- `allowGroups: ["*"]` disables group filtering for that role.
+- Without `managedRoles` nothing changes.
+
+### Per-subagent roles: `[role:xxx]` (2026-11-03)
+
+The host's `subagent` tool takes no preset/metadata, so every subagent inherits its parent's preset — preset-based
+role filtering never distinguishes them (measured: two differently-labelled subagents got identical tool surfaces).
+
+To give a subagent a role, put a marker on the first line of its prompt:
+
+```
+[role:researcher] compare the conclusions of these three papers…
+```
+
+The plugin reads it **before the child's first turn** and applies `managedRoles[xxx]`:
+
+```json
+{ "managedRoles": { "researcher": { "allowGroups": ["browser-heavy", "vision-heavy"] } } }
+```
+
+Only subagent sessions are affected (a marker you type in your own chat changes nothing), only the first message is
+inspected, and an unconfigured role records an error without touching the surface. No new tools, no new config keys.
+
 ## Per-session group list (0.18)
 
 The resident prompt lists the groups the **calling session** actually has mounted, not a fixed global list:

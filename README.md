@@ -6,7 +6,7 @@
 
 工具抽屉处理的就是这件事：平时用不上的工具组收起来，要用的时候再放出来。
 
-**状态：0.17.x。** 在一台机器上日常使用。配置面仍可能变化。Issue 和 PR 都欢迎，维护是尽力而为；需要稳定保证请自行 fork。DSH 若实现原生按需加载，这个项目应当退场。
+**状态：0.18.x。** 在一台机器上日常使用。配置面仍可能变化。Issue 和 PR 都欢迎，维护是尽力而为；需要稳定保证请自行 fork。DSH 若实现原生按需加载，这个项目应当退场。
 
 实测过的宿主：**DSH 2.0.20-next** 与 **2.0.21-next**（2.0.21 起 `pwsh` 被 `ops_*` 取代；插件不做版本分支，保护清单用两代并集，缺失的名字是空操作）。更早的版本未测。
 
@@ -160,24 +160,106 @@ bundle 自带的 patch 已配好四组：
 
 ## 受管会话（managedRoles，默认关闭）
 
-多会话编排器（如 dsh-superagent）用 preset 区分角色。默认情况下本插件不区分角色，所有会话都按热度判断。给管理员准备的 `managedRoles` 可以把某个 preset 变成「受管角色」：策略在会话创建时解析一次，会话内不变（前缀稳定、不打断缓存）。
+> **它做什么、不做什么**：受管角色是在**编排器已经给出的工具集上再收紧**。`restrict` 在作用域链上取交集，
+> 所以它**不能给角色加上编排器没给的工具**——worker 没有浏览器工具，抽屉变不出来。
+> 它防的是「角色会话里冒出不该有的工具」，不是「给角色分配能力」。
 
-```yaml
-managedRoles:
-  dsh-superagent-worker: { allowGroups: [fs, shell, jobs, skill, todo, delegation, web] }
-  dsh-superagent-router: { allowGroups: [fs, jobs, skill, shell] }
-  subagent: { allowGroups: [fs, shell, jobs, skill, todo, delegation, web] }
+多会话编排器（如 dsh-superagent）用 preset 区分角色。默认情况下本插件不区分角色，所有会话都按热度判断。配置 `managedRoles` 后，某个 preset 会被认成「受管角色」：策略在会话创建时解析一次，会话内不变（前缀稳定、不打断缓存）。
+
+**写在哪**：`~/.dsh/lazy-tools.policy.json` 的 `managedRoles` 字段（**JSON**，不是 YAML；和设置页那些档位存在同一个文件），或者插件的 config（profile 里的 YAML）。两处都有时以 policy.json 为准。
+
+```json
+{
+  "managedRoles": {
+    "dsh-superagent-worker": { "allowGroups": ["cua-screen", "browser-heavy"] },
+    "dsh-superagent-router": { "allowGroups": ["cua-screen"] },
+    "subagent": { "allowGroups": ["*"] }
+  }
+}
 ```
+
+> **组 id 必须是这台机器上真实存在的**：默认四组是 `cua-screen` / `cua-input` / `browser-heavy` / `vision-heavy`，
+> 另有你手写组的 id、以及自动分组生成的 `auto-<前缀>`。不确定就先跑 `lazy_tools_status` 看 `groups[].id`。
 
 规则：
 
 - 只认结构信号：`agentPresets.composedPreset` 的 preset id，以及 `session.header.parentSession`（子代理 → `subagent` 键）；不认插件名、不认标题；
 - **封闭默认**：角色没授权的组、以及没有归组的工具，一律隐藏（`unknown: 'hide'`）；
 - 受管会话里 `enable` / `disable` 会被拒绝，自愈也不会绕过策略——改策略请改配置；
+- **写错组 id 会被抓出来**（2026-11-02 加）：启动时校验 `allowGroups`，`health.errors` 会写明「哪个角色的哪些 id 不存在」。
+  如果某个角色的组**全都不存在**，这个角色**不生效**（退回普通会话行为）——否则受管会话里既不能 `enable`、自愈也不绕过，
+  就等于把一个会话锁到只剩核心工具，还全程静默；
+- `allowGroups: ["*"]` 表示这个角色不按组设限（逃生口）；
 - `health` 新增 `managed: { role, allowGroups, unknown }`，没有受管就是 `null`；
 - 不配置 `managedRoles` 时行为与旧版完全一致（默认关闭）。
 
-测试：冒烟 `[61]` 覆盖 worker / subagent / 普通会话三条路径与 enable 拒绝。
+测试：冒烟 `[61]` 覆盖 worker / subagent / 普通会话三条路径与 enable 拒绝；`[71]` 覆盖「组 id 写错」的三种情况
+（全错停用、半错照用、`*` 放行）。
+
+### 给子代理分角色：`[role:xxx]`（2026-11-03）
+
+宿主的 `subagent` 工具**不接受 preset / metadata**，子代理一律继承父会话的 preset ——
+所以「按 preset 分角色」对子代理**完全失效**（实测：两个不同角色的子代理，工具面一模一样）。
+
+给子代理分角色走一条显式约定：**派工时在提示首行写 `[role:xxx]`**：
+
+```
+[role:researcher] 帮我对比这三篇论文的结论差异…
+```
+
+插件会在它**第一轮组装之前**读出标记，并按 `managedRoles[xxx]` 收紧它的工具面：
+
+```json
+{ "managedRoles": { "researcher": { "allowGroups": ["browser-heavy", "vision-heavy"] } } }
+```
+
+- **只在子会话上生效**（`header.parentSession` 存在）：你自己在普通会话里手打 `[role:]` 不会改自己的工具面；
+- **只看第一条消息**：后续追问不改工具面（会话中途不改工具表是红线）；
+- 角色没配 ⇒ `health.errors` 里记一条、**工具面不动**（失败必须响）；
+- 不新增工具、不新增配置项 —— 角色定义就在 `managedRoles` 里。
+
+测试：冒烟 `[73]`。机制细节见 `lib/role-inbox.js` 的注释（事件名 `agent/inbox/spliced` 是从子会话日志里实测出来的，
+`inserted` 不触发）。
+
+### 角色信号是**厂商无关**的（2026-11-03）
+
+生态里各家给子会话打「角色」的写法不同，我们**不认厂商名**，只按顺序试这四种，**每一种都要求 `managedRoles` 里配过那个键**：
+
+| 顺序 | 信号 | 例子 | `health.managed.source` |
+|---|---|---|---|
+| 1 | 提示首行标记 `[role:xxx]` | `[role:hermes] 改一下这个模块` | `prompt` |
+| 2 | **会话标签尾段**（`:` `/` `|` 空白分隔，取最后一段，小写） | `dsh-my-go:hermes` → `hermes` | `label` |
+| 3 | 子会话通用键 | 任意子代理 | `subagent` |
+| 4 | preset id | `cordis` / 自定义 preset | `preset` |
+
+- 标签只在**子会话**上认（`header.parentSession`）；普通会话的标签不生效。
+- 认不出 / 没配 ⇒ 不做任何事（失败方向放开）；写了 `[role:]` 却没配 ⇒ `health.errors` 报出来。
+- 所以 MyGO（`dsh-my-go:<工种>`）、team-conductor（`team:<成员>`）这类编排器**不用改一行代码**就能对接。
+
+测试：冒烟 `[74]`。
+
+### 角色怎么配：**不用你手写**（2026-11-03）
+
+角色 → 组的映射由 **AI 自己配**：`lazy_tools_roles`（不传参数=只读；传 `role + allowGroups + basis`=写入）。
+
+```text
+lazy_tools_roles({ role: "hermes", allowGroups: ["write"], basis: "写模块，不碰浏览器" })
+→ 写进 policy.json，带 createdBy: "ai" + at + basis → 下一个会话立即生效（不用重启）
+```
+
+工具层强制三条不变量（人手写 JSON 可以绕过，AI 不行）：
+
+| 不变量 | 原因 |
+|---|---|
+| 组 id 必须真实存在 | 写错一个就是"会话被锁到只剩核心工具"（`#71`） |
+| **不许写 `*`** | `*` 是放开限制的逃生口，**只允许人手改文件** |
+| 必须带 `basis` | 让"为什么这么配"留在记录里，权限不是一个凭空的决定 |
+
+- **喜欢折腾的人**：直接改 `policy.json` 的 `managedRoles`（可以写 `*`、可以不带 basis）——**改完不用重启**，下一个会话生效；
+- `health.managed` 显示 `createdBy` / `basis`，一眼看出这个角色是谁配的、为什么；
+- 受管会话里不能给自己改配置（否则"角色"就管不住自己了）。
+
+测试：冒烟 `[75]`（热重载）、`[76]`（三条不变量 + 写入即生效）。
 
 ## 会话级目录（0.18）
 
