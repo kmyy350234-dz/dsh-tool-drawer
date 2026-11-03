@@ -11,6 +11,7 @@
 import { apply } from '../lib/index.js'
 import { writeFileSync, rmSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
+import { fileURLToPath } from 'node:url'
 import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { performance } from 'node:perf_hooks'
@@ -245,8 +246,11 @@ async function main() {
       apply(ctx, { groups: [{ id:'x', match: ['re:^(a+)+$'] }], autoGroups: 'off' })
       console.log('done')
     `
+    // 2026-11-04：子进程用**测试文件自己的目录**做 cwd —— 之前用 process.cwd()，
+    // 从发版脚本（工作区根目录）调进来时 './lib/index.js' 解析不到，整项误报 RED。
+    const here = fileURLToPath(new URL('..', import.meta.url))
     const r = spawnSync(process.execPath, ['--input-type=module', '-e', script], {
-      cwd: process.cwd(),
+      cwd: here,
       timeout: 3000,
       encoding: 'utf8',
     })

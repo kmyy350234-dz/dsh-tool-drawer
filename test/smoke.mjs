@@ -11,7 +11,7 @@ import { apply } from '../lib/index.js'
 import { normalizePolicy, mergePolicyForStorage } from '../lib/api.js'
 import { isToolHot, recordUsage, LEVEL_DAYS, DAY } from '../lib/usage.js'
 import { createHost } from '../lib/host.js'
-import { auditManagedRoles, roleFromLabel, roleCandidatesFromLabel, labelOfSession } from '../lib/roles.js'
+import { auditManagedRoles, roleFromLabel, roleCandidatesFromLabel, labelOfSession, normalizeManagedRoles, resolveManagedRole } from '../lib/roles.js'
 import { readFileSync, writeFileSync, rmSync, utimesSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -1858,8 +1858,8 @@ async function main() {
   worldSnap.ctx.tools.schemas = realSchemas
   ok('会话快照：列出的组与提示段同一份判定；读不到工具表时 visible=null，不编数字')
 
-  // 2026-11-03：子代理的角色标记。宿主不给 subagent 工具传 preset/metadata，
-  // 所以角色走「父会话在派工提示首行写 [role:xxx]」这条约定，由 role-inbox 在首轮前收紧。
+  // 2026-11-03：子代理的角色来源。宿主不给 subagent 工具传 preset/metadata，
+  // 所以角色走「父会话给子会话的 label 带角色词」这条约定（[role:xxx] 通道已在 0.18.2 删除）。
   log('[74] 角色来源：label 尾段（厂商无关）')
   const labelCases = [
     ['dsh-my-go:hermes', 'hermes'],
@@ -2440,7 +2440,7 @@ async function main() {
   assert.ok(huHealth.managed.hiddenUngrouped.includes('need_help'), `未归组工具要点名：${JSON.stringify(huHealth.managed.hiddenUngrouped)}`)
   ok('受管会话：hiddenUngrouped 点名被藏的未归组工具')
 
-  // 冷读必修 ②：[role:xxx] 注入的角色不许被 refreshManagedRoles 覆盖（否则那条通道是假的）
+  // 冷读必修 ②：refreshManagedRoles 不许把已有受管会话的角色覆盖掉
   // 2026-11-04（用户要求 + 冷读必修）：hideTools 退化路径
   //  D 族教训：假宿主要能模拟真实失败 —— 之前的 mock 永远成功，所以「整批失败」的 bug 漏了过去。
   log('[89] hideTools 退化：坏名字逐个跳过；系统性错误不误诊；坏名字进缓存')
@@ -2567,6 +2567,50 @@ async function main() {
   for (const liftOne of bfLifts) if (typeof liftOne === 'function') liftOne()
   assert.equal(bfLayers, 0, '所有 lift 调完必须 0 层（不许留孤儿）')
   ok('反复退化 50 次：调用数线性、全部 lift 后 0 层')
+
+  // 2026-11-04（第三方报告 A1/A2）：角色表的原型链
+  log('[91] 角色表不吃原型链：__proto__ / constructor 都不许借到值')
+  const protoRaw = JSON.parse('{"__proto__":{"allowGroups":["x"]},"hermes":{"allowGroups":["ga"]}}')
+  const protoNorm = normalizeManagedRoles(protoRaw)
+  assert.ok(protoNorm && Object.keys(protoNorm).join() === 'hermes', '__proto__ 不许进表：' + JSON.stringify(protoNorm))
+  assert.equal(Object.getPrototypeOf(protoNorm), null, '归一化结果必须是 null 原型')
+  assert.equal(normalizeManagedRoles(JSON.parse('{"constructor":{"allowGroups":["x"]}}')), null, 'constructor 键必须被拒')
+  const own = resolveManagedRole(
+    { session: { header: { parentSession: 'p', label: 'dsh-x:constructor' } } },
+    { hermes: { allowGroups: ['ga'], unknown: 'hide' } },
+  )
+  assert.equal(own, null, 'label=constructor 不许认成角色：' + JSON.stringify(own))
+  ok('角色表原型链：__proto__ / constructor 都被拒')
+
+  // 2026-11-04（第三方报告 B1/B2）：label 解析必须确定性，不许从摘要里捞词
+  log('[92] label 解析确定性：只认 vendor 后第一段，摘要词不参与')
+  const labelWorld = makeWorld()
+  labelWorld.ctx.tools.register({ name: 'lc_a__one', description: 'x', parameters: {}, output: {} })
+  apply(labelWorld.ctx, { groups: [{ id: 'lc-a', match: ['lc_a__*'] }], autoGroups: 'off', managedRoles: { hermes: { allowGroups: ['lc-a'] } } })
+  const mkL = (id, label) => labelWorld.createAgent(id, (agent) => { agent.session = { header: { parentSession: 'p', label } } })
+  const h91 = await runTool(labelWorld, 'lazy_tools_health', {}, mkL('agent-b1', 'dsh-my-go:explore: 让 hermes 看看'))
+  assert.equal(h91.managed, null, '摘要里的 hermes 不许被认成角色：' + JSON.stringify(h91.managed))
+  // 2026-11-04（复读红 1）：roleHint 也必须用同一套确定性候选，否则诊断信息会把摘要词当成角色
+  assert.ok(h91.session && h91.session.roleHint, '没配的角色必须在 roleHint 里点名')
+  assert.equal(h91.session.roleHint.role, 'explore', '摘要里的 hermes 不许变成 roleHint：' + JSON.stringify(h91.session.roleHint))
+  const h92 = await runTool(labelWorld, 'lazy_tools_health', {}, mkL('agent-b2', 'dsh-my-go:hermes: 帮我改模块'))
+  assert.equal(h92.managed && h92.managed.role, 'hermes', 'vendor 后第一段必须认出来')
+  // 2026-11-04（复读红 2）：首段即角色（`explore: fix login`）时，managed 与 roleHint 不许打架
+  // 2026-11-04（复读三轮红）：走 `subagent` 兜底时也不许再给「没配、默认工具面」的错误提示
+  const subWorld = makeWorld()
+  subWorld.ctx.tools.register({ name: 'lc_b__one', description: 'x', parameters: {}, output: {} })
+  apply(subWorld.ctx, { groups: [{ id: 'lc-b', match: ['lc_b__*'] }], autoGroups: 'off', managedRoles: { subagent: { allowGroups: ['lc-b'] } } })
+  const subChild = subWorld.createAgent('agent-sub', (agent) => { agent.session = { header: { parentSession: 'p', label: 'explore: fix login' } } })
+  const hSub = await runTool(subWorld, 'lazy_tools_health', {}, subChild)
+  assert.equal(hSub.managed && hSub.managed.role, 'subagent', '应落到 subagent 兜底')
+  assert.equal(hSub.managed && hSub.managed.source, 'subagent', '兜底应记 source=subagent')
+  assert.ok(!hSub.session || hSub.session.roleHint == null, 'subagent 兜底时不许再给 roleHint：' + JSON.stringify(hSub.session && hSub.session.roleHint))
+  const h94 = await runTool(labelWorld, 'lazy_tools_health', {}, mkL('agent-b4', 'hermes: fix login'))
+  assert.equal(h94.managed && h94.managed.role, 'hermes', '首段即角色必须生效')
+  assert.ok(!h94.session || h94.session.roleHint == null, 'managed 生效时不许再给 roleHint：' + JSON.stringify(h94.session && h94.session.roleHint))
+  const h93 = await runTool(labelWorld, 'lazy_tools_health', {}, mkL('agent-b3', 'v:hermes'))
+  assert.equal(h93.managed && h93.managed.role, 'hermes', '短 vendor 前缀也要认')
+  ok('label 确定性：摘要词不参与、vendor 后第一段生效')
 
   console.log(`\nsmoke: ${checks} 项全过`)
 }

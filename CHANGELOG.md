@@ -2,6 +2,18 @@
 
 格式参照 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循语义化版本。
 
+## [0.18.3] - 2026-11-04
+
+### 修：角色表原型链 + label 解析确定性（第三方报告 A1/A2/B1/B2）
+- `normalizeManagedRoles` 改用 **null 原型**并拒绝 `__proto__` / `constructor` / `prototype` 键；
+  `resolveManagedRole` 一律走 `hasOwnProperty`（不再 `managedRoles[key]` 裸取值）——
+  之前 label 写成 `dsh-x:constructor` 会拿到 Object 构造函数（truthy），后续 `allowGroups.includes` 抛 TypeError；
+- label 解析改为**确定性两段**：`vendor` 后第一段 + 首段，不再扫后续段（摘要词从此不参与）；
+- 回归：冒烟 `[91]`（原型链）、`[92]`（label 确定性 + roleHint）；
+### 清理：过期注释与 CI 覆盖面
+- `lib/host.js` 头的「约 100 行」删掉（文件早已 500 行以上）；
+- CI 语法检查补 `lib/tools/*.js`，并真正执行 `test/adversarial.mjs`；`pnpm test` 改为 smoke + adversarial 两条都跑。
+
 ## [0.18.2] - 2026-11-04
 
 ### 修：hideTools 退化路径（2026-11-04，核心路径）
@@ -13,13 +25,13 @@
 - 测试：`[89]` 三种退化（含**两个坏名字**的复数形态）+ 脏输入 + `restrictCalls` 断言；`[90]` 反复退化 50 次（层数 0→50→全部 lift 后归 0）；
   变异检验：去掉坏名字缓存 ⇒ `[90]` 的调用数断言立刻红。
 
-### 规范收敛：删掉 `[role:xxx]` 文本协议，候选段匹配收紧（2026-11-03 深夜）
+### 规范收敛：删掉 `[role:xxx]` 文本协议（2026-11-03 深夜）
 - **删除 `[role:xxx]` 通道**（整套 `lib/role-inbox.js` + 监听 + `st.injectedRole` 分支）：
   它要求派工人改提示词才能生效，与 label 通道解决同一件事，属于我们自造的私有协议。
   **恢复 0.17.0 的红线：不再监听 `agent/inbox/*`**（冒烟 `[16]` 断言改回 0）。
-- **候选段匹配收紧**：以前"任意段取第一个配过的"，摘要里出现角色名就会认错（例如
-  `dsh-my-go:explore: 让 hermes 看看` 会被认成 hermes）。现在**优先取前缀后的第二段**，
-  扫不到才往后。对 MyGO 的 `dsh-my-go:<工种>: <摘要>` 依然成立，但不会捞摘要里的词。
+- **候选段匹配收紧（当时以为修好，实际没有）**：本版改成「优先取前缀后的第二段」，但先过滤中文导致
+  摘要词前移，`dsh-my-go:explore: 让 hermes 看看` 仍被认成 hermes —— 2026-11-04 第三方报告 B1/B2 复现，
+  **真正的确定性规则在 0.18.3**（只认 vendor 后第一段 + 首段，冒烟 `[92]`）。
 ### 修：受管角色的可见性与几条静默失败（2026-11-03 深夜，冷读双评审挖出）
 - **restrict 整批失败 → fail-open**：`visible` 里混着「注册了但不可 restrict」的名字（agent 自己那层、`run_code`）时，
   宿主会让整批 `restrict` 抛错 ⇒ 一个都不藏。现在整批失败退化为**逐个重试**，坏名字跳过、其余照藏、留一条证据。

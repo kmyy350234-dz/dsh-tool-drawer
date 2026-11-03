@@ -16,6 +16,8 @@ jobs:
       - name: 语法检查（宿主 + 客户端）
         run: |
           node --check client.js
-          for f in lib/*.js; do node --check "$f"; done
+          for f in lib/*.js lib/tools/*.js; do node --check "$f"; done
       - name: 冒烟测试
         run: node test/smoke.mjs
+      - name: 对抗测试
+        run: node test/adversarial.mjs
