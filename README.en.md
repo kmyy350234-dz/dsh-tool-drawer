@@ -202,25 +202,26 @@ plugin config (profile YAML); the policy file wins when both exist.
 - `allowGroups: ["*"]` disables group filtering for that role.
 - Without `managedRoles` nothing changes.
 
-### Per-subagent roles: `[role:xxx]` (2026-11-03)
+### Per-subagent roles: from the session label (2026-11-03)
 
-The host's `subagent` tool takes no preset/metadata, so every subagent inherits its parent's preset — preset-based
-role filtering never distinguishes them (measured: two differently-labelled subagents got identical tool surfaces).
+The host's `subagent` tool takes no preset or metadata, so every subagent inherits its parent's preset —
+preset-based role filtering never distinguishes them (measured: two differently-labelled subagents got identical surfaces).
 
-To give a subagent a role, put a marker on the first line of its prompt:
+Three signals are tried in order, and **each one must be configured in `managedRoles`**:
 
-```
-[role:researcher] compare the conclusions of these three papers…
-```
-
-The plugin reads it **before the child's first turn** and applies `managedRoles[xxx]`:
+1. **A candidate segment of the session label** — split on `:` `/` `|` and whitespace, lowercase, then take the first
+   segment that is a key in `managedRoles` (an exact match beats the trailing summary words). Example:
+   `dsh-my-go:hermes: fix the parser` resolves to `hermes`.
+2. The generic `subagent` key.
+3. The preset id.
 
 ```json
 { "managedRoles": { "researcher": { "allowGroups": ["browser-heavy", "vision-heavy"] } } }
 ```
 
-Only subagent sessions are affected (a marker you type in your own chat changes nothing), only the first message is
-inspected, and an unconfigured role records an error without touching the surface. No new tools, no new config keys.
+Only subagent sessions are affected (a label on your own session changes nothing), and an unconfigured role does
+nothing at all — no key, no change. The short-lived `[role:xxx]` prompt marker was **removed in 0.18.2**: writing it
+has no effect and records no error.
 
 ## Per-session group list (0.18)
 
@@ -303,10 +304,12 @@ already gives you** (a message, an error) instead of asking the model to remembe
   are matched by nothing (`keep` excluded).
 - **Count drift** — `expect` turns "28 hidden" into a checked assertion.
 - **Client half not mounted** — `health.client` records the last report from the browser side (`seen` / `at` / `agoSeconds` / which panels). A healthy host does not imply the settings page mounted: on 2026-10-24 all four host contracts were green while the client entry failed to load and the Web UI dropped into recovery mode. This field turns that class of failure into a readable number instead of something you only discover on restart.
-- **Zone races** — a sub-agent disposed mid-flight is recorded as `agent 已销毁` and does **not**
+- **One bad name in a batch** — if a name in the deny list cannot be restricted, the plugin retries name by name: the rest are still hidden, and the rejected names are recorded (a single bad name no longer voids the whole batch).
+- **Zone races** — a sub-agent disposed mid-flight only bumps `stats.restrictSkipped` and does **not**
   count as a failure.
-- **Reload orphans** — restriction disposers are owned through `ctx.effect`, so a hot reload lifts
-  them instead of leaving an orphan that makes `enable` silently succeed.
+- **Reload orphans** — restriction disposers are owned through `ctx.effect`, so a hot reload lifts them.
+  Known gap: `own()` sets `done` before calling dispose, so if dispose throws, later lifts and reloads
+  become no-ops (tracked in ticket `lift-orphan-done-before-dispose`).
 
 ## Tests
 

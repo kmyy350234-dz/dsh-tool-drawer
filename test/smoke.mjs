@@ -10,7 +10,8 @@ import assert from 'node:assert/strict'
 import { apply } from '../lib/index.js'
 import { normalizePolicy, mergePolicyForStorage } from '../lib/api.js'
 import { isToolHot, recordUsage, LEVEL_DAYS, DAY } from '../lib/usage.js'
-import { auditManagedRoles, roleFromLabel, labelOfSession } from '../lib/roles.js'
+import { createHost } from '../lib/host.js'
+import { auditManagedRoles, roleFromLabel, roleCandidatesFromLabel, labelOfSession } from '../lib/roles.js'
 import { readFileSync, writeFileSync, rmSync, utimesSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -25,6 +26,11 @@ process.env.LAZY_TOOLS_POLICY_FILE = `${NO_SUCH}.policy.json`
 process.env.LAZY_TOOLS_USAGE_FILE = `${NO_SUCH}.usage.json`
   // 2026-10-30：计数器已跨重载持久化 ⇒ 插件会真的往 NO_SUCH 路径写文件，先清掉，避免上一轮残留污染这一轮。
   rmSync(`${NO_SUCH}.usage.json`, { force: true })
+  // 2026-11-03（冷读甲实测抓到）：[93]/[84] 会往 NO_SUCH.policy.json 写角色配置，
+  // 残留到下一轮 → 第一个 apply 把它读进来审计 → 每个世界都多一条假错误 → healthy=false。
+  // 临时文件的清理必须跟写入同步，否则「第二次跑必红」。
+  rmSync(`${NO_SUCH}.policy.json`, { force: true })
+  rmSync(`${NO_SUCH}.groups.json`, { force: true })
 
 // --quiet：只打汇总和失败项。钩子每次提交都跑它，49 行逐条输出纯属浪费（2026-10-30 加的）。
 const quiet = process.argv.includes('--quiet')
@@ -54,8 +60,10 @@ function assertJsonSafe(value, path = 'value') {
 
 // 假宿主：语义尽量贴近真的 —— schemas(agent) 返回「该 agent 可见」的工具，
 // restrict({deny}) 只影响调用它的那个 agent，并把解除函数交回来。
-function makeWorld() {
+function makeWorld(options = {}) {
   const registered = new Map()
+  // 2026-11-03：模拟「注册了但不可 restrict」的名字（真机上 agent 自己那层、run_code 等）
+  const nonRestrictable = new Set(Array.isArray(options.nonRestrictable) ? options.nonRestrictable : [])
   const createdListeners = []
   const denyByAgent = new Map()
   const externalByAgent = new Map() // 模拟别的插件的 deny：我们的 lift 撤不动
@@ -165,6 +173,9 @@ function makeWorld() {
         restrict(filter) {
           const deny = denyByAgent.get(agent)
           const added = Array.isArray(filter && filter.deny) ? [...filter.deny] : []
+          // 真宿主的行为：deny 里混进不可限制的名字 ⇒ **整批抛错**（一个都不藏）
+          const unknown = added.filter((name) => nonRestrictable.has(name))
+          if (unknown.length) throw new Error('tools.restrict() names unknown global tool "' + unknown[0] + '"')
           const entry = { names: added }
           activeByAgent.get(agent).push(entry)
           for (const name of added) deny.add(name)
@@ -606,9 +617,8 @@ async function main() {
   assert.equal('autoOpened' in autoHealth.stats, false, 'autoOpened 字段必须删干净')
   assert.equal('userMessages' in autoHealth.stats, false, 'userMessages 字段必须删干净')
   // 2026-11-03：这条原来断言「一条 inbox 监听都不许有」（0.17.0 删关键词预开时的红线）。
-  // 现在**有意**保留一条：role-inbox 的 `agent/inbox/spliced`（子代理首条消息里的 [role:xxx]）。
-  // 它不参与任何"按词预开"——上面两条断言（普通消息不改工具面）仍然守着那件事。
-  assert.equal(worldE.inboxListeners.length, 1, '只允许 role-inbox 的那一条 inserted 监听（spliced 走事件表）')
+  // 0.18.2 起 `[role:xxx]` 通道（role-inbox）已整段删除，所以这条断言恢复为「0 条监听」。
+  assert.equal(worldE.inboxListeners.length, 0, '0.18.2 恢复 0.17 红线：不再监听 inbox（[role:] 通道已删除）')
   assert.equal(autoHealth.notes.filter((n) => String(n).includes('autoHints')).length, 1, '旧配置的 autoHints 提示每组只该出现一次（重复 push 会红）')
   assert.equal(autoHealth.healthy, true, '兼容提示不许把 healthy 拖成 false（否则用户天天看红灯）')
   ok('autoHints 被忽略：不自动开组；stats 不再有 autoOpened / userMessages')
@@ -1850,61 +1860,6 @@ async function main() {
 
   // 2026-11-03：子代理的角色标记。宿主不给 subagent 工具传 preset/metadata，
   // 所以角色走「父会话在派工提示首行写 [role:xxx]」这条约定，由 role-inbox 在首轮前收紧。
-  log('[73] 角色标记：子代理首条消息里的 [role:xxx] 在首轮前收紧工具面')
-  const worldRI = makeWorld()
-  worldRI.ctx.tools.register({ name: 'ri_a__one', description: 'x', parameters: {}, output: {} })
-  worldRI.ctx.tools.register({ name: 'ri_b__one', description: 'x', parameters: {}, output: {} })
-  apply(worldRI.ctx, {
-    groups: [
-      { id: 'ri-a', match: ['ri_a__*'] },
-      { id: 'ri-b', match: ['ri_b__*'] },
-    ],
-    autoGroups: 'off',
-    managedRoles: { researcher: { allowGroups: ['ri-a'] } },
-  })
-
-  // ① 子会话 + 已配置的角色 → 收紧（未授权组被藏、授权组放出）
-  const childRI = worldRI.createAgent('agent-child-ri', (agent) => {
-    agent.session = { header: { parentSession: 'parent-1' } }
-  })
-  worldRI.fireEvent('agent/inbox/spliced', {
-    agent: childRI,
-    data: { inserted: [{ content: [{ type: 'text', text: '[role:researcher] 去研究一下' }] }] },
-  })
-  const healthRI = await runTool(worldRI, 'lazy_tools_health', {}, childRI)
-  assert.equal(healthRI.managed && healthRI.managed.role, 'researcher', `子会话的角色标记必须生效：${JSON.stringify(healthRI.managed)}`)
-  const denyRI = worldRI.denyByAgent.get(childRI)
-  assert.ok(denyRI.has('ri_b__one'), '未授权的组必须被藏')
-  assert.ok(!denyRI.has('ri_a__one'), '授权的组必须放出来')
-
-  // ② 普通会话里手打标记 → 不许改自己的工具面
-  const humanRI = worldRI.createAgent('agent-human-ri')
-  worldRI.fireEvent('agent/inbox/spliced', {
-    agent: humanRI,
-    data: { inserted: [{ content: [{ type: 'text', text: '[role:researcher] 我只是顺手打的' }] }] },
-  })
-  const healthHuman = await runTool(worldRI, 'lazy_tools_health', {}, humanRI)
-  assert.equal(healthHuman.managed, null, '普通会话里的标记不该改变工具面')
-
-  // ③ 标了没配的角色 → 必须响，且不改工具面
-  const childUnknown = worldRI.createAgent('agent-child-unknown', (agent) => {
-    agent.session = { header: { parentSession: 'parent-1' } }
-  })
-  worldRI.fireEvent('agent/inbox/spliced', {
-    agent: childUnknown,
-    data: { inserted: [{ content: [{ type: 'text', text: '[role:nobody] 不存在的角色' }] }] },
-  })
-  const healthUnknown = await runTool(worldRI, 'lazy_tools_health', {}, childUnknown)
-  assert.equal(healthUnknown.managed, null, '没配的角色不许生效')
-  assert.ok(
-    healthUnknown.errors.some((e) => String(e.message).includes('nobody')),
-    `写了标记却没配角色必须响：${JSON.stringify(healthUnknown.errors)}`,
-  )
-  ok('角色标记：子会话生效；普通会话与未配置角色不动工具面（后者要响）')
-
-  // 2026-11-03：**厂商无关**的角色信号 —— 从会话标签尾段认角色。
-  // 生态里写法各异（MyGO `dsh-my-go:hermes`、team-conductor `team:reviewer`），我们不认厂商，
-  // 只认「最后一段」，并且**只有 managedRoles 里配了那个键才生效**。
   log('[74] 角色来源：label 尾段（厂商无关）')
   const labelCases = [
     ['dsh-my-go:hermes', 'hermes'],
@@ -2352,6 +2307,266 @@ async function main() {
     }
   }
   ok('冷读第三轮回归：组晚到恢复 / 非对象 policy 要响 / 热重载坏形状保旧值')
+
+  // 2026-11-03（读 MyGO 源码发现）：它的真实标签是 `dsh-my-go:<工种>: <任务摘要>`，
+  // 不是 `dsh-my-go:<工种>`。只取「最后一段」会拿到任务摘要 ⇒ 认不出角色 ⇒ fail-open。
+  log('[81] MyGO 真实标签格式：带任务摘要也要认出角色')
+  const candidatesMygo = roleCandidatesFromLabel("dsh-my-go:hermes: 帮我改这个模块，不要动浏览器")
+  assert.deepEqual(candidatesMygo, ['hermes'], `候选段应为 [hermes]（dsh- 前缀不算角色）：${JSON.stringify(candidatesMygo)}`)
+
+  const worldMygo = makeWorld()
+  worldMygo.ctx.tools.register({ name: 'mg_a__one', description: 'x', parameters: {}, output: {} })
+  worldMygo.ctx.tools.register({ name: 'mg_b__one', description: 'x', parameters: {}, output: {} })
+  apply(worldMygo.ctx, {
+    groups: [
+      { id: 'mg-a', match: ['mg_a__*'] },
+      { id: 'mg-b', match: ['mg_b__*'] },
+    ],
+    autoGroups: 'off',
+    managedRoles: { hermes: { allowGroups: ['mg-a'] } },
+  })
+  const mygoChild = worldMygo.createAgent('agent-mygo', (agent) => {
+    agent.session = { header: { parentSession: 'p', label: 'dsh-my-go:hermes: 帮我改这个模块，不要动浏览器' } }
+  })
+  const healthMygo = await runTool(worldMygo, 'lazy_tools_health', {}, mygoChild)
+  assert.equal(healthMygo.managed && healthMygo.managed.role, 'hermes', `带摘要的 MyGO 标签也必须认出来：${JSON.stringify(healthMygo.managed)}`)
+  assert.equal(healthMygo.managed.source, 'label')
+  assert.ok(worldMygo.denyByAgent.get(mygoChild).has('mg_b__one'), '未授权的组要被藏')
+  ok('MyGO 真实标签（带摘要）也能认出角色并收紧工具面')
+
+  // 2026-11-03（对比评审指出）：`*` 被字面拦住了，但把**所有组**枚举一遍等价于 `*`。
+  log('[82] 全组枚举 = 变相的 *，必须被拒')
+  const worldAll = makeWorld()
+  worldAll.ctx.tools.register({ name: 'al_a__one', description: 'x', parameters: {}, output: {} })
+  worldAll.ctx.tools.register({ name: 'al_b__one', description: 'x', parameters: {}, output: {} })
+  apply(worldAll.ctx, {
+    groups: [
+      { id: 'al-a', match: ['al_a__*'] },
+      { id: 'al-b', match: ['al_b__*'] },
+    ],
+    autoGroups: 'off',
+  })
+  const bossAll = worldAll.createAgent('agent-all-boss')
+  const allIds = (await runTool(worldAll, 'lazy_tools_roles', {}, bossAll)).groupIds
+  const allGroups = await runTool(worldAll, 'lazy_tools_roles', { role: 'everything', allowGroups: allIds, basis: '枚举全组' }, bossAll)
+  assert.ok(String(allGroups.error || '').includes('等价'), `枚举全部组必须被拒：${JSON.stringify(allGroups)}`)
+  assert.equal(allGroups.ok, undefined, '被拒时不许返回 ok')
+  ok('全组枚举 = 变相 * ：被拒，并说明只允许人手改文件')
+
+  // 2026-11-03（四家 SA 调研）：别的编排器也往 label 里塞词，但那些词不是角色：
+  //   goalloop `Goal-loop wave worker: AC-1`、switchman `… handover backup`、force-collab `协作 1/3`。
+  // 用户若正好配了 worker/backup 这种角色名，会被误认 —— 通用词与纯数字必须跳过。
+  log('[83] 通用词不当角色：worker / backup / 纯数字都跳过')
+  assert.deepEqual(roleCandidatesFromLabel("Goal-loop wave worker: AC-1"), ['ac-1'], "worker 要跳过")
+  assert.deepEqual(roleCandidatesFromLabel("dsh-switchman handover backup"), [], "backup 要跳过")
+  assert.deepEqual(roleCandidatesFromLabel("协作 1/3"), [], "纯数字要跳过")
+  assert.deepEqual(roleCandidatesFromLabel("Agent Team · reviewer"), ['reviewer'], "team 要跳过、reviewer 保留")
+  assert.deepEqual(roleCandidatesFromLabel("dsh-my-go:hermes: 帮我改模块"), ['hermes'], "MyGO 的 hermes 不受影响")
+
+  const worldGeneric = makeWorld()
+  worldGeneric.ctx.tools.register({ name: 'gn_a__one', description: 'x', parameters: {}, output: {} })
+  apply(worldGeneric.ctx, {
+    groups: [{ id: 'gn-a', match: ['gn_a__*'] }],
+    autoGroups: 'off',
+    managedRoles: { worker: { allowGroups: ['gn-a'] } },
+  })
+  const genericChild = worldGeneric.createAgent('agent-generic', (agent) => {
+    agent.session = { header: { parentSession: 'p', label: 'Goal-loop wave worker: AC-1' } }
+  })
+  const healthGeneric = await runTool(worldGeneric, 'lazy_tools_health', {}, genericChild)
+  assert.equal(healthGeneric.managed, null, 'label 里的 worker 是通用词，不许被当成角色')
+  ok('通用词护栏：worker/backup/数字不落角色，MyGO 的 hermes 照常')
+
+  // 2026-11-03（MyGO 场景）：受管角色默认把「未归组工具」也藏，而 MyGO 的 need_help /
+  // report_submit 正好未归组 —— 写角色时必须告诉调用方会被藏掉哪些，否则「接了反而更坏」。
+  log('[84] 写角色时告知：哪些未归组工具会被藏')
+  const worldOrphan = makeWorld()
+  worldOrphan.ctx.tools.register({ name: 'orphan_tool', description: 'x', parameters: {}, output: {} })
+  worldOrphan.ctx.tools.register({ name: 'og_a__one', description: 'x', parameters: {}, output: {} })
+  worldOrphan.ctx.tools.register({ name: 'og_b__one', description: 'x', parameters: {}, output: {} })
+  apply(worldOrphan.ctx, {
+    groups: [
+      { id: 'og-a', match: ['og_a__*'] },
+      { id: 'og-b', match: ['og_b__*'] },
+    ],
+    autoGroups: 'off',
+  })
+  const orphanBoss = worldOrphan.createAgent('agent-orphan-boss')
+  const writeOrphan = await runTool(worldOrphan, 'lazy_tools_roles', { role: 'solo', allowGroups: ['og-a'], basis: '测试未归组提示' }, orphanBoss)
+  assert.equal(writeOrphan.ok, true, `写入应成功：${JSON.stringify(writeOrphan)}`)
+  assert.ok(Array.isArray(writeOrphan.willHideUngrouped), '必须返回 willHideUngrouped 数组')
+  assert.ok(writeOrphan.willHideUngrouped.includes('orphan_tool'), `未归组工具要列出来：${JSON.stringify(writeOrphan.willHideUngrouped)}`)
+  ok('写角色时列出会被藏的未归组工具（防把编排器求助工具收掉）')
+
+  // 2026-11-03（冷读乙在真机复现）：visible 里混着「注册了但不可 restrict」的名字时，
+  // 宿主会让**整批** restrict 抛错 ⇒ 一个都不藏（fail-open）。
+  // 修法验证：整批失败要退化成逐个重试，坏名字记一条、其余照藏。
+  log('[85] 一个坏名字不许让整批限制静默失效')
+  const worldBadName = makeWorld({ nonRestrictable: ['nr_bad'] })
+  worldBadName.ctx.tools.register({ name: 'nr_bad', description: 'x', parameters: {}, output: {} })
+  worldBadName.ctx.tools.register({ name: 'nr_ok__one', description: 'x', parameters: {}, output: {} })
+  apply(worldBadName.ctx, {
+    groups: [{ id: 'nr-g', match: ['re:^nr_'], defaultOn: false }],
+    autoGroups: 'off',
+  })
+  const badAgent = worldBadName.createAgent('agent-badname')
+  const badDeny = worldBadName.denyByAgent.get(badAgent)
+  assert.ok(badDeny.has('nr_ok__one'), `好名字必须照藏；实际 deny=${JSON.stringify([...badDeny])}`)
+  const badHealth = await runTool(worldBadName, 'lazy_tools_health', {}, badAgent)
+  assert.ok(
+    badHealth.errors.some((e) => String(e.message).includes('不可限制')),
+    `坏名字必须留一条可查的错误：${JSON.stringify(badHealth.errors)}`,
+  )
+  ok('不可限制的名字：逐个跳过、其余照藏、留一条可查错误')
+
+  // 2026-11-03 冷读双评审必修 ①：受管角色会藏掉未归组工具（MyGO 的 11 件协议工具就是这样断的），
+  // 必须在 health 里点名，否则「接了之后拓扑断掉，但哪儿都看不出来」。
+  log('[86] 受管会话：被藏掉的未归组工具要在 health 里点名')
+  rmSync(`${NO_SUCH}.policy.json`, { force: true }) // 前面用例写过它，同一进程的 apply 会读进来
+  const worldHU = makeWorld()
+  worldHU.ctx.tools.register({ name: 'hu_grouped__one', description: 'x', parameters: {}, output: {} })
+  worldHU.ctx.tools.register({ name: 'hu_grouped__two', description: 'x', parameters: {}, output: {} })
+  worldHU.ctx.tools.register({ name: 'need_help', description: 'x', parameters: {}, output: {} })
+  apply(worldHU.ctx, {
+    groups: [{ id: 'hu-g', match: ['hu_grouped__*'] }],
+    autoGroups: 'off',
+    managedRoles: { hu: { allowGroups: ['hu-g'] } },
+  })
+  const huChild = worldHU.createAgent('agent-hu', (agent) => {
+    agent.session = { header: { parentSession: 'p', label: 'v:hu' } }
+  })
+  const huHealth = await runTool(worldHU, 'lazy_tools_health', {}, huChild)
+  assert.ok(huHealth.managed && Array.isArray(huHealth.managed.hiddenUngrouped), '必须有 hiddenUngrouped 数组')
+  assert.ok(huHealth.managed.hiddenUngrouped.includes('need_help'), `未归组工具要点名：${JSON.stringify(huHealth.managed.hiddenUngrouped)}`)
+  ok('受管会话：hiddenUngrouped 点名被藏的未归组工具')
+
+  // 冷读必修 ②：[role:xxx] 注入的角色不许被 refreshManagedRoles 覆盖（否则那条通道是假的）
+  // 2026-11-04（用户要求 + 冷读必修）：hideTools 退化路径
+  //  D 族教训：假宿主要能模拟真实失败 —— 之前的 mock 永远成功，所以「整批失败」的 bug 漏了过去。
+  log('[89] hideTools 退化：坏名字逐个跳过；系统性错误不误诊；坏名字进缓存')
+  const mkCtx = (mode) => {
+    let calls = 0
+    const denied = new Set()
+    const ctx = {
+      on() { return () => {} },
+      tools: {
+        get() { return undefined },
+        restrict(filter) {
+          calls += 1
+          const deny = Array.isArray(filter && filter.deny) ? filter.deny : []
+          // 真宿主文案（app.asar 实测）：tools.restrict() names unknown global tool "x"
+          if (mode === 'systemic') throw new Error('restrict backend unavailable')
+          // 「系统性错误里恰好含 unknown tool 字样、但不在锚定位」——用来证明分类没有过宽
+          if (mode === 'systemic-unknown') throw new Error('restrict backend failed while resolving unknown tool names')
+          if (mode === 'ptc' && deny.includes('run_code')) throw new Error('cannot name reserved PTC tool "run_code"')
+          // 真宿主的复数形态：2+ 未知名 → 'names unknown global toolS "a", "b"'
+          if (mode === 'plural-bad') {
+            const bad = deny.filter((n) => n.startsWith('bad_'))
+            if (bad.length) throw new Error('tools.restrict() names unknown global toolS "' + bad.join('", "') + '"')
+          }
+          if (deny.includes('bad_name')) throw new Error('tools.restrict() names unknown global tool "bad_name"')
+          for (const n of deny) denied.add(n)
+          return () => { for (const n of deny) denied.delete(n) }
+        },
+      },
+    }
+    return { ctx, calls: () => calls, denied }
+  }
+
+  // ① 坏名字：批量失败 → 逐个重试 → 其余照藏，坏名字记一条
+  const hmW1 = mkCtx('badname')
+  const hmH1 = createHost(hmW1.ctx)
+  const hmAgent1 = { ctx: hmW1.ctx, session: { header: {} } }
+  const hmLift1 = hmH1.hideTools(hmAgent1, ['ok_a', 'bad_name', 'ok_b'])
+  assert.ok(hmW1.denied.has('ok_a') && hmW1.denied.has('ok_b'), '好名字必须照藏')
+  assert.ok(!hmW1.denied.has('bad_name'), '坏名字不该被记为已藏')
+  assert.equal(hmW1.calls(), 4, '批量 1 次 + 逐个 3 次 = 4')
+  assert.equal(hmH1.counters().restrictCalls, 4, 'restrictCalls 必须按真实调用计（4）')
+  assert.ok(typeof hmLift1 === 'function', '要返回解除句柄')
+
+  // ② 第二次调用：坏名字已进缓存，不再重试它（调用次数 = 批量 1 次）
+  const hmBefore = hmW1.calls()
+  const hmLift2 = hmH1.hideTools(hmAgent1, ['ok_a', 'bad_name', 'ok_b'])
+  assert.equal(hmW1.calls() - hmBefore, 1, '坏名字进缓存后，第二次只该有 1 次批量调用')
+  assert.equal(hmH1.counters().restrictCalls, 5, '缓存后计数 = 4 + 1')
+  assert.ok(typeof hmLift2 === 'function')
+  assert.ok(hmW1.denied.has('ok_a'), '缓存后好名字仍要照藏')
+
+  // ③ 系统性错误：不许逐个重试（只 1 次调用），记一条「非名单问题」
+  const hmW2 = mkCtx('systemic')
+  const hmH2 = createHost(hmW2.ctx)
+  const hmLift3 = hmH2.hideTools({ ctx: hmW2.ctx, session: { header: {} } }, ['x1', 'x2', 'x3'])
+  assert.equal(hmLift3, null, '系统性失败不该返回句柄')
+  assert.equal(hmW2.calls(), 1, '系统性错误不许逐个重试（否则 N 倍开销 + 误诊）')
+  assert.equal(hmH2.counters().restrictCalls, 1, '系统性失败只算 1 次调用')
+  const hmErrs = hmH2.errors().map((e) => e.message).join('\n')
+  assert.ok(hmErrs.includes('非名单问题'), '必须记一条可分辨的系统性错误：' + hmErrs)
+
+  // ③b 反例：系统性错误里**恰好含** "unknown tool" 字样，但不含锚定短语 ⇒ 仍算系统性
+  const hmW2b = mkCtx('systemic-unknown')
+  const hmH2b = createHost(hmW2b.ctx)
+  hmH2b.hideTools({ ctx: hmW2b.ctx, session: { header: {} } }, ['y1', 'y2'])
+  assert.equal(hmW2b.calls(), 1, '「unknown tool」字样若不在锚定位，不许当坏名字重试')
+
+  // ③c 两个坏名字（真宿主的复数文案）：必须逐个重试，一个好名字照藏，两个坏名字都被记住
+  const hmW2c = mkCtx('plural-bad')
+  const hmH2c = createHost(hmW2c.ctx)
+  const hmAgent2c = { ctx: hmW2c.ctx, session: { header: {} } }
+  hmH2c.hideTools(hmAgent2c, ['ok_z', 'bad_a', 'bad_b'])
+  assert.equal(hmW2c.calls(), 4, '复数坏名字：批量 1 + 逐个 3 = 4（不许判成 systemic 只试 1 次）')
+  assert.ok(hmW2c.denied.has('ok_z'), '两个坏名字时，好名字仍必须照藏')
+  assert.ok(!hmW2c.denied.has('bad_a') && !hmW2c.denied.has('bad_b'), '坏名字不许被记为已藏')
+  const hmErrs2c = hmH2c.errors().map((e) => e.message).join('\n')
+  assert.ok(hmErrs2c.includes('不可限制'), '复数坏名字也要留一条可查证据：' + hmErrs2c)
+
+  // ③d PTC 的专用文案（run_code 这类保留工具）：也必须按「名字问题」逐个跳过，不许整批失效
+  const hmW2d = mkCtx('ptc')
+  const hmH2d = createHost(hmW2d.ctx)
+  hmH2d.hideTools({ ctx: hmW2d.ctx, session: { header: {} } }, ['ok_q', 'run_code'])
+  assert.equal(hmW2d.calls(), 3, 'PTC 保留工具：批量 1 + 逐个 2 = 3')
+  assert.ok(hmW2d.denied.has('ok_q'), 'PTC 名字旁边的好工具必须照藏')
+  assert.ok(!hmW2d.denied.has('run_code'), '保留工具不许被记为已藏')
+
+  // ④ 脏输入：null / 空数组 / 非数组都不许抛
+  const hmW3 = mkCtx('badname')
+  const hmH3 = createHost(hmW3.ctx)
+  assert.equal(hmH3.hideTools(null, ['a']), null)
+  assert.equal(hmH3.hideTools({ ctx: hmW3.ctx }, []), null)
+  assert.equal(hmH3.hideTools({ ctx: hmW3.ctx }, 'not-an-array'), null)
+  ok('hideTools 退化加固：坏名字缓存 / 系统性错误只一次 / 脏输入不抛 / 计数按真实调用')
+
+  // 2026-11-04 暴力测试：同一会话反复退化 50 次，缓存必须让它不再重复踩；**全部 lift 后层数归零**
+  log('[90] hideTools 反复退化 50 次：调用数线性、所有 lift 撤干净')
+  let bfLayers = 0
+  let bfCalls = 0
+  const bfLifts = []
+  const bfCtx = {
+    on() { return () => {} },
+    tools: {
+      get() { return undefined },
+      restrict(filter) {
+        bfCalls += 1
+        const deny = Array.isArray(filter && filter.deny) ? filter.deny : []
+        if (deny.includes('bad_name')) throw new Error('tools.restrict() names unknown global tool "bad_name"')
+        bfLayers += 1
+        let released = false
+        return () => { if (!released) { released = true; bfLayers -= 1 } }
+      },
+    },
+  }
+  const bfHost = createHost(bfCtx)
+  const bfAgent = { ctx: bfCtx, session: { header: {} } }
+  bfLifts.push(bfHost.hideTools(bfAgent, ['bad_name', 'ok_a']))
+  assert.equal(bfCalls, 3, '首次：批量 1 + 坏名 1 + 好名 1 = 3')
+  assert.equal(bfLayers, 1, '好名字建立 1 层限制')
+  for (let i = 0; i < 49; i++) bfLifts.push(bfHost.hideTools(bfAgent, ['bad_name', 'ok_a']))
+  assert.equal(bfCalls, 3 + 49, '缓存后每次只 1 次批量调用（3 + 49 = 52）')
+  assert.equal(bfLayers, 50, '50 次调用 = 50 层限制（模拟真实叠加）')
+  assert.equal(bfHost.counters().restrictCalls, 52, '计数与真实调用一致')
+  // 撤**全部**句柄才叫撤干净（上一版只撤第一个 ⇒ 假绿）
+  for (const liftOne of bfLifts) if (typeof liftOne === 'function') liftOne()
+  assert.equal(bfLayers, 0, '所有 lift 调完必须 0 层（不许留孤儿）')
+  ok('反复退化 50 次：调用数线性、全部 lift 后 0 层')
 
   console.log(`\nsmoke: ${checks} 项全过`)
 }
