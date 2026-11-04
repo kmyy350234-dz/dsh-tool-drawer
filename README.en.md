@@ -292,7 +292,7 @@ tool has to be there. Two deterministic mechanisms cover that, and none of them 
    **once, at the session boundary**, so it never invalidates an active prompt cache.
 1. **Self-heal / `lazy_tools_enable { name }`** — on an `unknown tool` error, `enable { name }` finds the
    owning group and reveals just that tool; a dispatch guard also tries to reveal it *before* the call is
-   rejected, and the model simply retries (only the guard bumps `stats.selfHealed`; `enable { name }` is not counted). The old `resolve` is now this entry point.
+   rejected, and the call proceeds immediately (only the guard bumps `stats.selfHealed`; `enable { name }` is not counted). The old `resolve` is now this entry point.
 
 No embeddings, no judge model, no proxy: the "intelligence" is just **acting on evidence the host
 already gives you** (a message, an error) instead of asking the model to remember.

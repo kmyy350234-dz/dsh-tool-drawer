@@ -234,7 +234,9 @@ function makeWorld(options = {}) {
     let decision
     for (const guard of guards) {
       const result = guard({ name, agent })
-      if (result) decision = result
+      // 2026-11-05（冷读红 1）：真实宿主判据是 `reason !== undefined`；假宿主原来按真值判，
+      // 于是返回 null 的「拒绝」在测试里会变成「放行」。必须与宿主同判据。
+      if (result !== undefined) decision = result
     }
     return decision
   }
@@ -706,12 +708,13 @@ async function main() {
   apply(worldH.ctx, { groups: [{ id: 'cua', match: ['cua_driver_native__*'], defaultOn: false }] })
   const agentH = worldH.createAgent('agent-heal')
   const decision = worldH.fireGuard(agentH, 'cua_driver_native__a')
-  assert.equal(typeof decision, 'string')
-  assert.match(decision, /已自动为你打开/)
+  // 2026-11-05：自愈改为「补开即放行」——不再返回字符串让模型重试（那在 UI 上是一次假失败）。
+  assert.equal(decision, undefined)
   assert.equal(worldH.denyByAgent.get(agentH).has('cua_driver_native__a'), false)
+  assert.ok((worldH.visibleNames(agentH) || []).includes('cua_driver_native__a'), '补开后必须可见')
   const healthH = await runTool(worldH, 'lazy_tools_health', {}, agentH)
   assert.equal(healthH.stats.selfHealed, 1)
-  ok('守卫拦下 + 补开该工具 + health.selfHealed=1')
+  ok('守卫补开即放行 + 工具可见 + health.selfHealed=1')
   log('[22] 斜杠命令 /lazy-tools：改当前会话、乱输入报错')
   const worldI = makeWorld()
   worldI.ctx.tools.register({ name: 'cua_driver_native__a', description: 'x', parameters: {}, output: {} })
@@ -1467,8 +1470,12 @@ async function main() {
   assert.equal(dSub.has('role_web_a'), false, 'subagent 按 subagent 角色放行')
   assert.equal(dSub.has('role_fs_a'), true, 'subagent 未授权组必须被藏')
   assert.equal(dHuman.has('role_other_a'), false, '普通会话不受封闭默认影响（未归组不藏）')
+  const managedHealBefore = (await runTool(worldRole, 'lazy_tools_health', {}, workerRole)).stats.selfHealed
   assert.equal(worldRole.fireGuard(workerRole, 'role_web_a'), undefined, '受管会话自愈不得绕过策略')
-  assert.ok(worldRole.fireGuard(humanRole, 'role_web_a'), '普通会话仍然自愈')
+  const managedHealAfter = (await runTool(worldRole, 'lazy_tools_health', {}, workerRole)).stats.selfHealed
+  assert.equal(managedHealAfter, managedHealBefore, '受管会话不许补开（selfHealed 不许增长）')
+  assert.equal(dWorker.has('role_web_a'), true, '受管会话的未授权工具必须仍然被藏')
+  assert.equal(worldRole.fireGuard(humanRole, 'role_web_a'), undefined, '普通会话自愈改为放行')
   const enableDef = worldRole.ctx.tools.get('lazy_tools_enable')
   const deniedEnable = await enableDef.execute({ group: 'role-web' }, { agent: workerRole })
   assert.ok(deniedEnable && deniedEnable.error && deniedEnable.error.includes('受管'), '受管会话里 enable 必须被拒')
@@ -2790,7 +2797,7 @@ async function main() {
     }
   }
   const callBridge = async (method, url, headers, body) => {
-    const req = fakeReq(method, url, headers || {}, body)
+    const req = fakeReq(method, url, Object.assign({ host: '127.0.0.1:12345' }, headers || {}), body)
     const res = fakeRes()
     const p = bridgeHandler(req, res)
     if (body !== undefined) {
@@ -2811,6 +2818,35 @@ async function main() {
   const getState = await callBridge('GET', '/lazy-tools/api/state', {}, undefined)
   assert.equal(getState.code, 200, 'GET 不受 POST 头限制：' + JSON.stringify(getState))
   ok('桥鉴权行为：无头 403、带头 200、GET 放行')
+
+  // 2026-11-05（元宝挑刺 1）：managedRoles.allowGroups: ['*'] 必须 = 全开，不许记成 hide
+  log('[102] allowGroups ['*'] 语义：状态与放行一致')
+  rmSync(`${NO_SUCH}.policy.json`, { force: true }) // 前面的 roles 写测试会留下 policy 文件（显式清空语义）
+  const starWorld = makeWorld()
+  starWorld.ctx.tools.register({ name: 'st_a', description: 'x', parameters: {}, output: {} })
+  apply(starWorld.ctx, { groups: [{ id: 'st', match: ['st_*'] }], autoGroups: 'off', managedRoles: { root: { allowGroups: ['*'] } } })
+  const starAgent = starWorld.createAgent('agent-star', (a) => { a.session = { header: { parentSession: 'p', label: 'v:root' } } })
+  const starStatus = await runTool(starWorld, 'lazy_tools_status', {}, starAgent)
+  const starGroup = (starStatus.groups || []).find((g) => g.id === 'st')
+  assert.equal(starGroup && starGroup.mode, 'all', "'*' 必须是全开：" + JSON.stringify(starGroup))
+  assert.ok((starWorld.visibleNames(starAgent) || []).includes('st_a'), "'*' 下组内工具必须可见")
+  ok("allowGroups ['*']：状态 all、工具可见")
+
+  // 2026-11-05（元宝挑刺 2）：DNS rebinding 防护 —— Host 非回环必须 403
+  log('[103] 桥 Host 必须回环：evil.example → 403')
+  const evil = await callBridge('POST', '/lazy-tools/api/policy', { host: 'evil.example:4321', 'content-type': 'application/json', 'x-lazy-tools': '1' }, { level: 'low' })
+  assert.equal(evil.code, 403, '非回环 Host 必须 403：' + JSON.stringify(evil))
+  ok('桥 Host：非回环 403')
+
+  // 2026-11-05（元宝挑刺 3）：errors 超过 8 条被挤掉后，同类错误复发必须还能记进来
+  log('[104] seenErrors 与 errors 同步：第 1 种错误挤掉后能复发')
+  const hostMod = await import('../lib/host.js')
+  const h = hostMod.createHost({ get() {}, inject() {}, on() {}, effect() {}, tools: { register() {}, schemas() { return [] }, get() {}, guard() { return () => {} }, view() { return { visible: new Map() } } } })
+  for (let i = 1; i <= 9; i += 1) h.record('probe', new Error('e' + i))
+  assert.equal(h.errors().length, 8, '最多留 8 条')
+  h.record('probe', new Error('e1'))
+  assert.ok(h.errors().some((e) => e.message === 'e1'), 'e1 复发必须重新记账：' + JSON.stringify(h.errors()))
+  ok('seenErrors 同步：挤掉的错误可复发')
 
   console.log(`\nsmoke: ${checks} 项全过`)
 }

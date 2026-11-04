@@ -2,6 +2,30 @@
 
 格式参照 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循语义化版本。
 
+## [0.18.5] - 2026-11-05
+
+### 修：元宝第二轮挑刺的 3 个实锤
+- **`allowGroups: ['*']` 语义分裂**：放行判定认「不设限」，但受管会话的默认模式按组 id 比对，
+  把每个组都记成 `hide`（状态显示 `on:false`，实际 deny 为 0，还触发无意义的 rebuild）。
+  现在 `'*'` 在默认模式里 = 全部组 `all`；冒烟 `[102]` 锁住。
+- **DNS rebinding 防护**：只比 `Origin.host === headers.host` 在 rebinding 场景天然相等。
+  现在桥要求 **Host 必须是回环**（127.0.0.1 / localhost / [::1]），否则 403；冒烟 `[103]` 用 `evil.example` 验证。
+- **错误永久被抹掉**：`errors` 超过 8 条 `shift()` 时不删 `seenErrors` 的 key，第 9 种错误挤掉第 1 种后，
+  第 1 种复发再也不会记账，`healthy` 假绿。现在 shift 时同步删 key；冒烟 `[104]`。
+
+### 改：自愈不再制造一次假失败
+- 模型调用被藏的组内工具时，守卫原来返回「已为你打开，请重新调用」——`subagent` 这类调用会在对话里
+  显示成一次失败。现在补开、重建后**直接放行**这一次调用（受管会话仍然不绕过策略）。
+  冒烟 `[21]` 断言「放行 + 工具可见 + selfHealed=1」；`[61]` 断言「受管会话不补开（selfHealed 不增）且工具仍被藏」。
+
+### 修：一致性（元宝附注）
+- `readJsonBody` 改用 Buffer 收集再一次性 UTF-8 解码 —— 字符串 `+=` 拼分块会把跨块汉字解成乱码；
+- `/client` 心跳收到坏 JSON 不再当 200 成功，返回 400；
+- `writeUserGroups` / `saveUsage` 改成原子写（tmp + rename）+ 回读校验，和 policy 一个待遇；
+- 分组（**仅本机用户组文件**，不随包发布）：`~/.dsh/lazy-tools.groups.json` 补了 `search` / `image` /
+  `agents` / `tasks` 四个组，并预留 `rea` 组（`re:^mcp__rea__`，默认收起）。仓库默认组仍是
+  `cordis.patch.yml` 里的四个 + 代码里的两个，安装包不包含这些用户组。
+
 ## [0.18.4] - 2026-11-05
 
 ### 修：外部审阅抓到的 P0/P1（全部有复现）
