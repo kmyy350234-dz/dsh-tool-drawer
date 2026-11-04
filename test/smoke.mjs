@@ -12,7 +12,7 @@ import { normalizePolicy, mergePolicyForStorage } from '../lib/api.js'
 import { isToolHot, recordUsage, LEVEL_DAYS, DAY } from '../lib/usage.js'
 import { createHost } from '../lib/host.js'
 import { auditManagedRoles, roleFromLabel, roleCandidatesFromLabel, labelOfSession, normalizeManagedRoles, resolveManagedRole } from '../lib/roles.js'
-import { readFileSync, writeFileSync, rmSync, utimesSync } from 'node:fs'
+import { readFileSync, writeFileSync, rmSync, utimesSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -67,6 +67,8 @@ function makeWorld(options = {}) {
   const createdListeners = []
   const denyByAgent = new Map()
   const externalByAgent = new Map() // 模拟别的插件的 deny：我们的 lift 撤不动
+  // 2026-11-04：agent 作用域注册的工具（别名转发壳）——可见但**不可 restrict**
+  const scopedByAgent = new Map()
   const activeByAgent = new Map() // agent -> [{ names }]：当前**真正挂着**的限制（孤儿会在这里露出来）
   // rc.3 的撤销是同步通知的。默认关（不影响其它用例），需要复现重入的用例自己打开。
   let fireOnRestrict = false
@@ -139,12 +141,18 @@ function makeWorld(options = {}) {
         const deny = (agent && denyByAgent.get(agent)) || new Set()
         const miss = (agent && unmounted.get(agent)) || new Set()
         const ext = (agent && externalByAgent.get(agent)) || new Set()
+        const scoped = (agent && scopedByAgent.get(agent)) || new Set()
         const visible = new Map()
         for (const [name, definition] of registered) {
           if (deny.has(name) || miss.has(name) || ext.has(name)) continue
           visible.set(name, definition)
         }
-        return { visible }
+        // scoped 注册不受 mask 影响，且**不可被 restrict**
+        for (const name of scoped) visible.set(name, { name, scoped: true })
+        const restrictableNames = new Set(
+          [...registered.keys()].filter((name) => !deny.has(name) && !miss.has(name) && !ext.has(name)),
+        )
+        return { visible, restrictableNames }
       },
     },
   }
@@ -263,11 +271,22 @@ function makeWorld(options = {}) {
     visibleNames(agent) {
       const deny = denyByAgent.get(agent) || new Set()
       const miss = unmounted.get(agent) || new Set()
-      return [...registered.keys()].filter((name) => !deny.has(name) && !miss.has(name))
+      const scoped = scopedByAgent.get(agent) || new Set()
+      return [...registered.keys()].filter((name) => !deny.has(name) && !miss.has(name)).concat([...scoped])
     },
     createAgent,
     fireEvent,
     externalByAgent,
+    scopedByAgent,
+    /** 在 agent 作用域注册一个「别家插件的工具」（可见、不可 restrict） */
+    addScoped(agent, name) {
+      let set = scopedByAgent.get(agent)
+      if (!set) {
+        set = new Set()
+        scopedByAgent.set(agent, set)
+      }
+      set.add(name)
+    },
     makeAgent,
     living,
     createdListeners,
@@ -398,11 +417,11 @@ async function main() {
   const health = await runTool(world, 'lazy_tools_health', {}, agent)
   assertJsonSafe(health, 'health')
   assert.equal(health.ok, true, `health 说契约不全：${JSON.stringify(health.contracts)}`)
-  assert.equal(health.contracts.length, 4)
+  assert.equal(health.contracts.length, 5)
   assert.equal(health.stats.agentCreated, 1)
   assert.equal(health.stats.restrictFailures, 0)
   assert.equal(health.stats.lastHidden.hidden, 2)
-  ok('health: 四个契约全绿，agentCreated=1，lastHidden=2')
+  ok('health: 五个契约全绿，agentCreated=1，lastHidden=2')
 
   log('[5] 契约缺失时不崩')
   const brokenWorld = makeWorld()
@@ -726,9 +745,9 @@ async function main() {
   ok('立刻清空 → resolve 单个 / enable 整组 都能捞回')
   log('[24] 三处名字必须一致（2026-10-24 五次恢复模式的根因）')
     const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
-    const clientSrc = readFileSync(new URL('../client.js', import.meta.url), 'utf8')
+    const bridgeClientSrc = readFileSync(new URL('../client.js', import.meta.url), 'utf8')
     const patchSrc = readFileSync(new URL('../cordis.patch.yml', import.meta.url), 'utf8')
-    const clientId = (clientSrc.match(/__ModuleLoader__[\s\S]{0,60}?id:\s*'([^']+)'/) || [])[1]
+    const clientId = (bridgeClientSrc.match(/__ModuleLoader__[\s\S]{0,60}?id:\s*'([^']+)'/) || [])[1]
     const rowName = (patchSrc.match(/^\s*name:\s*(\S+)\s*$/m) || [])[1]
     assert.ok(clientId, 'client.js 里找不到 __ModuleLoader__.load 的 id')
     assert.ok(rowName, 'cordis.patch.yml 里找不到行名 name')
@@ -2611,6 +2630,187 @@ async function main() {
   const h93 = await runTool(labelWorld, 'lazy_tools_health', {}, mkL('agent-b3', 'v:hermes'))
   assert.equal(h93.managed && h93.managed.role, 'hermes', '短 vendor 前缀也要认')
   ok('label 确定性：摘要词不参与、vendor 后第一段生效')
+
+  // 2026-11-04（与别名共存）：agent 作用域注册的工具不可 restrict，抽屉不许拿它去发 deny
+  log('[93] 与作用域内工具共存：别名不被抽屉误藏，也不产生「不可限制」错误')
+  const aliasWorld = makeWorld()
+  aliasWorld.ctx.tools.register({ name: 'ga_a__one', description: 'x', parameters: {}, output: {} })
+  aliasWorld.ctx.tools.register({ name: 'ga_b__one', description: 'x', parameters: {}, output: {} })
+  apply(aliasWorld.ctx, { groups: [{ id: 'ga-a', match: ['ga_a__*'] }], autoGroups: 'off', managedRoles: { hermes: { allowGroups: ['ga-a'] } } })
+  const aliasChild = aliasWorld.createAgent('agent-alias-coexist', (agent) => {
+    agent.session = { header: { parentSession: 'p', label: 'dsh-x:hermes' } }
+    // 模拟别名插件在该会话作用域注册了 ext_billing（不是全局工具）
+    aliasWorld.addScoped(agent, 'ext_billing')
+  })
+  const aliasHealth = await runTool(aliasWorld, 'lazy_tools_health', {}, aliasChild)
+  assert.equal(aliasHealth.managed && aliasHealth.managed.role, 'hermes', '角色要生效')
+  const aliasDeny = aliasWorld.denyByAgent.get(aliasChild)
+  assert.ok(aliasDeny.has('ga_b__one'), '角色不允许的全局工具必须被藏')
+  assert.ok(!aliasDeny.has('ext_billing'), '作用域内工具不可 restrict，抽屉不许去 deny 它')
+  assert.ok((aliasWorld.visibleNames(aliasChild) || []).includes('ext_billing'), '别名必须仍然可见')
+  const aliasErrs = aliasHealth.errors || []
+  assert.equal(aliasErrs.filter((e) => String(e.message || '').includes('不可限制')).length, 0, '不许再记「不可限制」错误：' + JSON.stringify(aliasErrs))
+  ok('与作用域内工具共存：别名不被误藏、无错误记录')
+
+  // 2026-11-05（外部审阅 P0）：disable 的 name 分支已删 —— 传 name 不许把「关」变成「只放这一个」
+  log('[94] disable 不接受 name：传了只报错，不改会话模式')
+  const dnWorld = makeWorld()
+  dnWorld.ctx.tools.register({ name: 'dt_one', description: 'x', parameters: {}, output: {} })
+  dnWorld.ctx.tools.register({ name: 'dt_two', description: 'x', parameters: {}, output: {} })
+  apply(dnWorld.ctx, { groups: [{ id: 'dt', match: ['dt_*'] }], autoGroups: 'off' })
+  const dnAgent = dnWorld.createAgent('agent-disable-name')
+  const dnBefore = await runTool(dnWorld, 'lazy_tools_status', {}, dnAgent)
+  const dnBeforeGroup = (dnBefore.groups || []).find((g) => g.id === 'dt')
+  const dnRes = await runTool(dnWorld, 'lazy_tools_disable', { name: 'dt_one' }, dnAgent)
+  assert.ok(dnRes && dnRes.error, '传 name 必须报错：' + JSON.stringify(dnRes))
+  assert.ok(String(dnRes.error).includes('group'), '错误文案要说清要 group：' + dnRes.error)
+  const dnStatus = await runTool(dnWorld, 'lazy_tools_status', {}, dnAgent)
+  const dnGroup = (dnStatus.groups || []).find((g) => g.id === 'dt')
+  assert.equal(dnGroup && dnGroup.mode, dnBeforeGroup && dnBeforeGroup.mode, '传 name 不许改变会话模式：' + JSON.stringify(dnGroup))
+  assert.notEqual(dnGroup && dnGroup.mode, 'only', '传 name 绝不许变成 only：' + JSON.stringify(dnGroup))
+  ok('disable 传 name：只报错、不改模式')
+
+  // 2026-11-05：allowGroups: [] = 只留常驻（以前被当成无效条目丢掉）
+  log('[95] allowGroups: [] 合法，语义 = 只留 CORE')
+  const coreWorld = makeWorld()
+  coreWorld.ctx.tools.register({ name: 'read', description: 'core', parameters: {}, output: {} })
+  coreWorld.ctx.tools.register({ name: 'cx_a__one', description: 'x', parameters: {}, output: {} })
+  apply(coreWorld.ctx, { groups: [{ id: 'cx-a', match: ['cx_a__*'] }], autoGroups: 'off', managedRoles: { re: { allowGroups: [] } } })
+  const coreChild = coreWorld.createAgent('agent-core-only', (agent) => { agent.session = { header: { parentSession: 'p', label: 'dsh-x:re' } } })
+  const coreVisible = coreWorld.visibleNames(coreChild) || []
+  assert.ok(coreVisible.includes('read'), 'CORE 工具必须可见：' + JSON.stringify(coreVisible))
+  assert.ok(!coreVisible.includes('cx_a__one'), '非 CORE 组内工具必须不可见：' + JSON.stringify(coreVisible))
+  ok('allowGroups: [] = 只留 CORE')
+
+  // 2026-11-05：errors[] 只进不出 —— health { clear: true } 要能清
+  log('[96] health clear：清掉瞬时错误后 healthy 回真')
+  const clrWorld = makeWorld()
+  clrWorld.ctx.tools.register({ name: 'cl_a', description: 'x', parameters: {}, output: {} })
+  apply(clrWorld.ctx, { groups: [{ id: 'cl', match: ['re:['] }], autoGroups: 'off' })
+  const clrAgent = clrWorld.createAgent('agent-clear-errors')
+  const clrBefore = await runTool(clrWorld, 'lazy_tools_health', {}, clrAgent)
+  assert.equal(clrBefore.healthy, false, '坏正则必须把 healthy 拉红')
+  assert.ok((clrBefore.errors || []).some((e) => String(e.where || '').includes('group pattern')), '坏正则要记账')
+  const clrAfter = await runTool(clrWorld, 'lazy_tools_health', { clear: true }, clrAgent)
+  assert.ok(clrAfter.clearedErrors >= 1, '要报清掉几条：' + JSON.stringify(clrAfter.clearedErrors))
+  assert.equal(clrAfter.healthy, true, '清掉后 healthy 必须回真：' + JSON.stringify(clrAfter))
+  assert.equal((clrAfter.errors || []).length, 0, '清后不许还有错误')
+  ok('health clear：healthy 回真')
+
+  // 2026-11-05：守卫不可用必须记账，不许静默全绿
+  log('[97] 宿主没有 tools.guard：必须记账且 healthy=false')
+  const ngWorld = makeWorld()
+  ngWorld.ctx.tools.guard = undefined
+  ngWorld.ctx.tools.register({ name: 'ng_a', description: 'x', parameters: {}, output: {} })
+  apply(ngWorld.ctx, { groups: [{ id: 'ng', match: ['ng_*'] }], autoGroups: 'off' })
+  const ngAgent = ngWorld.createAgent('agent-no-guard')
+  const ngHealth = await runTool(ngWorld, 'lazy_tools_health', {}, ngAgent)
+  assert.ok((ngHealth.errors || []).some((e) => String(e.where || '') === 'tools.guard'), '缺 guard 必须记账：' + JSON.stringify(ngHealth.errors))
+  assert.equal(ngHealth.healthy, false, '缺 guard 不许 healthy=true')
+  ok('缺 guard：记账 + 红')
+
+  // 2026-11-05：写用户组文件时目录要跟着文件走（可被 LAZY_TOOLS_GROUPS_FILE 覆盖）
+  log('[98] writeUserGroups 指向新目录时不许 ENOENT')
+  const { writeUserGroups } = await import('../lib/api.js')
+  const oldGroupsFile = process.env.LAZY_TOOLS_GROUPS_FILE
+  const newDir = join(tmpdir(), 'lazy-tools-groups-' + Date.now())
+  process.env.LAZY_TOOLS_GROUPS_FILE = join(newDir, 'groups.json')
+  try {
+    const written = writeUserGroups([{ id: 'ug', match: ['ug_*'] }])
+    assert.equal(written, process.env.LAZY_TOOLS_GROUPS_FILE)
+    assert.ok(existsSync(written), '文件要真的写出来')
+    ok('writeUserGroups：目录跟文件走')
+  } finally {
+    process.env.LAZY_TOOLS_GROUPS_FILE = oldGroupsFile
+  }
+
+  // 2026-11-05（外部审阅 C2）：回环桥写操作要自定义头；客户端两条 POST 都必须带头。
+  // 这不是行为测试，是**接线测试**：真正的失败模式是「只改了服务端，忘了客户端」。
+  log('[99] 桥写操作接线：服务端验头 + 客户端两条 POST 都带头')
+  const bridgeApiSrc = readFileSync(new URL('../lib/api.js', import.meta.url), 'utf8')
+  const clientSrc = readFileSync(new URL('../client.js', import.meta.url), 'utf8')
+  assert.ok(bridgeApiSrc.includes("headers['x-lazy-tools']"), '服务端必须验 x-lazy-tools 头')
+  assert.ok(bridgeApiSrc.includes('missing x-lazy-tools header'), '缺头必须 403 并有明确错误')
+  const headerCount = (clientSrc.match(/'x-lazy-tools': '1'/g) || []).length
+  assert.ok(headerCount >= 2, '客户端 request() 与心跳都要带头，实际 ' + headerCount + ' 处')
+  ok('桥写操作：服务端验头、客户端两处带头')
+
+  // 2026-11-05（冷读红 1）：guard 缺失是结构问题，health {clear:true} 不许把它洗成 healthy=true
+  log('[100] 缺 guard 时 clear 拒绝清空（不许假绿）')
+  const ngcWorld = makeWorld()
+  ngcWorld.ctx.tools.guard = undefined
+  ngcWorld.ctx.tools.register({ name: 'ngc_a', description: 'x', parameters: {}, output: {} })
+  apply(ngcWorld.ctx, { groups: [{ id: 'ngc', match: ['ngc_*'] }], autoGroups: 'off' })
+  const ngcAgent = ngcWorld.createAgent('agent-no-guard-clear')
+  const ngcBefore = await runTool(ngcWorld, 'lazy_tools_health', {}, ngcAgent)
+  assert.equal(ngcBefore.healthy, false, '起点必须红')
+  assert.ok((ngcBefore.contracts || []).some((c) => c.id === 'tools.guard'), '契约里必须有 tools.guard：' + JSON.stringify(ngcBefore.contracts))
+  assert.equal(ngcBefore.contracts.find((c) => c.id === 'tools.guard').ok, false, '缺 guard 契约必须 ok=false')
+  const ngcAfter = await runTool(ngcWorld, 'lazy_tools_health', { clear: true }, ngcAgent)
+  assert.ok(ngcAfter.clearRefused, '必须拒绝清空：' + JSON.stringify(ngcAfter.clearRefused))
+  assert.equal(ngcAfter.healthy, false, 'clear 之后仍是红，不许假绿：' + JSON.stringify(ngcAfter))
+  assert.ok((ngcAfter.errors || []).some((e) => String(e.where || '') === 'tools.guard'), '错误也不该被清掉')
+  ok('缺 guard：clear 拒绝、healthy 仍红')
+
+  // 2026-11-05（冷读红 3）：桥鉴权原来只有源码字符串测试 —— 反转判据也全绿。
+  // 这里直接挂一个假 webServer，走真 handler：无头 403、带头 200。
+  log('[101] 桥鉴权行为：无头 403、带头 200、GET 不受限')
+  const { mountBridge } = await import('../lib/api.js')
+  let bridgeHandler = null
+  const bridgeCtx = {
+    get(key) {
+      if (key === 'webServer') return { register(def) { bridgeHandler = def.handler; return () => {} } }
+      return undefined
+    },
+    inject() { return () => {} },
+  }
+  const appliedPolicies = []
+  mountBridge(bridgeCtx, { own() {}, record() {} }, {
+    getState: () => ({ ok: true }),
+    applyPolicy: (next) => { appliedPolicies.push(next) },
+    record() {},
+  })
+  assert.ok(typeof bridgeHandler === 'function', '桥要注册 handler')
+
+  const fakeRes = () => {
+    const out = { code: null, body: null }
+    return {
+      writeHead(code) { out.code = code },
+      end(text) { out.body = text },
+      out,
+    }
+  }
+  const fakeReq = (method, url, headers, body) => {
+    const handlers = {}
+    return {
+      method, url, headers,
+      on(ev, fn) { (handlers[ev] = handlers[ev] || []).push(fn) },
+      emit(ev, arg) { for (const fn of handlers[ev] || []) fn(arg) },
+      body,
+    }
+  }
+  const callBridge = async (method, url, headers, body) => {
+    const req = fakeReq(method, url, headers || {}, body)
+    const res = fakeRes()
+    const p = bridgeHandler(req, res)
+    if (body !== undefined) {
+      setTimeout(() => { req.emit('data', JSON.stringify(body)); req.emit('end') }, 0)
+    }
+    await p
+    return res.out
+  }
+
+  const noHeader = await callBridge('POST', '/lazy-tools/api/policy', { 'content-type': 'application/json' }, { level: 'low' })
+  assert.equal(noHeader.code, 403, '无 x-lazy-tools 头必须 403：' + JSON.stringify(noHeader))
+  assert.equal(appliedPolicies.length, 0, '被拒的请求不许改策略')
+
+  const withHeader = await callBridge('POST', '/lazy-tools/api/policy', { 'content-type': 'application/json', 'x-lazy-tools': '1' }, { level: 'low' })
+  assert.equal(withHeader.code, 200, '带头必须放行：' + JSON.stringify(withHeader))
+  assert.equal(appliedPolicies.length, 1, '放行后要真的改策略')
+
+  const getState = await callBridge('GET', '/lazy-tools/api/state', {}, undefined)
+  assert.equal(getState.code, 200, 'GET 不受 POST 头限制：' + JSON.stringify(getState))
+  ok('桥鉴权行为：无头 403、带头 200、GET 放行')
 
   console.log(`\nsmoke: ${checks} 项全过`)
 }

@@ -247,7 +247,7 @@ Tests: smoke `[64]` (filtering / empty section / unresolved scope falls back) an
 | `lazy_tools_health {tool?, layersFor?, bench?, full?}` | contract self-check; default is a **slim view** (`healthy`, per-group state, `warnings`, `stray`, `client`, `stats`); `{ full: true }` adds ledger `usage`, `contracts[].detail`, `nameProbe`, `filterReport`; `{ bench: true }` adds the schema-tax report |
 | `lazy_tools_save_groups {groups?, applyNow?}` | write groups to `~/.dsh/lazy-tools.groups.json` (next session unless `applyNow: true`); **without `groups`** it returns classification material instead (bare-named, ungrouped tools with descriptions) |
 
-`healthy: true` means: four contracts OK **and** no errors (host dispose races excepted — they stay as evidence) **and** no warnings.
+`healthy: true` means: five contracts OK **and** no errors (host dispose races excepted — they stay as evidence) **and** no warnings.
 
 ## Settings
 
@@ -317,7 +317,7 @@ already gives you** (a message, an error) instead of asking the model to remembe
 node test/smoke.mjs   # assertions against a fake host, no DSH required (count: use the `node test/smoke.mjs` output)
 ```
 
-The fake host implements the four contracts this plugin depends on, plus the host's **optional**
+The fake host implements the five contracts this plugin depends on, plus the host's **optional**
 `tools.view(scope)` read-only view (the prompt section's main read path; its three degraded shapes —
 absent, empty, throwing — each have a test). A contract change breaks the test before it breaks your session.
 

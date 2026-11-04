@@ -226,16 +226,16 @@ async function main() {
     return '记账'
   })
 
-  // 可达性判定：要手写 ~10 万字符的正则才触发 → 属「主动构造」，按三档归绿，不修。
-  // 记录为 KNOWN，套件不因它失败；如果将来真修了，把它改回 check 即可。
-  await checkKnown('B 超长 pattern（100k 字符）—— 已知极限，不修', () => {
+  // 2026-11-05（外部审阅）：原来把「超长 pattern 让 apply 抛 SyntaxError」记成 KNOWN 不修，
+  // 但它正是 DESIGN 里最怕的「加载即崩」。现在改为真断言：不许抛，坏组按无效处理。
+  await check('B 超长 pattern（100k 字符）不许把 apply 带崩', () => {
     const world = makeWorld()
     sixTools(world)
     const long = 'biz_' + 'x'.repeat(100000)
     apply(world.ctx, { groups: [{ id: 'long', match: [long], defaultOn: false }], autoGroups: 'off' })
     assert(lazyToolCount(world) === 8, '工具没注册全')
-    return '可加载'
-  }, 'V8 在首次 test() 时才编译超长正则（lib/index.js:161）；需手写约 10 万字符才触发，按可达性属绿')
+    return '可加载（坏组被忽略）'
+  })
 
   // ReDoS 放到子进程里跑：真挂死也只影响子进程，不会卡住测试
   await check('B ReDoS 回溯炸弹不挂死（子进程 3s 上限）', () => {

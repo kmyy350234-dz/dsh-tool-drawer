@@ -78,7 +78,7 @@ Remove-Item "$env:USERPROFILE\.dsh\profiles\<profile>\node_modules\dsh-tool-draw
   `https://github.com/kmyy350234-dz/dsh-tool-drawer/releases/latest/download/dsh-tool-drawer.tgz` 指向它；
   `latest/download/` 只解析 `latest`、文件名照字面取 —— 资产名带版本号的话，这个链接在你下一次发版当天就 404，
   而且不会有人告诉你。2026-10-28 补，起因是审计市场条目时发现 `tarball:` 缺失。
-- `node test/smoke.mjs` → 32 项全过；
+- `node test/smoke.mjs` → 全过（项数以输出为准，不写死）；
 - 中英 README 同步（英文不是翻译腔，是独立写的）；
 - Release 说明写「改了什么 / 为什么 / 怎么验证」，不要只写「修复若干问题」；
 - 图标用 **180×180 PNG**（awesome 列表等收录方只收位图，SVG 会回退成作者头像）。

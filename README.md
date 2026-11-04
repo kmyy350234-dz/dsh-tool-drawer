@@ -190,6 +190,7 @@ bundle 自带的 patch 已配好四组：
   如果某个角色的组**全都不存在**，这个角色**不生效**（退回普通会话行为）——否则受管会话里既不能 `enable`、自愈也不绕过，
   就等于把一个会话锁到只剩核心工具，还全程静默；
 - `allowGroups: ["*"]` 表示这个角色不按组设限（逃生口）；
+- `allowGroups: []` 表示**只留常驻工具（CORE）**，其余全部收起（2026-11-05 起合法）；
 - `health` 新增 `managed: { role, allowGroups, unknown }`，没有受管就是 `null`；
 - 不配置 `managedRoles` 时行为与旧版完全一致（默认关闭）。
 
@@ -261,7 +262,7 @@ lazy_tools_roles({ role: "hermes", allowGroups: ["write"], basis: "写模块，�
 测试：冒烟 `[64]`（没挂 / 被外部挡的组不广告、空则空段、认不出作用域退回旧行为）与
 `[65]`（分类提示只在默认会话出现）。
 
-## 七个工具
+## 八个工具
 
 | 工具 | 作用 |
 |---|---|
@@ -270,10 +271,11 @@ lazy_tools_roles({ role: "hermes", allowGroups: ["write"], basis: "写模块，�
 | `lazy_tools_disable` | 收起一组，同时清除 `only` 白名单 |
 | `lazy_tools_list` | 列出组内工具（含被隐藏的）；`ungrouped: true` 附带前缀分桶 + 未归组工具的描述（原 scan / classify） |
 | `lazy_tools_mode` | 仅修改当前会话策略；`reset` 回全局，`collapse` 立即清空 |
-| `lazy_tools_health` | 自检四个宿主契约，输出 warnings / 漏网工具 / 自愈次数；**`bench: true` 附带基准账**（注册总数、可见/收起、每组字符数 —— README 数字的唯一来源） |
+| `lazy_tools_health` | 自检五个宿主契约，输出 warnings / 漏网工具 / 自愈次数；**`bench: true` 附带基准账**（注册总数、可见/收起、每组字符数 —— README 数字的唯一来源） |
 | `lazy_tools_save_groups` | 把分好的组写进 `~/.dsh/lazy-tools.groups.json`；默认下次会话生效，`applyNow: true` 才立刻生效 |
+| `lazy_tools_roles` | 查看/配置「角色 → 允许哪些组」；写入后即时生效（AI 自配会带 `createdBy` / `basis`，可追溯） |
 
-`healthy: true` 表示：四个契约均通过，无错误（宿主销毁竞态除外，那条只留证据不拉红灯），无警告。
+`healthy: true` 表示：五个契约均通过（register / schemas / restrict / guard / agent 事件），无错误（宿主销毁竞态除外，那条只留证据不拉红灯），无警告。
 
 ## 设置页
 
@@ -333,7 +335,7 @@ schema 在运行时解析：扫描 `%USERPROFILE%\.dsh\profiles\*\` 查找 DSH �
 node test/smoke.mjs
 ```
 
-以 `node test/smoke.mjs` 的输出为准（当前 **96 项**），运行在假宿主上，不需要安装 DSH。
+以 `node test/smoke.mjs` 的输出为准（项数以实际输出为准，不写死），运行在假宿主上，不需要安装 DSH。
 
 假宿主实现本插件依赖的四个**契约**（register / schemas / restrict / agent-created），外加宿主那条**可选**的
 `tools.view(scope)` 只读视图（提示段的主读路径就是它；视图缺失、返回空、抛错三种退化都有用例钉住）。

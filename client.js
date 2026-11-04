@@ -37,7 +37,7 @@ window.__ModuleLoader__.load({
     }
 
     async function request(path, body) {
-      const options = { headers: { 'content-type': 'application/json' } }
+      const options = { headers: { 'content-type': 'application/json', 'x-lazy-tools': '1' } }
       if (body !== undefined) {
         options.method = 'POST'
         options.body = JSON.stringify(body)
@@ -535,7 +535,7 @@ window.__ModuleLoader__.load({
       try {
         const ping = fetch(`${API}/client`, {
           method: 'POST',
-          headers: { 'content-type': 'application/json' },
+          headers: { 'content-type': 'application/json', 'x-lazy-tools': '1' },
           body: JSON.stringify({ panels: ['settings.section', 'conversation.composer.dock'] }),
         })
         if (ping && typeof ping.catch === 'function') ping.catch(() => {})

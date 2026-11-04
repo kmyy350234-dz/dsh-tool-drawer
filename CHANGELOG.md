@@ -2,6 +2,47 @@
 
 格式参照 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循语义化版本。
 
+## [0.18.4] - 2026-11-05
+
+### 修：外部审阅抓到的 P0/P1（全部有复现）
+- **加载即崩**：超长匹配式在 `re.test()` 首次编译时抛 `SyntaxError`，把 `apply()` 带崩。
+  现在每个匹配式先真跑一次 `test()`，抛错的按无效组处理并记账；对抗测试里那条 `KNOWN` 改成真断言。
+- **发布同步只增不减**：源仓删掉的文件会永远留在发布仓（v0.18.3 的 `lib/role-inbox.js` 就是这么来的）。
+  发版脚本同步后做镜像对齐，只删同步目录里源仓没有的文件，并断言「删除只来自同步清理」。
+- **`lazy_tools_disable` 的 `name` 分支**：schema 不收 `name`，但执行体处理它并设成 `only` —— 强行传参会把「关」变「只放这一个」。整段删除，传 name 只报错。
+- **守卫不可用不记账**：宿主没有 `tools.guard` 时自愈会静默消失、`healthy` 仍为 true。现在记账，`probe()` 增加 guard 契约。
+- **`errors[]` 只进不出**：一条瞬时错误把 `healthy` 永久钉红。`lazy_tools_health { clear: true }` 可清。
+- **坏名字缓存永不失效**：`tools/change` 后自动失效，最长 60 秒。
+- **`writeUserGroups` 目录写死**：改为按文件路径建目录（`LAZY_TOOLS_GROUPS_FILE` 覆盖时不再 ENOENT）。
+- **回环桥写操作**：POST 必须带 `x-lazy-tools: 1`（挡无 Origin 的本机写与 DNS rebinding）；设置页客户端同步加头。
+
+### 加：`allowGroups: []` 合法
+- 语义 = **只留常驻工具（CORE）**。以前空数组被当成无效条目整条丢弃，导致「只给常驻」根本表达不了。
+
+### 冷读第一轮：5 红（全部是「门禁/断言空转」）
+- **发版门禁 6e 永远不跑**：一致性断言被误放进「缺编码脚本」的 if 分支，只有 43 脚本不存在才执行。
+  已搬到独立段并加 `Test-Skipped 'consistency'`；dry-run 实测 `[6e/7] 一致性断言 OK`。
+- **票体检的 accept 检查恒假**：`accept: []` 判合格。已改成按非空字符串计数；实测空数组 → FAIL。
+- **桥鉴权没有行为测试**：原来只对源码做字符串匹配，判据反转也全绿。新增 `[101]`：挂假 webServer 走真 handler，
+  实测「无头 403 / 带头 200 / GET 放行」。
+- **POLICY.md 说 `allowGroups: []` 尚未支持**：与 0.18.4 实现相反。已改为「只留常驻，0.18.4 起支持」。
+- **会话清理第 ③ 条保留规则没实现**：现在真的扫 `perf-/*.md` 里的 UUID 并保留（实测识别 63 个），
+  带 `-Apply` 也不会删掉被文档引用的会话。
+
+### 冷读第一轮附带修复（黄）
+- README / README.en / DESIGN 的「四个契约」统一为五个；
+- `allowGroups` 报错文案不再要求「非空」；
+- `clear` 拒绝的判据补上 `agentEvent`，与文案一致；
+- `lazy_tools_roles` 允许 `allowGroups: []`（以前一律拒绝）。
+### 冷读（0.18.4 发版前）红/黄修复
+- **红**：`probe.guard` 没进 `health.contracts`，guard 缺失的唯一信号是 `errors`，而 `clear` 能把它抹成
+  `healthy:true` 假绿。现在 guard 是结构契约之一；结构契约不健康时 `clear` **拒绝清空**并说明原因。
+- **黄**：坏名字缓存从「覆盖」改成「同 epoch 并集」，旧坏名不再被遗忘后重踩（失败计数不再虚高）。
+- **附注**：V8 的 `SyntaxError` 会带完整模式，10 万字符坏 pattern 能让 health 输出约 100KB。
+  `record` 现在截断到 400 字符（保留前段 + 省略标记）。
+
+### 文档
+- `healthy` 的契约数从「四个」改成「五个」（补 guard）；`lazy_tools_health` 描述去掉已删除的「版本号」。
 ## [0.18.3] - 2026-11-04
 
 ### 修：角色表原型链 + label 解析确定性（第三方报告 A1/A2/B1/B2）
