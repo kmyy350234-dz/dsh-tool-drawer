@@ -517,7 +517,9 @@ async function main() {
   assert.equal(health7.groups[0].expect, 5)
   assert.equal(health7.groups[0].expectOk, false)
   assert.equal(health7.warnings.some((w) => w.includes('expect 5')), true)
-  ok('expect 对不上会报警（matched 1 ≠ expect 5）')
+  assert.equal(health7.healthy, false, 'expect 对不上时 healthy 必须是 false（DESIGN.md:197）')
+  assert.equal(typeof health7.stats.rebuilds, 'number', 'rebuilds 必须可观测')
+  ok('expect 对不上会报警且 healthy=false（matched 1 ≠ expect 5）')
 
   // 常驻工具（keep）不算漏网 —— 2026-10-23 真机首测就栽在这上面
   const world7b = makeWorld()
@@ -2847,6 +2849,74 @@ async function main() {
   h.record('probe', new Error('e1'))
   assert.ok(h.errors().some((e) => e.message === 'e1'), 'e1 复发必须重新记账：' + JSON.stringify(h.errors()))
   ok('seenErrors 同步：挤掉的错误可复发')
+
+  // 2026-11-06（DSH 2.0.22）：根 schemas(agent) 可能被解析成全局视图，
+  // 隐藏的工具会"看起来还在"；如果用它做泄漏检测，就会每轮重建（上一轮实测 6,242 次）。
+  // 这里把 schemas 改成返回全局（含隐藏项），断言 view 优先、restrict 不再重跑。
+  // 2026-11-06：名字优先走 view；这里只锁顺序（schemas 与 view 同源）。
+  log('[105] toolNames 优先 view（不退回 schemas）')
+  const hostView = hostMod.createHost({
+    get() {},
+    inject() {},
+    on() {},
+    effect() {},
+    tools: {
+      register() {},
+      get() {},
+      view() {
+        return { visible: new Map([['v_keep', {}]]) }
+      },
+      schemas() {
+        return [{ name: 'v_keep' }, { name: 'v_hide' }]
+      },
+    },
+  })
+  assert.deepEqual(hostView.toolNames({}), ['v_keep'], 'view 有名字时不能退回全局 schemas')
+  assert.deepEqual(hostView.toolNames({ ctx: {} }), ['v_keep'], '与 agent 参数无关：view 优先')
+  ok('toolNames 优先 view（schemas 全局视图不误判）')
+
+  // 对照：view 抛错时退回 schemas 并记账（orchestrator 测试里的 "survives a throwing registry"）
+  log('[106] view 抛错时退回 schemas，不变成空')
+  const hostFallback = hostMod.createHost({
+    get() {},
+    inject() {},
+    on() {},
+    effect() {},
+    tools: {
+      register() {},
+      get() {},
+      view() {
+        throw new Error('view boom')
+      },
+      schemas() {
+        return [{ name: 's_one' }]
+      },
+    },
+  })
+  assert.deepEqual(hostFallback.toolNames({}), ['s_one'], 'view 抛错应退回 schemas')
+  assert.equal(hostFallback.errors().some((e) => e.where === 'tools.view'), true, 'view 失败要记账')
+  ok('view 抛错：退回 schemas + 记 tools.view')
+
+  // 红 1（冷读）：toolNames 不能信任空视图 —— 与 visibleNames 同一不变量
+  log('[107] 空视图必须回退 schemas（不许静默当成没有工具）')
+  const hostEmpty = hostMod.createHost({
+    get() {},
+    inject() {},
+    on() {},
+    effect() {},
+    tools: {
+      register() {},
+      get() {},
+      view() {
+        return { visible: new Map() }
+      },
+      schemas() {
+        return [{ name: 's_one' }]
+      },
+    },
+  })
+  assert.deepEqual(hostEmpty.toolNames({}), ['s_one'], '空视图必须回退 schemas')
+  ok('空视图回退 schemas（同 visibleNames 不变量）')
 
   console.log(`\nsmoke: ${checks} 项全过`)
 }

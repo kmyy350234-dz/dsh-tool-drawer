@@ -1,6 +1,15 @@
-﻿# 变更记录 / Changelog
+﻿## [0.18.6] - 2026-11-06
 
-格式参照 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循语义化版本。
+DSH 2.0.22（上游 0.2.2-rc.1）适配的**诚实版**：
+
+- `host.toolNames()` 与同文件 `visibleNames()` 对齐：优先 `view(agent).visible`，**空视图 / 抛错时回退 `schemas` 复核**（新增冒烟 `[105]` `[106]` `[107]`）；
+- `health.stats.rebuilds` 新增重建计数，供下一次风暴排查用；
+- `expect` 行为**不变**：`matched < expect` 仍然进 `warnings`（DESIGN.md:197 / README 的成文契约）；
+- 上一轮日志里的 6,242 次重建只是线索，**本版没有复现、也不宣称修复**；根因待查；
+- dsh-ops 0.4.4 的 `engines.dsh` 不包含 0.2.2，`ops_*` 暂时缺席；抽屉对外部工具一律可选（缺了只影响组计数，不写配置）。
+
+冒烟 113 项、对抗 29 项 RED 0。
+
 
 ## [0.18.5] - 2026-11-05
 
