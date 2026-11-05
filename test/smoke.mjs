@@ -9,9 +9,9 @@
 import assert from 'node:assert/strict'
 import { apply } from '../lib/index.js'
 import { normalizePolicy, mergePolicyForStorage } from '../lib/api.js'
-import { isToolHot, recordUsage, LEVEL_DAYS, DAY } from '../lib/usage.js'
+import { hotRatio, isToolHot, recordUsage, LEVEL_DAYS, DAY } from '../lib/usage.js'
 import { createHost } from '../lib/host.js'
-import { auditManagedRoles, roleFromLabel, roleCandidatesFromLabel, labelOfSession, normalizeManagedRoles, resolveManagedRole } from '../lib/roles.js'
+import { applyManagedRolesPatch, auditManagedRoles, roleFromLabel, roleCandidatesFromLabel, labelOfSession, normalizeManagedRoles, resolveManagedRole } from '../lib/roles.js'
 import { readFileSync, writeFileSync, rmSync, utimesSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -701,6 +701,15 @@ async function main() {
   assert.equal(isToolHot(usage, 'vision_ocr', 1, stamp), false)
   assert.equal(isToolHot(usage, 'never_used', 7, stamp), false)
   assert.equal(isToolHot(usage, 'never_used', 0, stamp), true)
+  assert.equal(hotRatio(8, 27), 8 / 27, 'hotRatio 不许取整')
+  assert.ok(hotRatio(8, 27) < 0.3, '8/27 必须小于 0.3')
+  const roleBase = { x: { allowGroups: ['a'] } }
+  const cleared = applyManagedRolesPatch(roleBase, {})
+  assert.equal(cleared.next, null, '空对象必须清空角色')
+  assert.equal(cleared.changed, true, '清空要算变化')
+  const roleNorm = normalizeManagedRoles(roleBase)
+  const same = applyManagedRolesPatch(roleNorm, roleNorm)
+  assert.equal(same.changed, false, '相同角色表不该刷新')
   recordUsage(usage, 'dsh_browser_open', null, new Date(stamp))
   assert.equal(typeof usage.tools.dsh_browser_open, 'string')
   assert.equal(usage.groups.dsh_browser_open, undefined)
@@ -1471,6 +1480,31 @@ async function main() {
   assert.equal(sGuard.groups.find((g) => g.id === 'all').guarded, true, 'status 要如实标出这个组被忽略')
   ok('全匹配手写组被忽略并可见记账（宿主换名字也照样兜住）')
 
+  log('[60b] 手写组用正则绕过哨兵：结构判定仍要挡住')
+  const worldGuard2 = makeWorld()
+  for (const name of ['biz2_a', 'biz2_b', 'biz2_c']) {
+    worldGuard2.ctx.tools.register({ name, description: 'x', parameters: {}, output: {} })
+  }
+  apply(worldGuard2.ctx, { groups: [{ id: 'all2', match: ['re:^[a-z0-9_]+$'], defaultOn: false }], autoGroups: 'off' })
+  const agentGuard2 = worldGuard2.createAgent('agent-guard2')
+  assert.equal(worldGuard2.denyByAgent.get(agentGuard2).size, 0, '正则覆盖全部工具也必须被忽略')
+  const sGuard2 = await runTool(worldGuard2, 'lazy_tools_status', {}, agentGuard2)
+  assert.equal(sGuard2.groups.find((g) => g.id === 'all2').guarded, true, 'status 要标 guarded')
+  ok('正则绕过哨兵：结构判定兜住')
+
+  log('[60c] 万能匹配 + 晚注册：apply 时没有工具，注册后仍要挡住')
+  const worldGuard3 = makeWorld()
+  apply(worldGuard3.ctx, { groups: [{ id: 'all3', match: ['re:^[a-z0-9_]+$'], defaultOn: false }], autoGroups: 'off' })
+  for (const name of ['late_a', 'late_b', 'late_c']) {
+    worldGuard3.ctx.tools.register({ name, description: 'x', parameters: {}, output: {} })
+  }
+  const agentGuard3 = worldGuard3.createAgent('agent-guard3')
+  worldGuard3.fireToolsChange()
+  assert.equal(worldGuard3.denyByAgent.get(agentGuard3).size, 0, '晚注册也不能被万能组吞掉')
+  const sGuard3 = await runTool(worldGuard3, 'lazy_tools_status', {}, agentGuard3)
+  assert.equal(sGuard3.groups.find((g) => g.id === 'all3').guarded, true, 'status 要标 guarded')
+  ok('晚注册：万能组仍被挡住')
+
   // 2026-11-01：受管角色（默认关闭）—— preset / parentSession 决定策略，封闭默认，自愈不绕过。
   log('[61] 受管角色：preset 决定策略、封闭默认、自愈不绕过')
   const worldRole = makeWorld()
@@ -1513,6 +1547,9 @@ async function main() {
   const enableDef = worldRole.ctx.tools.get('lazy_tools_enable')
   const deniedEnable = await enableDef.execute({ group: 'role-web' }, { agent: workerRole })
   assert.ok(deniedEnable && deniedEnable.error && deniedEnable.error.includes('受管'), '受管会话里 enable 必须被拒')
+  const modeDef = worldRole.ctx.tools.get('lazy_tools_mode')
+  const deniedMode = await modeDef.execute({ collapseAll: true }, { agent: workerRole })
+  assert.ok(deniedMode && deniedMode.error && deniedMode.error.includes('受管'), '受管会话里 mode 必须明确拒绝')
   ok('受管角色只认 preset/parentSession，封闭默认生效，自愈不绕过')
 
 
@@ -2806,9 +2843,11 @@ async function main() {
     inject() { return () => {} },
   }
   const appliedPolicies = []
+  const appliedMtimes = []
   mountBridge(bridgeCtx, { own() {}, record() {} }, {
     getState: () => ({ ok: true }),
     applyPolicy: (next) => { appliedPolicies.push(next) },
+    setPolicyMtime: (v) => { appliedMtimes.push(v) },
     record() {},
   })
   assert.ok(typeof bridgeHandler === 'function', '桥要注册 handler')
@@ -2848,6 +2887,8 @@ async function main() {
   const withHeader = await callBridge('POST', '/lazy-tools/api/policy', { 'content-type': 'application/json', 'x-lazy-tools': '1' }, { level: 'low' })
   assert.equal(withHeader.code, 200, '带头必须放行：' + JSON.stringify(withHeader))
   assert.equal(appliedPolicies.length, 1, '放行后要真的改策略')
+  assert.equal(appliedMtimes.length, 1, '写盘后要追平 mtime')
+  assert.ok(Number(appliedMtimes[0]) > 0, '追平的 mtime 必须是有效值，不能是 0')
 
   const getState = await callBridge('GET', '/lazy-tools/api/state', {}, undefined)
   assert.equal(getState.code, 200, 'GET 不受 POST 头限制：' + JSON.stringify(getState))

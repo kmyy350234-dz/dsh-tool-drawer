@@ -13,11 +13,15 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - name: 语法检查（宿主 + 客户端）
+      - name: 璇硶妫€鏌ワ紙瀹夸富 + 瀹㈡埛绔級
         run: |
           node --check client.js
           for f in lib/*.js lib/tools/*.js; do node --check "$f"; done
-      - name: 冒烟测试
+      - name: 鍐掔儫娴嬭瘯
         run: node test/smoke.mjs
-      - name: 对抗测试
+      - name: 瀵规姉娴嬭瘯
         run: node test/adversarial.mjs
+      - name: 门禁（基线 + 异常）
+        run: node review/gate.mjs
+      - name: 变异（每条新增测试逐条）
+        run: node review/mutate.mjs
