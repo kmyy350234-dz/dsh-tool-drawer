@@ -1,4 +1,32 @@
-﻿## [0.18.6] - 2026-11-06
+﻿## [0.18.7] - 2026-11-06
+
+**复现并修复了一类「3 秒重建链」**（原始风暴日志的具体触发工具未验证，不宣称就是那一次）：
+
+- 机制：`rebuild` 回读的「可见」与「藏得住」不一致时，泄漏检测只按 `hiddenBy` 判漏网 ——
+  ① agent 作用域同名遮蔽（`restrict` 成功但 own 注册永远可见）；
+  ② reserved PTC（`run_code`）名字一 deny 就抛；
+  ③ `restrictableNames` 读不到时旧过滤整体失效；
+  三者都会让「本该藏却藏不掉」的名字每 3 秒触发一次 rebuild，且 `healthy:true`、零报错。
+- 修复：`rebuild` 用**实际回读结果**记 `unhideable`，泄漏检测把它排除（不再只信名字集合）；
+  `health` 顶层暴露 `unhideable`，藏不掉的名字如实记账。
+- 测试：`[108]` scope 同名遮蔽 + `setSyncRestrictEvents` + 两轮 3 秒链（删掉兜底后 [108] 变红）；
+  `[109]` 读不到 `restrictableNames` 同样不形成链。假宿主的 `restrictableNames` 已对齐真宿主语义（deny 的名字仍在集合里）。
+- 日志统计：11-05 同一 agent 6945 条 `hidden=`，间隔众数 3.03s，风暴期间零 restrict 报错 —— 与上述机制一致。
+
+**冷读第二轮的两红（本版内修掉）**：
+
+- `unhideable` 原来只写不清：改用 `hideTools` 的**逐名字报告**（`denied` / `transient` / `permanent`），只有「确实 deny 过却仍可见」或「badname 永久藏不掉」才锁；transient 失败不锁、下一轮重试；
+- 外部变化用 **restrictableNames 签名**判断：签名变了（alias 退场 / 全局工具晚注册）才清非永久闩锁，单纯 `tools/change` 不再 churn；
+- 新增 `[114]` 真实部分失败（p_ok 藏住、p_fail systemic、p_bad 坏名）、`[115]` reserved PTC（永久闩锁，200 次事件 rebuilds ≤ 3）、`[116]` 晚注册（签名变化清锁、别名变全局后能藏住）、`[117]` 别名壳被组匹配（锁住，100 次事件不重建）；
+- 复读第二轮的恢复性回归：签名变化时清**全部**闩锁（不只非永久），否则 badname/unknown 闩锁永不重试；`unhideable` 锁「所有非 transient 的 leftover」（含未进 hidden 的 scope 别名壳），否则别名壳每次 tools/change 都算漏网；
+- 复读第三轮黄项：`hidden` 为空时不再沿用**上一轮**的 transient 报告（否则「上轮 systemic 失败、本轮退成 scope 别名」的名字会每次事件重建，实测 +100）；新增 `[118]`；
+
+其余与 0.18.6 相同（`toolNames` 空视图回退、`expect` 保持 warning、`stats.rebuilds` 可观测）。
+
+冒烟 124 项、对抗 29 项 RED 0。
+
+
+## [0.18.6] - 2026-11-06
 
 DSH 2.0.22（上游 0.2.2-rc.1）适配的**诚实版**：
 

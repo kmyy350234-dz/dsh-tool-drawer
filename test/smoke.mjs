@@ -72,6 +72,10 @@ function makeWorld(options = {}) {
   const activeByAgent = new Map() // agent -> [{ names }]：当前**真正挂着**的限制（孤儿会在这里露出来）
   // rc.3 的撤销是同步通知的。默认关（不影响其它用例），需要复现重入的用例自己打开。
   let fireOnRestrict = false
+  let failRestrictTimes = 0
+  const failRestrictFor = new Set()
+  const failRestrictSingle = new Set()
+  const reservedPtc = new Set()
   const living = [] // «ctx.get('agents').list()» 返回的东西
   const effects = [] // «ctx.effect(cb)» 收下的回调，插件卸载时 Cordis 会调用它们
   const toolsChangeListeners = []
@@ -149,9 +153,9 @@ function makeWorld(options = {}) {
         }
         // scoped 注册不受 mask 影响，且**不可被 restrict**
         for (const name of scoped) visible.set(name, { name, scoped: true })
-        const restrictableNames = new Set(
-          [...registered.keys()].filter((name) => !deny.has(name) && !miss.has(name) && !ext.has(name)),
-        )
+        // 真宿主：inherited 名字先全部进 restrictableNames，再看 admits 决定 visible；
+        // 被 deny 的名字仍在集合里。假宿主以前把 deny 的删掉，替身比真宿主更听话。
+        const restrictableNames = new Set([...registered.keys()])
         return { visible, restrictableNames }
       },
     },
@@ -180,6 +184,20 @@ function makeWorld(options = {}) {
         },
         restrict(filter) {
           const deny = denyByAgent.get(agent)
+          const asked = Array.isArray(filter && filter.deny) ? filter.deny : []
+          if (asked.some((name) => reservedPtc.has(name))) {
+            throw new Error('tools.restrict() cannot name reserved PTC mode presentation transport "' + asked.find((name) => reservedPtc.has(name)) + '"')
+          }
+          if (asked.some((name) => failRestrictFor.has(name))) {
+            throw new Error('restrict backend unavailable')
+          }
+          if (asked.length === 1 && failRestrictSingle.has(asked[0])) {
+            throw new Error('restrict backend unavailable')
+          }
+          if (failRestrictTimes > 0) {
+            failRestrictTimes -= 1
+            throw new Error('restrict backend unavailable')
+          }
           const added = Array.isArray(filter && filter.deny) ? [...filter.deny] : []
           // 真宿主的行为：deny 里混进不可限制的名字 ⇒ **整批抛错**（一个都不藏）
           const unknown = added.filter((name) => nonRestrictable.has(name))
@@ -262,6 +280,20 @@ function makeWorld(options = {}) {
     denyByAgent,
     activeByAgent,
     // 打开它 = mock 的 restrict 在「加上」和「解除」时都同步 fireToolsChange（rc.3 的行为）
+    failRestrictFor(name) {
+      failRestrictFor.add(name)
+      return () => failRestrictFor.delete(name)
+    },
+    failRestrictSingle(name) {
+      failRestrictSingle.add(name)
+      return () => failRestrictSingle.delete(name)
+    },
+    reservePtc(name) {
+      reservedPtc.add(name)
+    },
+    failNextRestrict(times = 1) {
+      failRestrictTimes = Math.max(0, Number(times) || 0)
+    },
     setSyncRestrictEvents(value) {
       fireOnRestrict = !!value
     },
@@ -2822,7 +2854,7 @@ async function main() {
   ok('桥鉴权行为：无头 403、带头 200、GET 放行')
 
   // 2026-11-05（元宝挑刺 1）：managedRoles.allowGroups: ['*'] 必须 = 全开，不许记成 hide
-  log('[102] allowGroups ['*'] 语义：状态与放行一致')
+  log("[102] allowGroups ['*'] 语义：状态与放行一致")
   rmSync(`${NO_SUCH}.policy.json`, { force: true }) // 前面的 roles 写测试会留下 policy 文件（显式清空语义）
   const starWorld = makeWorld()
   starWorld.ctx.tools.register({ name: 'st_a', description: 'x', parameters: {}, output: {} })
@@ -2918,11 +2950,230 @@ async function main() {
   assert.deepEqual(hostEmpty.toolNames({}), ['s_one'], '空视图必须回退 schemas')
   ok('空视图回退 schemas（同 visibleNames 不变量）')
 
+  // 一类 3 秒重建链的机制：作用域注册的工具可见但不可 restrict，
+  // 旧泄漏检测把它当"漏网"，于是每 3 秒重建一次（无报错）。
+  // 冷读红 1：scope 同名遮蔽 —— 名字在 restrictableNames 里，但 own 注册永远 visible，
+  // 只按名字过滤会每 3 秒重建一次；必须用「本轮之后实际可见」兜底。
+  log('[108] scope 同名遮蔽：不反复重建（同步事件 + 3 秒链）')
+  const worldSc = makeWorld()
+  worldSc.ctx.tools.register({ name: 'sc_global', description: 'x', parameters: {}, output: {} })
+  apply(worldSc.ctx, { groups: [{ id: 'sc', match: ['sc_*'], defaultOn: false }], autoGroups: 'off' })
+  const agentSc = worldSc.createAgent('agent-scoped')
+  worldSc.addScoped(agentSc, 'sc_global') // 同名 scope 注册：永远可见
+  worldSc.setSyncRestrictEvents(true)
+  process.env.LAZY_TOOLS_COOLDOWN_MS = '20'
+  const beforeSc = await runTool(worldSc, 'lazy_tools_health', {}, agentSc)
+  worldSc.fireToolsChange()
+  await new Promise((resolve) => setTimeout(resolve, 400))
+  const settle1 = await runTool(worldSc, 'lazy_tools_health', {}, agentSc)
+  worldSc.fireToolsChange()
+  await new Promise((resolve) => setTimeout(resolve, 200))
+  delete process.env.LAZY_TOOLS_COOLDOWN_MS
+  const settle2 = await runTool(worldSc, 'lazy_tools_health', {}, agentSc)
+  assert.equal(settle2.stats.rebuilds, settle1.stats.rebuilds, '作用域遮蔽不该形成 3 秒重建链')
+  assert.ok(settle1.stats.rebuilds - beforeSc.stats.rebuilds <= 3, `允许一次发现性重建，但不能是风暴：${JSON.stringify(settle1.stats)}`)
+  assert.deepEqual(settle2.unhideable, ['sc_global'], '藏不掉的名字要如实记账')
+  ok('scope 同名遮蔽：允许一次发现，之后不再重建')
+
+  // 冷读红 2：读不到 restrictableNames 时，旧过滤整体失效 —— 不能退回风暴。
+  log('[109] 读不到 restrictableNames：仍不形成重建链')
+  const worldNv = makeWorld()
+  worldNv.ctx.tools.register({ name: 'nv_global', description: 'x', parameters: {}, output: {} })
+  apply(worldNv.ctx, { groups: [{ id: 'nv', match: ['nv_*'], defaultOn: false }], autoGroups: 'off' })
+  const agentNv = worldNv.createAgent('agent-no-view')
+  worldNv.addScoped(agentNv, 'nv_global')
+  const viewBeforeDrop = worldNv.ctx.tools.view
+  worldNv.ctx.tools.view = (agent) => {
+    const view = viewBeforeDrop(agent)
+    return { visible: view.visible }
+  }
+  worldNv.setSyncRestrictEvents(true)
+  process.env.LAZY_TOOLS_COOLDOWN_MS = '20'
+  worldNv.fireToolsChange()
+  await new Promise((resolve) => setTimeout(resolve, 400))
+  const noView1 = await runTool(worldNv, 'lazy_tools_health', {}, agentNv)
+  worldNv.fireToolsChange()
+  await new Promise((resolve) => setTimeout(resolve, 200))
+  delete process.env.LAZY_TOOLS_COOLDOWN_MS
+  const noView2 = await runTool(worldNv, 'lazy_tools_health', {}, agentNv)
+  assert.equal(noView2.stats.rebuilds, noView1.stats.rebuilds, '读不到 restrictableNames 不该形成重建链')
+  ok('restrictableNames 不可读：不重建')
+
+  // 复读黄 2：systemic 失败后不能把"没藏成"锁进 unhideable，否则恢复后永不重试。
+  log('[110] systemic restrict 失败后：下一轮能重试、不锁 unhideable')
+  const worldTr = makeWorld()
+  worldTr.ctx.tools.register({ name: 'fl_tool', description: 'x', parameters: {}, output: {} })
+  worldTr.failNextRestrict(1)
+  apply(worldTr.ctx, { groups: [{ id: 'fl', match: ['fl_tool'], defaultOn: false }], autoGroups: 'off' })
+  const agentTr = worldTr.createAgent('agent-transient')
+  const hTr1 = await runTool(worldTr, 'lazy_tools_health', {}, agentTr)
+  assert.equal(hTr1.errors.some((e) => e.where === 'tools.restrict'), true, '首次失败要记账')
+  process.env.LAZY_TOOLS_COOLDOWN_MS = '20'
+  worldTr.fireToolsChange()
+  await new Promise((resolve) => setTimeout(resolve, 120))
+  delete process.env.LAZY_TOOLS_COOLDOWN_MS
+  const hTr2 = await runTool(worldTr, 'lazy_tools_health', {}, agentTr)
+  assert.ok(!worldTr.visibleNames(agentTr).includes('fl_tool'), `恢复后要藏住：${JSON.stringify(worldTr.visibleNames(agentTr))}`)
+  assert.deepEqual(hTr2.unhideable, [], '失败轮不能留下 unhideable 闩锁')
+  ok('systemic 失败后可重试（不锁 unhideable）')
+
+  // 暴力测试 A：正常 world 1000 次 tools/change，不允许增长
+  log('[111] 暴力：正常 world 1000 次 tools/change')
+  const worldBrA = makeWorld()
+  worldBrA.ctx.tools.register({ name: 'br_a', description: 'x', parameters: {}, output: {} })
+  apply(worldBrA.ctx, { groups: [{ id: 'br', match: ['br_a'], defaultOn: false }], autoGroups: 'off' })
+  const agentBrA = worldBrA.createAgent('agent-brute-a')
+  const baseBrA = (await runTool(worldBrA, 'lazy_tools_health', {}, agentBrA)).stats.rebuilds
+  process.env.LAZY_TOOLS_COOLDOWN_MS = '0'
+  for (let i = 0; i < 1000; i += 1) worldBrA.fireToolsChange()
+  delete process.env.LAZY_TOOLS_COOLDOWN_MS
+  const afterBrA = await runTool(worldBrA, 'lazy_tools_health', {}, agentBrA)
+  assert.ok(afterBrA.stats.rebuilds - baseBrA <= 5, `1000 次事件后重建次数失控：${afterBrA.stats.rebuilds - baseBrA}`)
+  ok(`1000 次 tools/change：rebuilds +${afterBrA.stats.rebuilds - baseBrA}`)
+
+  // 暴力测试 B：10 个 agent + 同名遮蔽 + 同步事件，200 次事件后都要收敛
+  log('[112] 暴力：10 个 shadow agent + 同步事件 200 次')
+  const worldBrC = makeWorld()
+  worldBrC.ctx.tools.register({ name: 'sh_global', description: 'x', parameters: {}, output: {} })
+  apply(worldBrC.ctx, { groups: [{ id: 'sh', match: ['sh_*'], defaultOn: false }], autoGroups: 'off' })
+  const agentsBrC = []
+  for (let i = 0; i < 10; i += 1) {
+    const agent = worldBrC.createAgent('agent-shadow-' + i)
+    worldBrC.addScoped(agent, 'sh_global')
+    agentsBrC.push(agent)
+  }
+  worldBrC.setSyncRestrictEvents(true)
+  process.env.LAZY_TOOLS_COOLDOWN_MS = '0'
+  for (let i = 0; i < 200; i += 1) worldBrC.fireToolsChange()
+  delete process.env.LAZY_TOOLS_COOLDOWN_MS
+  for (const agent of agentsBrC) {
+    const h = await runTool(worldBrC, 'lazy_tools_health', {}, agent)
+    assert.deepEqual(h.unhideable, ['sh_global'])
+  }
+  const hGlobalC = await runTool(worldBrC, 'lazy_tools_health', {}, agentsBrC[0])
+  assert.ok(hGlobalC.stats.rebuilds <= 40, `shadow 重建失控（全局）：${JSON.stringify(hGlobalC.stats)}`)
+  ok(`10 个 shadow agent：200 次事件后全局 rebuilds ≤ 40（实际 ${hGlobalC.stats.rebuilds}）`)
+
+  // 暴力测试 C：读不到 restrictableNames + 同步事件 500 次
+  log('[113] 暴力：无 restrictableNames 500 次事件')
+  const worldBrD = makeWorld()
+  worldBrD.ctx.tools.register({ name: 'nv2_global', description: 'x', parameters: {}, output: {} })
+  apply(worldBrD.ctx, { groups: [{ id: 'nv2', match: ['nv2_*'], defaultOn: false }], autoGroups: 'off' })
+  const agentBrD = worldBrD.createAgent('agent-no-view-2')
+  worldBrD.addScoped(agentBrD, 'nv2_global')
+  const viewBrD = worldBrD.ctx.tools.view
+  worldBrD.ctx.tools.view = (agent) => ({ visible: viewBrD(agent).visible })
+  worldBrD.setSyncRestrictEvents(true)
+  process.env.LAZY_TOOLS_COOLDOWN_MS = '0'
+  for (let i = 0; i < 500; i += 1) worldBrD.fireToolsChange()
+  delete process.env.LAZY_TOOLS_COOLDOWN_MS
+  const hBrD = await runTool(worldBrD, 'lazy_tools_health', {}, agentBrD)
+  assert.ok(hBrD.stats.rebuilds <= 4, `无 restrictableNames 时重建失控：${JSON.stringify(hBrD.stats)}`)
+  ok('无 restrictableNames：500 次事件后 rebuilds ≤ 4')
+
+  // 冷读红 2：部分失败不能把失败名字锁进 unhideable（旧 applied 整批布尔会锁）。
+  log('[114] 真实部分失败：p_ok 藏住、p_fail systemic、p_bad 坏名')
+  const worldPart = makeWorld({ nonRestrictable: ['p_bad'] })
+  worldPart.ctx.tools.register({ name: 'p_ok', description: 'x', parameters: {}, output: {} })
+  worldPart.ctx.tools.register({ name: 'p_fail', description: 'x', parameters: {}, output: {} })
+  worldPart.ctx.tools.register({ name: 'p_bad', description: 'x', parameters: {}, output: {} })
+  const undoFail = worldPart.failRestrictSingle('p_fail')
+  apply(worldPart.ctx, { groups: [{ id: 'p', match: ['p_*'], defaultOn: false }], autoGroups: 'off' })
+  const agentPart = worldPart.createAgent('agent-partial')
+  const hPart1 = await runTool(worldPart, 'lazy_tools_health', {}, agentPart)
+  const vis1 = worldPart.visibleNames(agentPart)
+  assert.equal(vis1.includes('p_ok'), false, 'p_ok 应该被藏住')
+  assert.equal(vis1.includes('p_fail'), true, 'p_fail 这轮应该还可见')
+  assert.equal((hPart1.unhideable || []).includes('p_fail'), false, 'transient 的 p_fail 不能锁')
+  assert.equal((hPart1.unhideable || []).includes('p_bad'), true, '坏名 p_bad 应锁')
+  undoFail()
+  process.env.LAZY_TOOLS_COOLDOWN_MS = '0'
+  worldPart.fireToolsChange()
+  delete process.env.LAZY_TOOLS_COOLDOWN_MS
+  const hPart2 = await runTool(worldPart, 'lazy_tools_health', {}, agentPart)
+  assert.equal(worldPart.visibleNames(agentPart).includes('p_fail'), false, '恢复后应重试并藏住 p_fail')
+  assert.equal((hPart2.unhideable || []).includes('p_fail'), false, '恢复后 p_fail 不应留在锁里')
+  ok('真实部分失败：transient 不锁，恢复后藏住')
+
+  // 冷读红 2b：reserved PTC 是 permanent，不能每次事件都重试（旧逻辑 500 事件 501 次重建）。
+  log('[115] reserved PTC：永久闩锁，不无限重建')
+  const worldPtc = makeWorld()
+  worldPtc.ctx.tools.register({ name: 'ptc_tool', description: 'x', parameters: {}, output: {} })
+  worldPtc.reservePtc('ptc_tool')
+  apply(worldPtc.ctx, { groups: [{ id: 'ptc', match: ['ptc_*'], defaultOn: false }], autoGroups: 'off' })
+  const agentPtc = worldPtc.createAgent('agent-ptc')
+  const hPtc1 = await runTool(worldPtc, 'lazy_tools_health', {}, agentPtc)
+  assert.equal((hPtc1.unhideable || []).includes('ptc_tool'), true, 'permanent 名字要锁住')
+  process.env.LAZY_TOOLS_COOLDOWN_MS = '0'
+  for (let i = 0; i < 200; i += 1) worldPtc.fireToolsChange()
+  delete process.env.LAZY_TOOLS_COOLDOWN_MS
+  const hPtc2 = await runTool(worldPtc, 'lazy_tools_health', {}, agentPtc)
+  assert.ok(hPtc2.stats.rebuilds <= 3, `permanent 名字不该反复重建：${JSON.stringify(hPtc2.stats)}`)
+  ok('reserved PTC：200 次事件后 rebuilds ≤ 3')
+
+  log('[116] 晚注册：签名变化清锁，别名变全局后能藏住')
+  const worldLate = makeWorld()
+  apply(worldLate.ctx, { groups: [{ id: 'late', match: ['late_*'], defaultOn: false }], autoGroups: 'off' })
+  const agentLate = worldLate.createAgent('agent-late')
+  worldLate.addScoped(agentLate, 'late_tool') // 只有作用域别名，不可 restrict
+  process.env.LAZY_TOOLS_COOLDOWN_MS = '0'
+  worldLate.fireToolsChange()
+  let hLate = await runTool(worldLate, 'lazy_tools_health', {}, agentLate)
+  assert.equal((hLate.unhideable || []).includes('late_tool'), true, '别名壳应被锁')
+  worldLate.scopedByAgent.get(agentLate).delete('late_tool') // alias 退场
+  worldLate.ctx.tools.register({ name: 'late_tool', description: 'x', parameters: {}, output: {} })
+  worldLate.fireToolsChange() // 签名变化 → 清锁 → 重试
+  delete process.env.LAZY_TOOLS_COOLDOWN_MS
+  hLate = await runTool(worldLate, 'lazy_tools_health', {}, agentLate)
+  assert.equal(worldLate.visibleNames(agentLate).includes('late_tool'), false, '全局注册后应能藏住')
+  assert.equal((hLate.unhideable || []).includes('late_tool'), false, '藏住后不该留锁')
+  ok('晚注册：签名变化清锁，别名变全局后能藏住')
+
+  log('[117] 别名壳被组匹配：锁住，不形成 tools/change 重建链')
+  const worldShim = makeWorld()
+  worldShim.ctx.tools.register({ name: 'al_global', description: 'x', parameters: {}, output: {} })
+  apply(worldShim.ctx, { groups: [{ id: 'al', match: ['al_*'], defaultOn: false }], autoGroups: 'off' })
+  const agentShim = worldShim.createAgent('agent-shim')
+  worldShim.addScoped(agentShim, 'al_shim') // 作用域注册、被组匹配、不可 restrict
+  process.env.LAZY_TOOLS_COOLDOWN_MS = '0'
+  worldShim.fireToolsChange()
+  const baseShim = (await runTool(worldShim, 'lazy_tools_health', {}, agentShim)).stats.rebuilds
+  for (let i = 0; i < 100; i += 1) worldShim.fireToolsChange()
+  delete process.env.LAZY_TOOLS_COOLDOWN_MS
+  const hShim = await runTool(worldShim, 'lazy_tools_health', {}, agentShim)
+  assert.ok(hShim.stats.rebuilds - baseShim <= 2, `别名壳不该每次事件重建：+${hShim.stats.rebuilds - baseShim}`)
+  assert.equal((hShim.unhideable || []).includes('al_shim'), true, '别名壳应被锁')
+  ok('别名壳被组匹配：100 次事件 rebuilds 有界')
+
+  log('[118] 陈旧 hideReport：上轮 transient、本轮退成别名壳，仍要锁')
+  const worldStale = makeWorld()
+  worldStale.ctx.tools.register({ name: 'g_one', description: 'x', parameters: {}, output: {} })
+  worldStale.failRestrictFor('g_one')
+  apply(worldStale.ctx, { groups: [{ id: 'g', match: ['g_*'], defaultOn: false }], autoGroups: 'off' })
+  const agentStale = worldStale.createAgent('agent-stale')
+  const undoStale = worldStale.failRestrictFor('g_one')
+  undoStale()
+  worldStale.registered.delete('g_one') // 退成 scope 别名
+  worldStale.addScoped(agentStale, 'g_one')
+  process.env.LAZY_TOOLS_COOLDOWN_MS = '0'
+  worldStale.fireToolsChange()
+  const baseStale = (await runTool(worldStale, 'lazy_tools_health', {}, agentStale)).stats.rebuilds
+  for (let i = 0; i < 100; i += 1) worldStale.fireToolsChange()
+  delete process.env.LAZY_TOOLS_COOLDOWN_MS
+  const hStale = await runTool(worldStale, 'lazy_tools_health', {}, agentStale)
+  assert.ok(hStale.stats.rebuilds - baseStale <= 2, `陈旧报告不该造成每次事件重建：+${hStale.stats.rebuilds - baseStale}`)
+  assert.equal((hStale.unhideable || []).includes('g_one'), true, '退成别名后应锁住')
+  ok('陈旧 hideReport：退成别名后仍锁，100 次事件有界')
+
   console.log(`\nsmoke: ${checks} 项全过`)
 }
 
-main().catch((error) => {
-  console.error('\nsmoke: 失败')
-  console.error(error && error.stack ? error.stack : String(error))
-  process.exitCode = 1
-})
+if (process.argv[1] && process.argv[1].endsWith('smoke.mjs')) {
+  main().catch((error) => {
+    console.error('\nsmoke: 失败')
+    console.error(error && error.stack ? error.stack : String(error))
+    process.exitCode = 1
+  })
+}
+
+export { makeWorld, runTool, assertJsonSafe }
