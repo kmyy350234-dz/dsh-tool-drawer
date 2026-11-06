@@ -13,15 +13,47 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - name: 璇硶妫€鏌ワ紙瀹夸富 + 瀹㈡埛绔級
+      - name: 语法检查
         run: |
           node --check client.js
           for f in lib/*.js lib/tools/*.js; do node --check "$f"; done
-      - name: 鍐掔儫娴嬭瘯
+      - name: 冒烟
         run: node test/smoke.mjs
-      - name: 瀵规姉娴嬭瘯
+      - name: 对抗
         run: node test/adversarial.mjs
       - name: 门禁（基线 + 异常）
         run: node review/gate.mjs
       - name: 变异（每条新增测试逐条）
         run: node review/mutate.mjs
+
+  host-0.2.2:
+    name: 真实宿主 0.2.2-rc.1
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DSH_HOME: ${{ runner.temp }}/dsh-home
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.9'
+      - name: 安装 DSH 0.2.2-rc.1 与 pnpm
+        run: |
+          npm install --global pnpm@11
+          npm install --global @deepseek-ai/dsh@0.2.2-rc.1
+          dsh --version
+          dsh --version | grep -q '0.2.2-rc.1'
+      - name: 创建临时 profile 并安装本插件
+        run: |
+          dsh --from-default-profile headless --profile ci --dump-config > /dev/null
+          dsh plugin --profile ci add "link:${GITHUB_WORKSPACE}"
+          dsh --profile ci --dump-config > composed.txt
+          grep -q 'dsh-tool-drawer' composed.txt
+      - name: 记录宿主测试结果
+        run: |
+          echo "DSH host 0.2.2-rc.1: plugin composed into profile" > host-0.2.2.txt
+          cat host-0.2.2.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: host-0.2.2-result
+          path: host-0.2.2.txt
