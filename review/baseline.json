@@ -1,0 +1,65 @@
+[
+  {
+    "id": "smoke",
+    "desc": "冒烟全过",
+    "cmd": [
+      "test/smoke.mjs"
+    ],
+    "expectExit": 0,
+    "expectRegex": "smoke: \\d+ 项全过"
+  },
+  {
+    "id": "adversarial",
+    "desc": "对抗全过且 RED 0",
+    "cmd": [
+      "test/adversarial.mjs"
+    ],
+    "expectExit": 0,
+    "expectRegex": "RED 0"
+  },
+  {
+    "id": "tool-names-view",
+    "desc": "toolNames 优先 view（[105] 在冒烟里）",
+    "cmd": [
+      "test/smoke.mjs"
+    ],
+    "expectExit": 0,
+    "expectRegex": "\\[105\\] toolNames 优先 view"
+  },
+  {
+    "id": "empty-view",
+    "desc": "空视图回退 schemas（[107]）",
+    "cmd": [
+      "test/smoke.mjs"
+    ],
+    "expectExit": 0,
+    "expectRegex": "\\[107\\] 空视图必须回退 schemas"
+  },
+  {
+    "id": "gate-integrity",
+    "desc": "门禁完整性负向测试",
+    "cmd": [
+      "review/gate-integrity.test.mjs"
+    ],
+    "expectExit": 0,
+    "expectRegex": "门禁完整性：PASS"
+  },
+  {
+    "id": "config-readdir",
+    "desc": "config profiles 不可读时不崩",
+    "cmd": [
+      "test/config.test.mjs"
+    ],
+    "expectExit": 0,
+    "expectRegex": "config：PASS"
+  },
+  {
+    "id": "54-skip",
+    "desc": "54 skip 语义",
+    "cmd": [
+      "review/check-54-skip.mjs"
+    ],
+    "expectExit": 0,
+    "expectRegex": "54 skip：PASS"
+  }
+]

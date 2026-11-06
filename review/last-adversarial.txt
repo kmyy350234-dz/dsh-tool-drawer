@@ -1,0 +1,41 @@
+=== A. 配置畸形（要求：不抛 + 8 个自救工具注册）===
+ok  A groups=null  — 可加载
+ok  A groups="string"  — 可加载
+ok  A groups=42  — 可加载
+ok  A groups=[null]  — 可加载
+ok  A groups=[{}]  — 可加载
+ok  A match=字符串  — 可加载
+ok  A match=[null]  — 可加载
+ok  A id=数字  — 可加载
+ok  A id=Unicode  — 可加载
+ok  A id 含零字节  — 可加载
+ok  A 重复 id  — 可加载
+ok  A 1000 个组  — 1000 组可加载
+
+=== B. 恶意匹配式（要求：不挂死 + 万能式被忽略 + 记账）===
+ok  B "*" 万能式被忽略并记账  — 忽略 + 记账
+ok  B "re:.*" 万能式被忽略  — 忽略
+ok  B 坏正则 re:( 被忽略并记账  — 记账
+ok  B 超长 pattern（100k 字符）不许把 apply 带崩  — 可加载（坏组被忽略）
+ok  B ReDoS 回溯炸弹不挂死（子进程 3s 上限）  — 3s 内完成 (67ms)
+
+=== C. 脏数据文件（要求：不崩、能记账、默认值可用）===
+ok  C groups.json 非法 JSON  — health 仍可用
+ok  C groups.json 是对象不是数组  — 可加载
+ok  C usage 文件损坏 JSON  — 按空账本处理
+ok  C policy 文件损坏 / 类型错  — 回默认策略
+
+=== D. 压力 ===
+ok  D 5000 工具 + 20 组  — 可加载
+ok  D 连续 100 次 enable/disable  — 100 轮无异常
+ok  D 同一 agent 连续 50 次 tools/change  — 50 次无异常
+
+=== E. 运行时边界 ===
+ok  E 宿主没有 agent.ctx.tools（坏宿主）  — 创建后未抛
+ok  E enable 不存在的名字  — found:false
+ok  E enable 名字含正则元字符（a.b 不能误匹配 aXb）  — 字面匹配
+ok  E Unicode 工具名 enable  — found:true
+ok  E 组 id 与出厂组重名  — 可加载
+
+=== 结果：PASS 29 / KNOWN 0 / YELLOW 0 / RED 0 ===
+

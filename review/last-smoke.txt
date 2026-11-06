@@ -1,0 +1,266 @@
+[1] 载入与注册
+  ok  七个工具都注册上了（0.16.0 由 11 个合并而来）
+[2] agent 创建时按 defaultOn 收起
+  ok  cua 组两个工具被 restrict 掉，defaultOn:true 的组没动
+  ok  status 报 cua: on=false mode=hide, matched=2, visible=0
+[3] enable / disable 往返
+  ok  enable 之后限制解除、两个工具回来
+[3a] only：只放指定的几个工具
+  ok  only 白名单生效、越界/空数组都被拒（没抛异常）
+  ok  disable 之后限制重新挂上，mode 回到 hide（only 被清掉）
+  ok  未知组返回 error 而不是抛异常
+[3b] list：组关着也认得名字、开着标可见
+  ok  list 行为正确（关=知道但不可见、开=可见、省略组=全部已知）
+[3c] re: 前缀的正则匹配式
+  ok  re: 正则分组可用（screen 1 / input 1）
+[4] list {ungrouped} / health 的输出
+  ok  list {ungrouped} 输出 JSON-safe：前缀分桶 + 未归组工具，且没有 cua 前缀
+  ok  health: 五个契约全绿，agentCreated=1，lastHidden=2
+[5] 契约缺失时不崩
+  ok  宿主缺 register/schemas 时 apply 不抛（插件不炸启动）
+[6] restrict 拒绝时记账，不阻断
+  ok  restrict 抛错被记账（restrictFailures=1），工具仍可用
+[7] 重载补应用：apply 时已经活着的 agent 也要被收
+  ok  apply 时把限制补到已存在的 agent（不用等 agent/created 再触发一次）
+[8] 插件卸载/重载：限制必须随 ctx.effect 一起解除（不留孤儿）
+  ok  卸载时限制被解除干净，重复解除不抛
+[9] 常驻提示段：systemPrompt 在就挂一段，不在就跳过
+  ok  systemPrompt 段已挂上，正文包含组 id 与排查入口
+[10] 漏网与 expect 计数
+  ok  漏网工具被 stray 抓到、healthy 变 false
+  ok  expect 对不上会报警且 healthy=false（matched 1 ≠ expect 5）
+  ok  写在 keep 里的常驻工具不会被误报成漏网
+[11] tools/change：后注册的工具会触发补收起
+  ok  插件后于工具加载时，tools/change 会把新工具补收进来
+[12] 批量开关与用量统计
+  ok  批量 enable 生效、only+多组被拒、usage 记账
+[13] 作用域已销毁：不算失败，但必须标 applied=no
+  ok  已销毁作用域的竞争不计失败，lastHidden.applied=false
+[14] 同一进程内重新 apply：先收回旧限制再重建（不留孤儿）
+  ok  重新 apply 时旧限制被收回再重建，state 能重新看见工具（matched=1）
+[15] resolve：按名字一步开启
+  ok  enable {name}：一步开一个（only 语义）、片段能匹配、找不到给提示
+[16] autoHints 已删除（0.17.0）：写它也不预开，更不计数
+  ok  autoHints 被忽略：不自动开组；stats 不再有 autoOpened / userMessages
+[17] 设置页策略文件：只收认识的键
+  ok  非法的 level/天数/工具数被丢弃，字符串数组过滤干净
+[18] 用量账本：热/冷判定
+  ok  7 天内用过=热、1 天阈值=冷、无记录=冷、阈值 0=恒热、无组工具只记工具名
+[19] 用量落盘：调用一次 → 账本有记录、组变热
+  ok  pre-execute 记账 → usage 文件写出组时间戳、status.hot=true
+[20] 会话级覆盖：lazy_tools_mode 立刻重算默认开哪些组
+  ok  idleDays:0 → 全开；reset → 回全局（无历史 ⇒ 又收起）
+[21] 自愈守卫：被藏工具的调用被拦下、自动补开
+  ok  守卫补开即放行 + 工具可见 + health.selfHealed=1
+[22] 斜杠命令 /lazy-tools：改当前会话、乱输入报错
+  ok  /lazy-tools high 生效；无参数读状态；乱输入报错
+[23] 清空之后还能自己捞回来（设计红线）
+  ok  立刻清空 → resolve 单个 / enable 整组 都能捞回
+[24] 三处名字必须一致（2026-10-24 五次恢复模式的根因）
+  ok  包名 / 客户端 id / patch 行名三处一致；版本号合法；bundle 声明在
+[25] 自动分组：切分、白名单、80% 规则、上限
+  ok  切分 / 白名单 / 覆盖淘汰 / 数量上限 都对
+[26] 自动分组：子族覆盖不足时不许拆大族（mnemon 17 不该碎成两个 3）
+  ok  子族覆盖不足 80% 时保留整族
+[27] autoGroups=on：真的建组并按规则收起
+  ok  自动组已创建且默认收起
+[28] 冷启动顺序：apply 时没工具，会话开始才注册 → 仍要建出自动组
+  ok  会话开始时补算生效
+[29] extraGroups：追加而不替换默认四组
+  ok  extraGroups 追加成功、默认组保留
+[30] 分类交接：save_groups 必须拒绝常驻工具
+  ok  save_groups 不传 groups 给材料、带 groups 时拒绝常驻与单工具组
+[31] 分类提示开关：默认开，关掉后提示段里不出现
+  ok  分类提示默认开、可关，关掉不影响基础提示
+[32] 宿主没挂载的组：静音待命，不拉低 healthy
+  ok  [32] 注册了但不在工具表 → blocked:agent-filtered、不报警、healthy 仍 true、notes 带实测原因
+[33] 宿主修好了：监控自动恢复，不用做任何事
+  ok  挂回来后 blocked 消失、visible=2 —— 监控自己恢复
+[34] 挂过又消失：这个必须响
+  ok  出现过又消失 → 报警、healthy=false（静音没有把真异常一起吞掉）
+[35] bench 口径：可见 + 收起 + 宿主没挂 === 注册总数
+  ok  bench：收起 2 + absent 1 + 注册内可见 (tools-3) = 注册总数，账能对上
+[36] tools/change 冷却：先检查再盖章，3 秒内新注册的工具不能漏
+  ok  冷启动 3 秒内新增的工具仍被收起（冷却只限重建频率，不吞检查）
+[37] 设置页只改档位时，生效天数跟着档位走
+  ok  档位→天数跟随；显式天数优先
+[38] 单工具热度：大组里只用 1 个 → 只放那一个
+  ok  大组只用 1 个：only 只放那一个（占比 10% < 30%）
+[44] 热工具占比够高 → 整组开（对照组）
+  ok  小组里过半常用 → 整组开（占比阈值生效）
+[39] 常驻提示带组用途（能力目录）
+  ok  提示段列「组 id(用途: 完整工具名)」—— 自愈不用再猜名字，也不会念错插件
+[40] glob 里的 ? 必须按字面量转义
+  ok  `?` 转义后只匹配字面量（`*` 仍是通配符）
+[41] 重入 rebuild：连续打开两个关着的组，不许留下孤儿限制
+  ok  连续开两个组：没有孤儿限制，两个工具都真的回来了
+[42] 冷却期内的晚注册：不许漏（要延迟核对一次）
+  ok  冷却期内的第二次晚注册不会永远漏着（延迟核对生效）
+[43] firstTryRate：无自愈=1，且分母只数组内调用
+  ok  firstTryRate = 1 - 自愈/组内调用；核心工具调用不进分母
+[45] 热工具全放（20 成员 5 热 = 25% → 放 5 个，不再有 CAP）
+  ok  only = 热的全放（旧 slice(0,3) 会漏掉 2 个）
+[46] warmRatio 可配（0.5）：5/12 不够热 → only 5
+  ok  warmRatio 可配，且 status.hot 与决策同一语义
+[47] status.hot 不再用旧语义：1/12 热 → hot=false，但 only 放 1 个
+  ok  hot 与决策一致；组级时间戳只留作 lastUsed
+[48] 吸纳型组：多出来的成员不算漂移（expect 是下限）
+  ok  吸纳型组：matched 3 > expect 2 不告警（healthy 不被误伤）
+[49] 少了的成员才算漂移（下限语义的反面）
+  ok  matched < expect ⇒ 告警（改名/没加载/正则漏）
+[50] minTools 填 2 时，生效值是 3（不许静默失效）
+  ok  minTools 下限 3 在加载时夹住，health 显示生效值
+[51] 能力目录：最近用过的优先（不按累计次数）
+  ok  目录排序：最近用过的优先；不按累计次数（账本没有窗口内计数）
+[52] 会话档位生效时，status.hot 与决策同源
+  ok  会话档位下 status 与决策同源（不再各算各的天数）
+[53] 旧工具名给指路，不静默消失
+  ok  旧名 scan/bench/classify/resolve 都返回「已并入 X」
+[54] health 默认精简：保留 client、去掉账本；full 给全量
+  ok  默认精简保留 client + stats；full 才给 usage / 探针
+[55] 计数器跨重载持久化：重载后 toolCalls 从账本恢复
+  ok  toolCalls 落盘并在重载后恢复（指标不再每次归零）
+[56] 手写组 match:["*"] 不能吞掉常驻/自救工具
+  ok  手写 match:* 只收普通工具，自救工具永远可见
+[57] 配置里的组全无效：不许静默零注册
+  ok  组全无效 → 退回默认组并记账，工具照常注册（不再静默死掉）
+[58] expect 非有限数不许进 status
+  ok  expect 非法值被夹掉，status 仍 JSON-safe
+[59] 兼容两代宿主工具名：pwsh 与 ops_* 都受保护
+  ok  两代宿主工具名（pwsh / ops_*）都在保护清单里
+[60] 手写组匹配整张表 → 忽略并记账（不依赖宿主工具名）
+  ok  全匹配手写组被忽略并可见记账（宿主换名字也照样兜住）
+[60b] 手写组用正则绕过哨兵：结构判定仍要挡住
+  ok  正则绕过哨兵：结构判定兜住
+[60c] 万能匹配 + 晚注册：apply 时没有工具，注册后仍要挡住
+  ok  晚注册：万能组仍被挡住
+[61] 受管角色：preset 决定策略、封闭默认、自愈不绕过
+  ok  受管角色只认 preset/parentSession，封闭默认生效，自愈不绕过
+[62] 受管角色：preset 在创建后才选中（竞态）
+  ok  preset 晚选中也能重算角色并重建（竞态兜住）
+[63] 隔离：放行后仍不可见 ⇒ 标成外部 deny
+  ok  外部 deny 交叉探测：放行后仍不可见的名字被标出来
+[64] 会话级目录：只列本会话挂载的组，空则整段消失
+  ok  会话级目录：没挂/被外部挡的组不广告、空则空段、认不出 scope 退回旧行为
+[65] 会话级目录：分类提示只在默认 preset 的会话里出现
+  ok  分类提示只在默认 preset 会话出现；角色会话保留能力目录、不催分组
+[66] 会话级目录：视图路径的三种退化
+  ok  视图路径：空视图/抛错/没有视图都退回 schemas，组不丢
+[67] 会话级目录：只有提醒、没有目录时也不许空段
+  ok  一个分组工具都没挂 + 有散装工具 ⇒ 只输出提醒，不整段消失
+[68] 会话级目录：受管角色不广告未授权的组
+  ok  受管角色：只列授权组，未授权组即使被我们藏了也不广告
+[69] enable 回读：外部挡着时不许报「成功」
+  ok  enable 回读：外部挡着报 applied:false，正常组照旧成功
+[70] 策略落盘：部分补丁不许冲掉其他设置
+  ok  策略落盘：补丁合并进旧策略，未提交的键不丢
+[71] 受管角色：allowGroups 写错不许把会话锁死
+  ok  受管角色：allowGroups 写错会响；全错停用不锁死；部分错只报不删
+[72] 会话快照：health.session 与提示段同一份判定
+  ok  会话快照：列出的组与提示段同一份判定；读不到工具表时 visible=null，不编数字
+[74] 角色来源：label 尾段（厂商无关）
+  ok  角色来源：label 尾段优先于 subagent 键，非子会话不认 label
+[75] policy 热重载：改文件即生效，且能看出是谁配的
+  ok  policy 热重载：mtime 变了就重读，AI 配的角色带 createdBy/basis
+[76] lazy_tools_roles：AI 自己配角色，工具层守住三条不变量
+  ok  lazy_tools_roles：AI 配角色——不存在的组 / * / 缺 basis 全被拒，写入即生效
+[77] 角色没配时要说出来：health.session.roleHint
+  ok  角色没配：session.roleHint 点名 + 给出下一步；配好了就不吵
+[78] 冷读回归：坏 policy 不清角色；写角色不洗设置
+  ok  冷读回归：坏文件不清角色且要响；写角色拒绝洗文件、保留 level/presets/已有角色
+[79] 冷读第二轮回归：投影 label / 启动读失败要响 / auto-* 角色不许被误删
+  ok  冷读第二轮回归：投影 label 认得出；启动读失败会红；auto-* 角色不被误删
+[80] 冷读第三轮回归：组晚到后 auto-* 角色自动恢复；合法非对象 policy 要响；热重载坏形状保持旧值
+  ok  冷读第三轮回归：组晚到恢复 / 非对象 policy 要响 / 热重载坏形状保旧值
+[81] MyGO 真实标签格式：带任务摘要也要认出角色
+  ok  MyGO 真实标签（带摘要）也能认出角色并收紧工具面
+[82] 全组枚举 = 变相的 *，必须被拒
+  ok  全组枚举 = 变相 * ：被拒，并说明只允许人手改文件
+[83] 通用词不当角色：worker / backup / 纯数字都跳过
+  ok  通用词护栏：worker/backup/数字不落角色，MyGO 的 hermes 照常
+[84] 写角色时告知：哪些未归组工具会被藏
+  ok  写角色时列出会被藏的未归组工具（防把编排器求助工具收掉）
+[85] 一个坏名字不许让整批限制静默失效
+  ok  不可限制的名字：逐个跳过、其余照藏、留一条可查错误
+[86] 受管会话：被藏掉的未归组工具要在 health 里点名
+  ok  受管会话：hiddenUngrouped 点名被藏的未归组工具
+[89] hideTools 退化：坏名字逐个跳过；系统性错误不误诊；坏名字进缓存
+  ok  hideTools 退化加固：坏名字缓存 / 系统性错误只一次 / 脏输入不抛 / 计数按真实调用
+[90] hideTools 反复退化 50 次：调用数线性、所有 lift 撤干净
+  ok  反复退化 50 次：调用数线性、全部 lift 后 0 层
+[91] 角色表不吃原型链：__proto__ / constructor 都不许借到值
+  ok  角色表原型链：__proto__ / constructor 都被拒
+[92] label 解析确定性：只认 vendor 后第一段，摘要词不参与
+  ok  label 确定性：摘要词不参与、vendor 后第一段生效
+[93] 与作用域内工具共存：别名不被抽屉误藏，也不产生「不可限制」错误
+  ok  与作用域内工具共存：别名不被误藏、无错误记录
+[94] disable 不接受 name：传了只报错，不改会话模式
+  ok  disable 传 name：只报错、不改模式
+[95] allowGroups: [] 合法，语义 = 只留 CORE
+  ok  allowGroups: [] = 只留 CORE
+[96] health clear：清掉瞬时错误后 healthy 回真
+  ok  health clear：healthy 回真
+[97] 宿主没有 tools.guard：必须记账且 healthy=false
+  ok  缺 guard：记账 + 红
+[98] writeUserGroups 指向新目录时不许 ENOENT
+  ok  writeUserGroups：目录跟文件走
+[99] 桥写操作接线：服务端验头 + 客户端两条 POST 都带头
+  ok  桥写操作：服务端验头、客户端两处带头
+[100] 缺 guard 时 clear 拒绝清空（不许假绿）
+  ok  缺 guard：clear 拒绝、healthy 仍红
+[101] 桥鉴权行为：无头 403、带头 200、GET 不受限
+  ok  桥鉴权行为：无头 403、带头 200、GET 放行
+[102] allowGroups ['*'] 语义：状态与放行一致
+  ok  allowGroups ['*']：状态 all、工具可见
+[103] 桥 Host 必须回环：evil.example → 403
+  ok  桥 Host：非回环 403
+[104] seenErrors 与 errors 同步：第 1 种错误挤掉后能复发
+  ok  seenErrors 同步：挤掉的错误可复发
+[105] toolNames 优先 view（不退回 schemas）
+  ok  toolNames 优先 view（schemas 全局视图不误判）
+[106] view 抛错时退回 schemas，不变成空
+  ok  view 抛错：退回 schemas + 记 tools.view
+[107] 空视图必须回退 schemas（不许静默当成没有工具）
+  ok  空视图回退 schemas（同 visibleNames 不变量）
+[108] scope 同名遮蔽：不反复重建（同步事件 + 3 秒链）
+  ok  scope 同名遮蔽：允许一次发现，之后不再重建
+[109] 读不到 restrictableNames：仍不形成重建链
+  ok  restrictableNames 不可读：不重建
+[110] systemic restrict 失败后：下一轮能重试、不锁 unhideable
+  ok  systemic 失败后可重试（不锁 unhideable）
+[111] 暴力：正常 world 1000 次 tools/change
+  ok  1000 次 tools/change：rebuilds +0
+[112] 暴力：10 个 shadow agent + 同步事件 200 次
+  ok  10 个 shadow agent：200 次事件后全局 rebuilds ≤ 40（实际 20）
+[113] 暴力：无 restrictableNames 500 次事件
+  ok  无 restrictableNames：500 次事件后 rebuilds ≤ 4
+[114] 真实部分失败：p_ok 藏住、p_fail systemic、p_bad 坏名
+  ok  真实部分失败：transient 不锁，恢复后藏住
+[115] reserved PTC：永久闩锁，不无限重建
+  ok  reserved PTC：200 次事件后 rebuilds ≤ 3
+[116] 晚注册：签名变化清锁，别名变全局后能藏住
+  ok  晚注册：签名变化清锁，别名变全局后能藏住
+[117] 别名壳被组匹配：锁住，不形成 tools/change 重建链
+  ok  别名壳被组匹配：100 次事件 rebuilds 有界
+[118] 陈旧 hideReport：上轮 transient、本轮退成别名壳，仍要锁
+  ok  陈旧 hideReport：退成别名后仍锁，100 次事件有界
+
+smoke: 126 项全过
+
+[lazy-tools] tools.restrict: 这些名字不可限制（已逐个跳过，其余照常隐藏）：bad_name
+[lazy-tools] tools.restrict: 限制失败（非名单问题，已中止逐个重试）：restrict backend unavailable
+[lazy-tools] tools.restrict: 限制失败（非名单问题，已中止逐个重试）：restrict backend failed while resolving unknown tool names
+[lazy-tools] tools.restrict: 这些名字不可限制（已逐个跳过，其余照常隐藏）：bad_a, bad_b
+[lazy-tools] tools.restrict: 这些名字不可限制（已逐个跳过，其余照常隐藏）：run_code
+[lazy-tools] tools.restrict: 这些名字不可限制（已逐个跳过，其余照常隐藏）：bad_name
+[lazy-tools] probe: e1
+[lazy-tools] probe: e2
+[lazy-tools] probe: e3
+[lazy-tools] probe: e4
+[lazy-tools] probe: e5
+[lazy-tools] probe: e6
+[lazy-tools] probe: e7
+[lazy-tools] probe: e8
+[lazy-tools] probe: e9
+[lazy-tools] probe: e1
+[lazy-tools] tools.view: view boom

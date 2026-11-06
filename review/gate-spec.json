@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "authority": "PROCESS.md",
+  "releaseConditions": [
+    "version+changelog",
+    "smoke+adversarial x2",
+    "coldread verdict",
+    "encoding",
+    "consistency",
+    "malignant 4/4",
+    "git clean"
+  ],
+  "notSkippable": [
+    "version",
+    "coldread",
+    "malignant",
+    "git",
+    "smoke-first",
+    "adversarial",
+    "consistency"
+  ],
+  "skippable": [
+    "smoke",
+    "encoding"
+  ],
+  "standingReviewers": 2,
+  "mutationPolicy": "per-test",
+  "postRelease": {
+    "externalReview": 1,
+    "p0": "next-version-first-ticket"
+  },
+  "humanReview": {
+    "release": false,
+    "publicActions": true
+  }
+}

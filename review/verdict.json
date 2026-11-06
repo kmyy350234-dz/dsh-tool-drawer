@@ -1,0 +1,15 @@
+{
+  "version": "0.18.8",
+  "report": "C:\\deepsleep脚本工程\\perf-\\冷读-0.18.8.md",
+  "exists": true,
+  "type": "cold",
+  "red": 0,
+  "trackA": 0,
+  "trackB": 0,
+  "unverified": 0,
+  "baseline": 7,
+  "baselineActual": 7,
+  "sha256": "2d3bf851bad215c6",
+  "ok": true,
+  "reasons": []
+}

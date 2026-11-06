@@ -1,0 +1,8 @@
+{
+  "jobs": [
+    "smoke",
+    "adversarial"
+  ],
+  "exitFailures": 0,
+  "anomalies": []
+}

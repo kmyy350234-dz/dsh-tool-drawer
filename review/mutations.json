@@ -1,0 +1,58 @@
+[
+  {
+    "id": "no-unhideable-latch",
+    "file": "lib/index.js",
+    "find": "    st.unhideable = wanted.filter((name) => stillVisible.includes(name) && !transient.has(name))",
+    "replace": "    st.unhideable = []",
+    "expectText": "作用域遮蔽不该形成 3 秒重建链"
+  },
+  {
+    "id": "stale-hidereport",
+    "file": "lib/index.js",
+    "find": "    const transient = hidden.length > 0 ? new Set(hideReport.transient || []) : new Set()",
+    "replace": "    const transient = new Set(hideReport.transient || [])",
+    "expectText": "陈旧报告不该造成每次事件重建"
+  },
+  {
+    "id": "old-batch-boolean",
+    "file": "lib/index.js",
+    "find": "    st.unhideable = wanted.filter((name) => stillVisible.includes(name) && !transient.has(name))",
+    "replace": "    st.unhideable = hidden.length > 0 && !applied ? [] : wanted.filter((name) => stillVisible.includes(name))",
+    "expectText": "transient 的 p_fail 不能锁"
+  },
+  {
+    "id": "universal-probes",
+    "file": "lib/index.js",
+    "find": "const universal = res.some((re) => probes.every((probe) => re.test(probe)))",
+    "replace": "const universal = false",
+    "expectText": "匹配全部工具的手写组必须被忽略"
+  },
+  {
+    "id": "managed-mode-reject",
+    "file": "lib/index.js",
+    "find": "if (st.managed) return { error: '受管会话由角色决定工具面：mode / 收纳本对话不生效' }",
+    "replace": "if (false) return { error: '受管会话由角色决定工具面：mode / 收纳本对话不生效' }",
+    "expectText": "受管会话里 mode 必须明确拒绝"
+  },
+  {
+    "id": "mtime-value",
+    "file": "lib/api.js",
+    "find": "options.setPolicyMtime(policyFileMtime())",
+    "replace": "options.setPolicyMtime(0)",
+    "expectText": "追平的 mtime 必须是有效值"
+  },
+  {
+    "id": "hotratio-round",
+    "file": "lib/usage.js",
+    "find": "return total === 0 ? 0 : hotCount / total",
+    "replace": "return total === 0 ? 0 : Math.round((hotCount / total) * 100) / 100",
+    "expectText": "hotRatio 不许取整"
+  },
+  {
+    "id": "explicit-clear",
+    "file": "lib/roles.js",
+    "find": "const explicitClear = Boolean(raw && typeof raw === 'object' && !Array.isArray(raw) && Object.keys(raw).length === 0)",
+    "replace": "const explicitClear = false",
+    "expectText": "空对象必须清空角色"
+  }
+]
