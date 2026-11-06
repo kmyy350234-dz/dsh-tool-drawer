@@ -35,6 +35,18 @@ window.__ModuleLoader__.load({
       medium: tr('中（默认）', 'Medium (default)'),
       high: tr('高（激进）', 'High (aggressive)'),
     }
+    // 角色工具面（用户口中的「面具」）：勾选 = 该角色在 label 下按 allowGroups 裁工具。
+    // 默认值与 cordis.patch.yml 的 managedRoles 保持一致；UI 只控制「启用/停用」，细粒度组仍可在配置里改。
+    const ROLE_MASKS = {
+      review: { allowGroups: ['browser-heavy'], unknown: 'hide' },
+      build: { allowGroups: ['*'], unknown: 'show' },
+      research: { allowGroups: ['web', 'browser-heavy'], unknown: 'hide' },
+    }
+    const ROLE_LABELS = {
+      review: tr('review（审阅）', 'review'),
+      build: tr('build（实现）', 'build'),
+      research: tr('research（调研）', 'research'),
+    }
 
     async function request(path, body) {
       const options = { headers: { 'content-type': 'application/json', 'x-lazy-tools': '1' } }
@@ -138,6 +150,10 @@ window.__ModuleLoader__.load({
       const [error, setError] = React.useState('')
       // 用户有没有手改过「闲置天数」：没改过就让档位决定天数（2026-10-29 修 bug 2 的客户端半边）
       const [daysTouched, setDaysTouched] = React.useState(false)
+      const [newRoleName, setNewRoleName] = React.useState('')
+      const [newRoleGroups, setNewRoleGroups] = React.useState([])
+      const [groupCatalog, setGroupCatalog] = React.useState([])
+      const [roleError, setRoleError] = React.useState('')
 
       React.useEffect(() => {
         let alive = true
@@ -145,6 +161,7 @@ window.__ModuleLoader__.load({
           .then((data) => {
             if (!alive) return
             setState(data)
+            setGroupCatalog(Array.isArray(data.groups) ? data.groups : [])
             setForm({
               level: data.policy.level,
               idleDays: String(data.policy.idleDays),
@@ -156,6 +173,9 @@ window.__ModuleLoader__.load({
               showClear: data.policy.showClear === true,
               classifyNudge: data.policy.classifyNudge !== false,
               autoGroups: data.policy.autoGroups || 'on',
+              managedRoles: data.policy.managedRoles && typeof data.policy.managedRoles === 'object'
+                ? data.policy.managedRoles
+                : {},
             })
           })
           .catch((err) => alive && setError(err.message))
@@ -188,6 +208,52 @@ window.__ModuleLoader__.load({
         setStatus('')
       }
 
+      const setRole = (role) => (event) => {
+        const checked = Boolean(event && event.target && event.target.checked)
+        setForm((prev) => {
+          const next = { ...(prev.managedRoles || {}) }
+          if (checked) {
+            if (!next[role]) next[role] = ROLE_MASKS[role] || { allowGroups: [], unknown: 'hide' }
+          } else {
+            delete next[role]
+          }
+          return { ...prev, managedRoles: next }
+        })
+        setStatus('')
+      }
+
+      const addRole = () => {
+        const name = String(newRoleName || '').trim().toLowerCase()
+        if (!/^[A-Za-z0-9_-]+$/.test(name)) {
+          setRoleError(tr('角色名只能用字母、数字、_、-（它会匹配 label 的第一段）', 'Role names: letters, digits, _, - (matches the first label segment)'))
+          return
+        }
+        const groups = Array.isArray(newRoleGroups) ? newRoleGroups : []
+        setForm((prev) => ({
+          ...prev,
+          managedRoles: {
+            ...(prev.managedRoles || {}),
+            [name]: { allowGroups: groups, unknown: 'hide' },
+          },
+        }))
+        setNewRoleName('')
+        setNewRoleGroups([])
+        setRoleError('')
+        setStatus('')
+      }
+
+      const refreshGroups = async () => {
+        try {
+          const data = await request('/state')
+          setState(data)
+          setGroupCatalog(Array.isArray(data.groups) ? data.groups : [])
+          setStatus(tr('分组列表已刷新', 'Group list refreshed'))
+          setError('')
+        } catch (err) {
+          setError(err.message)
+        }
+      }
+
       const save = async () => {
         setError('')
         setStatus(tr('保存中…', 'Saving…'))
@@ -201,6 +267,7 @@ window.__ModuleLoader__.load({
           showClear: form.showClear === true,
           classifyNudge: form.classifyNudge !== false,
           autoGroups: form.autoGroups || 'on',
+          managedRoles: form.managedRoles || {},
         }
         // 空字符串不能变成 Number('') = 0 —— 0 在这里的意思是「不按时间收敛 = 全开」。
         // 规则：手改过、或填的数与当前档位天数不同 → 下发；否则不下发，让宿主按档位算。
@@ -235,6 +302,8 @@ window.__ModuleLoader__.load({
         : ''
 
       // 基础页只留大多数人在意的几格；其余进「高级设置」（原生 <details>，不占注意力）。
+      // 旧配置里可能有 re 之类历史角色，也列出来，别让它隐身。
+      const roleKeys = [...new Set([...Object.keys(ROLE_MASKS), ...Object.keys(form.managedRoles || {})])]
       return h(
         'div',
         { style: styles.wrap },
@@ -278,6 +347,82 @@ window.__ModuleLoader__.load({
             tr('在输入框上方显示「收纳本对话工具」按钮', 'Show the stow-now button above the composer'),
           ),
           h('span', { style: styles.hint }, tr('与档位控件互相独立：只想要档位就不勾它；想一键把本对话的工具全收纳再勾。', 'Independent of the level control. Leave it off unless you want a one-click stow for this conversation.')),
+        ),
+        h(
+          'div',
+          { style: styles.row },
+          h('label', { style: styles.label }, tr('角色工具面（默认关闭）', 'Role masks (off by default)')),
+          h(
+            'div',
+            { style: { display: 'flex', gap: '14px', flexWrap: 'wrap' } },
+            roleKeys.map((role) =>
+              h(
+                'label',
+                { key: role, style: { ...styles.label, display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 400 } },
+                h('input', {
+                  type: 'checkbox',
+                  checked: Boolean(form.managedRoles && form.managedRoles[role]),
+                  onChange: setRole(role),
+                }),
+                ROLE_LABELS[role] || role,
+                h('span', { style: { opacity: 0.65, fontSize: '12px' } }, (() => {
+                  const groups = form.managedRoles && form.managedRoles[role] && form.managedRoles[role].allowGroups
+                  return Array.isArray(groups) ? (groups.length ? groups.join(', ') : 'CORE only') : ''
+                })()),
+              ),
+            ),
+          ),
+          h(
+            'div',
+            { style: { display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center', marginTop: '4px' } },
+            h('input', {
+              style: styles.input,
+              placeholder: tr('自定义角色名', 'Custom role'),
+              value: newRoleName,
+              onChange: (event) => setNewRoleName(event.target.value),
+            }),
+            h('button', { style: styles.button, type: 'button', onClick: refreshGroups }, tr('刷新分组', 'Refresh groups')),
+          ),
+          h('span', { style: styles.hint }, tr('从当前所有工具组勾选；勾“全部”等于 allowGroups:["*"]；不勾任何组 = 只留常驻工具。', 'Pick from the current groups; All = allowGroups:["*"]; none = core tools only.')),
+          h(
+            'div',
+            { style: { display: 'flex', gap: '10px', flexWrap: 'wrap' } },
+            groupCatalog.map((g) =>
+              h(
+                'label',
+                { key: g.id, style: { ...styles.label, display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 400, fontSize: '12px' } },
+                h('input', {
+                  type: 'checkbox',
+                  checked: newRoleGroups.includes(g.id),
+                  onChange: (event) => {
+                    const checked = Boolean(event && event.target && event.target.checked)
+                    setNewRoleGroups((prev) => checked ? [...prev.filter((x) => x !== g.id), g.id] : prev.filter((x) => x !== g.id))
+                  },
+                }),
+                `${g.title || g.id} (${g.id})`,
+              ),
+            ),
+            h(
+              'label',
+              { style: { ...styles.label, display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 400, fontSize: '12px' } },
+              h('input', {
+                type: 'checkbox',
+                checked: newRoleGroups.includes('*'),
+                onChange: (event) => setNewRoleGroups(event.target.checked ? ['*'] : []),
+              }),
+              tr('全部 (*)', 'All (*)'),
+            ),
+          ),
+          h('button', { style: styles.button, type: 'button', onClick: addRole }, tr('添加角色', 'Add role')),
+          roleError ? h('span', { style: styles.error }, roleError) : null,
+          h(
+            'span',
+            { style: styles.hint },
+            tr(
+              '默认关闭：勾选后 label 为 review/build/research 时按角色裁工具面；review/research 隐藏 edit/write。取消勾选 = 该角色不再裁工具面，下次会话/标签生效。自定义角色也可在下面加。',
+              'Off by default. Once checked, review/build/research labels apply a role-scoped tool surface; review/research hide edit/write. Uncheck to stop masking for that role (next session/label). Add custom roles below.',
+            ),
+          ),
         ),
         h(
           'div',
@@ -436,7 +581,8 @@ window.__ModuleLoader__.load({
         error
           ? error
           : hiddenTools > 0
-            ? tr(`已收纳 ${hiddenTools} 个工具 · 自动取出 ${selfHealed} 次`, `${hiddenTools} stowed · ${selfHealed} auto-restored`)
+            // hiddenTools 和 selfHealed 都取本对话状态；全局累计只看 health.stats.selfHealed，不再混入口袋行。
+            ? tr(`本对话已收纳 ${hiddenTools} 个工具 · 本对话累计自动取出 ${selfHealed} 次`, `This conversation: ${hiddenTools} stowed · this conversation auto-restored: ${selfHealed}`)
             : tr('没有收纳中的工具', 'nothing stowed'),
       )
 

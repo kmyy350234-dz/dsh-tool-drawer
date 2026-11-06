@@ -7,7 +7,13 @@ import { fileURLToPath } from 'node:url'
 const here = dirname(fileURLToPath(import.meta.url))
 const ps1Path = join(here, '..', '..', '..', 'perf-', '54-发版.ps1')
 if (!existsSync(ps1Path)) {
-  console.log('54 skip：PASS（SKIP：本环境没有 perf-/54-发版.ps1）')
+  // 源仓（有 AGENTS.md/perf-）缺 54 = 真问题；发布仓/公开包本来就不带 perf-，这里必须 SKIP。
+  const sourceLayout = existsSync(join(here, '..', '..', '..', 'AGENTS.md'))
+  if (sourceLayout) {
+    console.log('54 skip：UNVERIFIED（源仓缺 perf-/54-发版.ps1，基线不能算绿）')
+    process.exit(1)
+  }
+  console.log('54 skip：PASS（SKIP：发布包布局，不带 perf-/54-发版.ps1）')
   process.exit(0)
 }
 const ps1 = readFileSync(ps1Path, 'utf8')
@@ -42,7 +48,11 @@ const findingsPos = ps1.indexOf("Step '6h/7' 'findings 收敛'")
 const mutPos = ps1.indexOf("Step '6g/7' '变异'")
 check('findings 步骤存在（6h/7）', findingsPos > 0, `pos=${findingsPos}`)
 check('findings 步骤排在变异（6g）之后', mutPos > 0 && findingsPos > mutPos, `findings=${findingsPos} mut=${mutPos}`)
-check('findings 无台账时 PASS（不卡老发版）', /Step '6h\/7' 'findings 收敛' \$true '无台账/.test(ps1))
+check('findings 无台账时 PASS（不卡老发版）', (() => {
+  const assigned = /\$findingsDetail = '无台账[^']*'/.test(ps1)
+  const passed = /Step '6h\/7' 'findings 收敛' \$true \$findingsDetail/.test(ps1)
+  return assigned && passed
+})())
 check('findings 台账路径来自 $SrcRepo', /\$findingsFile = Join-Path \$SrcRepo 'review\/findings\.json'/.test(ps1))
 check('findings 调 findings.mjs status', /& \$gateNode \$findingsScript status/.test(ps1))
 check('findings 有台账时不可跳过', spec.notSkippable.includes('findings'))

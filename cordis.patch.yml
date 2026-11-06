@@ -57,10 +57,3 @@
             title: 视觉·重
             defaultOn: false
             expect: 8
-        managedRoles:
-          review:
-            allowGroups: [browser-heavy]
-          build:
-            allowGroups: ['*']
-          research:
-            allowGroups: [web, browser-heavy]

@@ -7,7 +7,7 @@
 // 跑法：node test/smoke.mjs   （退出码 0 = 全过）
 
 import assert from 'node:assert/strict'
-import { apply } from '../lib/index.js'
+import { apply, sessionSelfHealed } from '../lib/index.js'
 import { normalizePolicy, mergePolicyForStorage } from '../lib/api.js'
 import { hotRatio, isToolHot, recordUsage, LEVEL_DAYS, DAY } from '../lib/usage.js'
 import { createHost } from '../lib/host.js'
@@ -758,6 +758,11 @@ async function main() {
   assert.ok((worldH.visibleNames(agentH) || []).includes('cua_driver_native__a'), '补开后必须可见')
   const healthH = await runTool(worldH, 'lazy_tools_health', {}, agentH)
   assert.equal(healthH.stats.selfHealed, 1)
+  const statusH = await runTool(worldH, 'lazy_tools_status', {}, agentH)
+  assert.equal(sessionSelfHealed({ selfHealed: 2 }), 2, '本对话自愈累计 helper')
+  assert.equal(sessionSelfHealed({}), 0, '无 selfHealed 必须为 0')
+  assert.match(readFileSync(new URL('../lib/index.js', import.meta.url), 'utf8'), /selfHealed: sessionSelfHealed\(st\)/, 'sessionView 必须走会话 helper')
+  assert.equal(statusH.selfHealed, 1, '本对话自愈累计必须为 1')
   ok('守卫补开即放行 + 工具可见 + health.selfHealed=1')
   log('[22] 斜杠命令 /lazy-tools：改当前会话、乱输入报错')
   const worldI = makeWorld()
@@ -803,6 +808,18 @@ async function main() {
     assert.match(pkg.version, /^\d+\.\d+\.\d+$/, '版本号不是 x.y.z')
     assert.ok(pkg.dsh && pkg.dsh.bundle && pkg.dsh.bundle.patch, 'package.json 缺 dsh.bundle.patch，装不上')
     ok('包名 / 客户端 id / patch 行名三处一致；版本号合法；bundle 声明在')
+    // 2026-11-07：角色工具面（用户口中的「面具」）必须有 UI 开关，不能只藏在配置里。
+    assert.match(bridgeClientSrc, /角色工具面（默认关闭）/, '设置页缺角色工具面开关')
+    assert.match(bridgeClientSrc, /managedRoles: form\.managedRoles \|\| \{\}/, '设置页保存缺 managedRoles')
+    ok('设置页有角色工具面开关，且会随策略保存')
+    assert.match(bridgeClientSrc, /自定义角色名/, '设置页缺自定义角色输入')
+    assert.doesNotMatch(patchSrc, /managedRoles:/, '角色工具面默认应为关闭（README 口径）')
+    ok('角色工具面默认关闭，支持自定义角色')
+    assert.match(bridgeClientSrc, /groupCatalog\.map/, '自定义角色必须从当前分组动态列出')
+    ok('自定义角色从 state.groups 动态列组，不写死组名')
+    assert.match(bridgeClientSrc, /本对话累计自动取出/, '收纳统计必须区分本对话与全局')
+    ok('收纳统计区分本对话 hidden 与本对话 selfHealed')
+
     log('[25] 自动分组：切分、白名单、80% 规则、上限')
     const { tokenize, suggestGroups, matchPattern, normalizeAutoMode } = await import('../lib/autogroups.js')
     assert.deepEqual(tokenize('cua_driver_native__list_apps'), ['cua_driver_native'])
