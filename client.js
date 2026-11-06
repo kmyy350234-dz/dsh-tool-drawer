@@ -349,9 +349,17 @@ window.__ModuleLoader__.load({
           h('span', { style: styles.hint }, tr('与档位控件互相独立：只想要档位就不勾它；想一键把本对话的工具全收纳再勾。', 'Independent of the level control. Leave it off unless you want a one-click stow for this conversation.')),
         ),
         h(
-          'div',
-          { style: styles.row },
-          h('label', { style: styles.label }, tr('角色工具面（默认关闭）', 'Role masks (off by default)')),
+          'details',
+          { style: { marginTop: '4px' } },
+          h(
+            'summary',
+            { style: { cursor: 'pointer', fontSize: '13px', opacity: 0.75 } },
+            tr('高级：角色工具面（默认关闭，编排器再用）', 'Advanced: role masks (off by default; for orchestrators)'),
+          ),
+          h(
+            'div',
+            { style: styles.row },
+            h('label', { style: styles.label }, tr('角色工具面（默认关闭）', 'Role masks (off by default)')),
           h(
             'div',
             { style: { display: 'flex', gap: '14px', flexWrap: 'wrap' } },
@@ -423,6 +431,7 @@ window.__ModuleLoader__.load({
               'Off by default. Once checked, review/build/research labels apply a role-scoped tool surface; review/research hide edit/write. Uncheck to stop masking for that role (next session/label). Add custom roles below.',
             ),
           ),
+        ),
         ),
         h(
           'div',
