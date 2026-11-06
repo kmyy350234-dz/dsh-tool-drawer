@@ -17,7 +17,7 @@ ok  B "*" 万能式被忽略并记账  — 忽略 + 记账
 ok  B "re:.*" 万能式被忽略  — 忽略
 ok  B 坏正则 re:( 被忽略并记账  — 记账
 ok  B 超长 pattern（100k 字符）不许把 apply 带崩  — 可加载（坏组被忽略）
-ok  B ReDoS 回溯炸弹不挂死（子进程 3s 上限）  — 3s 内完成 (67ms)
+ok  B ReDoS 回溯炸弹不挂死（子进程 3s 上限）  — 3s 内完成 (69ms)
 
 === C. 脏数据文件（要求：不崩、能记账、默认值可用）===
 ok  C groups.json 非法 JSON  — health 仍可用

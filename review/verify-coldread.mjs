@@ -1,15 +1,37 @@
 // 机器判冷读：读报告末尾的 ```verdict JSON 块，不再解析自由文本。
-// 用法：node review/verify-coldread.mjs [报告路径]
+// 用法：node review/verify-coldread.mjs [报告路径] [--out <输出路径>]
 import { createHash } from 'node:crypto'
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const root = dirname(here)
 const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'))
 const version = pkg.version
-const reportPath = process.argv[2] || join(root, '..', '..', 'perf-', `冷读-${version}.md`)
+// --out：裁决写到指定路径（默认仍是 review/verdict.json）；判定的逻辑一个字没动。
+// 校准集要能反复跑，所以带 --out 时 unverified 边车也写到输出同目录，
+// 否则跑完 bad-unverified 就会把 review/unverified.json 改脏（gate 会红）。
+const argv = process.argv.slice(2)
+let reportArg = null
+let outArg = null
+for (let i = 0; i < argv.length; i += 1) {
+  const arg = argv[i]
+  if (arg === '--out' || arg.startsWith('--out=')) {
+    outArg = arg === '--out' ? argv[i + 1] : arg.slice('--out='.length)
+    if (!outArg) {
+      console.error('--out 需要跟一个输出路径')
+      process.exit(1)
+    }
+    if (arg === '--out') i += 1
+  } else if (reportArg === null) {
+    reportArg = arg
+  }
+}
+const reportPath = reportArg || join(root, '..', '..', 'perf-', `冷读-${version}.md`)
+const outBase = outArg ? resolve(outArg) : join(here, 'verdict.json')
+const unverifiedPath = outArg ? join(dirname(outBase), 'unverified.json') : join(here, 'unverified.json')
+if (outArg) mkdirSync(dirname(outBase), { recursive: true })
 
 const verdict = {
   version,
@@ -75,9 +97,9 @@ if (verdict.exists) {
 }
 
 verdict.ok = verdict.reasons.length === 0
-writeFileSync(join(here, 'verdict.json'), JSON.stringify(verdict, null, 2) + '\n')
+writeFileSync(outBase, JSON.stringify(verdict, null, 2) + '\n')
 writeFileSync(
-  join(here, 'unverified.json'),
+  unverifiedPath,
   JSON.stringify({ count: verdict.unverified || 0, items: verdict.unverified ? ['见冷读报告 verdict 块'] : [] }, null, 2) + '\n',
 )
 

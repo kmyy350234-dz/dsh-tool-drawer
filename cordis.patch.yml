@@ -1,10 +1,18 @@
-- insert:
+﻿- insert:
     - id: lazy-tools
       name: dsh-tool-drawer
       config:
         level: medium
         minTools: 3
         groups:
+          - id: web
+            match: ['web_search', 'web_fetch', 'platform_search', 'domain_search', 'research', 'read_page', 'x_search', 'multi_search', 'advanced_search', 'video_search', 'weather', 'cache_search']
+            title: 搜索·联网
+            defaultOn: false
+          - id: schedule
+            match: ['schedule_create', 'schedule_list', 'schedule_view', 'schedule_edit']
+            title: 定时任务
+            defaultOn: true
           - id: cua-screen
             match:
               [
@@ -49,3 +57,10 @@
             title: 视觉·重
             defaultOn: false
             expect: 8
+        managedRoles:
+          review:
+            allowGroups: [browser-heavy]
+          build:
+            allowGroups: ['*']
+          research:
+            allowGroups: [web, browser-heavy]

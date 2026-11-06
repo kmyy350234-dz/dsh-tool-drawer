@@ -14,8 +14,8 @@
    红线以 `review/baseline.json` 为准；你只能追加候选，候选单列，不许混进 0 红。
 2) A 轨：对每条新增测试做一次“删掉被保护代码 → 必须变红”的变异；做不到的写「未验证」。
 3) B 轨：逐项验证门禁本身：
-   - verify-coldread 是否取**最后一处**“结论：N 红”，基线 N 是否 >0；
-   - gate 是否读 verdict.json（有则必判）；
+   - verify-coldread 是否只取**最后一个** ```verdict 块，且 A+B=red、baseline=baselineActual；
+   - gate 是否读 verdict.json（有则必判），且坏裁决必须 FAIL；
    - mutate 是否用**唯一断言文本**归因，而不是测试号子串；
    - 54 的 -Skip 是否只跳允许项（smoke 第二次 / encoding），不跳对抗/一致性。
 4) 每条结论：文件:行 + 可重跑命令/脚本；[实测] 与 [推定] 分开；不能复现写「未验证」。

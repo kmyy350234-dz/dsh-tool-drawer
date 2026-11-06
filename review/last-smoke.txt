@@ -136,6 +136,10 @@
   ok  晚注册：万能组仍被挡住
 [61] 受管角色：preset 决定策略、封闭默认、自愈不绕过
   ok  受管角色只认 preset/parentSession，封闭默认生效，自愈不绕过
+[61b] label 角色：review/build/research 解析与工具面（CORE 不可藏）
+  ok  label 三角色解析正确；CORE 工具不可被角色隐藏（只读只能靠提示词/沙箱）
+[61c] 受管角色能藏 edit/write（review 只读），build 不藏
+  ok  受管角色能藏 edit/write；CORE 其余仍保护
 [62] 受管角色：preset 在创建后才选中（竞态）
   ok  preset 晚选中也能重算角色并重建（竞态兜住）
 [63] 隔离：放行后仍不可见 ⇒ 标成外部 deny
@@ -245,7 +249,7 @@
 [118] 陈旧 hideReport：上轮 transient、本轮退成别名壳，仍要锁
   ok  陈旧 hideReport：退成别名后仍锁，100 次事件有界
 
-smoke: 126 项全过
+smoke: 128 项全过
 
 [lazy-tools] tools.restrict: 这些名字不可限制（已逐个跳过，其余照常隐藏）：bad_name
 [lazy-tools] tools.restrict: 限制失败（非名单问题，已中止逐个重试）：restrict backend unavailable

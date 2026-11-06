@@ -1,10 +1,10 @@
 {
   "name": "dsh-tool-drawer",
-  "version": "0.18.8",
+  "version": "0.19.0",
   "private": false,
   "type": "module",
   "main": "lib/index.js",
-  "description": "On-demand tool groups for DeepSeek Harness: hide heavy tool sets from the context, open them on demand.",
+  "description": "On-demand tool groups and role-scoped tool surfaces for DeepSeek Harness: hide heavy tools, switch review/build/research by label.",
   "exports": {
     ".": "./lib/index.js",
     "./client": "./client.js",
@@ -19,12 +19,15 @@
     "locale/*.json",
     "icon.svg",
     "README.md",
+    "README.en.md",
     "CHANGELOG.md",
     "DESIGN.md",
     "INTEROP.md",
     "POLICY.md",
     "LICENSE",
-    "test"
+    "test",
+    "skills",
+    "templates"
   ],
   "dsh": {
     "bundle": {

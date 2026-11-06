@@ -7,6 +7,7 @@
     "coldread verdict",
     "encoding",
     "consistency",
+    "findings converge (when ledger exists)",
     "malignant 4/4",
     "git clean"
   ],
@@ -17,7 +18,8 @@
     "git",
     "smoke-first",
     "adversarial",
-    "consistency"
+    "consistency",
+    "findings"
   ],
   "skippable": [
     "smoke",

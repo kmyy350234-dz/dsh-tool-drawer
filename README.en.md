@@ -7,7 +7,12 @@
 > actually use on the bench, lets stale ones sink on their own — and brings a tool back with one call,
 > a guard that catches a real call and reopens it, or an explicit `lazy_tools_enable`.
 
-**Status:** `0.17.x` — used daily on one DSH installation; the config surface may still change.
+**Status:** `0.19.0`.
+
+> **0.19.0-dev:** `review:` / `build:` / `research:` label-scoped tool surfaces;
+> `review:`/`research:` hide edit/write; findings ledger; mutation score;
+> the official `schedule` package is on by default for the top-level agent.
+ — used daily on one DSH installation; the config surface may still change.
 
 Tested hosts: **DSH 2.0.20-next** and **2.0.21-next** (2.0.21 replaced `pwsh` with `ops_*`; the plugin does not branch on versions — the protected list is the union of both generations, and names a host does not have are no-ops).
 Issues and PRs are welcome, but maintenance is **best-effort**. If DSH ships native on-demand tool

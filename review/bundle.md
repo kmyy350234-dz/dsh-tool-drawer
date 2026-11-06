@@ -1,55 +1,133 @@
-# REVIEW BUNDLE — lazy-tools 5bf6cba
+# REVIEW BUNDLE — lazy-tools 6a39070
 
 range: 0b0fbfb..HEAD
 
 file_count: 19
 
-lib\api.js	433 lines
+lib\api.js	436 lines
 lib\autogroups.js	152 lines
-lib\config.js	93 lines
+lib\config.js	97 lines
 lib\host.js	597 lines
-lib\index.js	1245 lines
+lib\index.js	1291 lines
 lib\prompt.js	273 lines
-lib\roles.js	254 lines
-lib\tools\groups.js	434 lines
+lib\roles.js	280 lines
+lib\tools\groups.js	439 lines
 lib\tools\health.js	541 lines
 lib\tools\index.js	29 lines
 lib\tools\roles.js	177 lines
-lib\usage.js	91 lines
+lib\usage.js	96 lines
 client.js	567 lines
-package.json	63 lines
-CHANGELOG.md	828 lines
-README.md	398 lines
+package.json	66 lines
+CHANGELOG.md	860 lines
+README.md	404 lines
 DESIGN.md	225 lines
-test\smoke.mjs	3180 lines
+test\smoke.mjs	3280 lines
 test\adversarial.mjs	406 lines
 
 ## DIFF
 
 ```diff
-_tools/lazy-tools/.gitignore                  |   4 +
- _tools/lazy-tools/CHANGELOG.md                |  30 ++-
- _tools/lazy-tools/lib/host.js                 | 227 ++++++++++++----------
- _tools/lazy-tools/lib/index.js                |  49 ++++-
- _tools/lazy-tools/lib/tools/health.js         |  10 +
- _tools/lazy-tools/package.json                |   2 +-
- _tools/lazy-tools/review/anomalies.json       |   8 +
- _tools/lazy-tools/review/anomalies.mjs        |  44 +++++
- _tools/lazy-tools/review/baseline.json        |  30 +++
- _tools/lazy-tools/review/build-bundle.mjs     |  94 +++++++++
- _tools/lazy-tools/review/callers.mjs          |  33 ++++
- _tools/lazy-tools/review/check-baseline.mjs   |  48 +++++
- _tools/lazy-tools/review/gate.mjs             |  42 ++++
- _tools/lazy-tools/review/last-adversarial.txt |  41 ++++
- _tools/lazy-tools/review/last-smoke.txt       | 262 +++++++++++++++++++++++++
- _tools/lazy-tools/review/poc.template.mjs     |  13 ++
- _tools/lazy-tools/review/unverified.json      |   4 +
- _tools/lazy-tools/test/smoke.mjs              | 269 +++++++++++++++++++++++++-
- perf-/冷读-0.18.7.md                          |  49 +++++
- perf-/对外-20261103.md                        |   1 +
- perf-/恶性bug清单.md                          |   8 +-
- 21 files changed, 1149 insertions(+), 119 deletions(-)
+_tools/lazy-tools/.github/workflows/test.yml       |  12 +-
+ _tools/lazy-tools/.gitignore                       |   4 +
+ _tools/lazy-tools/CHANGELOG.md                     |  43 +-
+ _tools/lazy-tools/PROCESS.md                       | 140 ++++
+ _tools/lazy-tools/README.en.md                     |   7 +-
+ _tools/lazy-tools/README.md                        |   8 +-
+ _tools/lazy-tools/cordis.patch.yml                 |  17 +-
+ _tools/lazy-tools/lib/api.js                       |   3 +
+ _tools/lazy-tools/lib/config.js                    |   6 +-
+ _tools/lazy-tools/lib/host.js                      | 227 ++---
+ _tools/lazy-tools/lib/index.js                     | 115 ++-
+ _tools/lazy-tools/lib/roles.js                     |  30 +-
+ _tools/lazy-tools/lib/tools/groups.js              |   7 +-
+ _tools/lazy-tools/lib/tools/health.js              |  10 +
+ _tools/lazy-tools/lib/usage.js                     |   5 +
+ _tools/lazy-tools/package.json                     |   9 +-
+ _tools/lazy-tools/review/anomalies.json            |   8 +
+ _tools/lazy-tools/review/anomalies.mjs             |  44 +
+ _tools/lazy-tools/review/audit.mjs                 | 150 ++++
+ _tools/lazy-tools/review/baseline.json             |  65 ++
+ _tools/lazy-tools/review/build-bundle.mjs          |  94 +++
+ .../lazy-tools/review/calibration/bad-missing.md   |  18 +
+ _tools/lazy-tools/review/calibration/bad-red.md    |  25 +
+ .../review/calibration/bad-unverified.md           |  25 +
+ _tools/lazy-tools/review/calibration/good.md       |  26 +
+ _tools/lazy-tools/review/callers.mjs               |  33 +
+ _tools/lazy-tools/review/check-54-skip.mjs         |  70 ++
+ _tools/lazy-tools/review/check-baseline.mjs        |  48 ++
+ _tools/lazy-tools/review/check-calibration.mjs     |  85 ++
+ _tools/lazy-tools/review/check-process.mjs         | 124 +++
+ _tools/lazy-tools/review/coldread-prompt.md        |  31 +
+ _tools/lazy-tools/review/findings.mjs              | 114 +++
+ _tools/lazy-tools/review/findings.test.mjs         |  37 +
+ _tools/lazy-tools/review/gate-integrity.test.mjs   |  79 ++
+ _tools/lazy-tools/review/gate-spec.json            |  38 +
+ _tools/lazy-tools/review/gate.mjs                  |  78 ++
+ _tools/lazy-tools/review/last-smoke.txt            | 270 ++++++
+ _tools/lazy-tools/review/mutate.mjs                |  62 ++
+ _tools/lazy-tools/review/mutation-score.mjs        | 124 +++
+ _tools/lazy-tools/review/mutation-score.test.mjs   | 126 +++
+ _tools/lazy-tools/review/mutations.json            |  66 ++
+ _tools/lazy-tools/review/poc.template.mjs          |  13 +
+ _tools/lazy-tools/review/unverified.json           |   4 +
+ _tools/lazy-tools/review/verdict-check.mjs         |  24 +
+ _tools/lazy-tools/review/verdict.json              |  15 +
+ _tools/lazy-tools/review/verify-coldread.mjs       | 108 +++
+ .../skills/single-conversation-sa/SKILL.md         | 157 ++++
+ _tools/lazy-tools/templates/assessment.md          |  37 +
+ _tools/lazy-tools/templates/audit-report.md        |  23 +
+ _tools/lazy-tools/templates/bug-assess.md          |  40 +
+ _tools/lazy-tools/templates/bug-test-report.md     |  29 +
+ _tools/lazy-tools/templates/plan.md                |  41 +
+ _tools/lazy-tools/templates/review-report.md       |  25 +
+ _tools/lazy-tools/templates/spec.md                |  40 +
+ _tools/lazy-tools/templates/tasks.md               |  36 +
+ _tools/lazy-tools/test/config.test.mjs             |  30 +
+ _tools/lazy-tools/test/smoke.mjs                   | 373 ++++++++-
+ perf-/0.19.0-路线-20261106.md                      | 212 +++++
+ perf-/54-发版.ps1                                  | 197 ++++-
+ perf-/A1-效率对照-20261106.md                      | 184 ++++
+ perf-/冷读-0.18.7.md                               |  49 ++
+ perf-/冷读-0.18.8.md                               |  17 +
+ perf-/官方插件盘点-20261106.md                     | 139 ++++
+ perf-/对外-20261103.md                             |   2 +
+ perf-/开发流程-20261103.md                         | 221 +----
+ perf-/待办清单-20261106.md                         | 320 +++++++
+ perf-/恶性bug清单.md                               |   8 +-
+ perf-/方法论对比-20261106.md                       | 227 +++++
+ perf-/流程与错题-给元宝-20261106.md                | 922 +++++++++++++++++++++
+ perf-/流程改进-20261106.md                         | 114 +++
+ perf-/票-findings-54/plan.md                       |  73 ++
+ perf-/票-findings-54/spec.md                       |  83 ++
+ perf-/票-findings-54/tasks.md                      |  51 ++
+ perf-/角色与直派-分工-20261106.md                  |  61 ++
+ perf-/验证记录-20261106.md                         |  77 ++
+ 75 files changed, 6057 insertions(+), 378 deletions(-)
 
+diff --git a/_tools/lazy-tools/.github/workflows/test.yml b/_tools/lazy-tools/.github/workflows/test.yml
+index aa8fb1b..39f4bcd 100644
+--- a/_tools/lazy-tools/.github/workflows/test.yml
++++ b/_tools/lazy-tools/.github/workflows/test.yml
+@@ -13,11 +13,15 @@ jobs:
+       - uses: actions/setup-node@v4
+         with:
+           node-version: '20'
+-      - name: 语法检查（宿主 + 客户端）
++      - name: 璇硶妫€鏌ワ紙瀹夸富 + 瀹㈡埛绔級
+         run: |
+           node --check client.js
+           for f in lib/*.js lib/tools/*.js; do node --check "$f"; done
+-      - name: 冒烟测试
++      - name: 鍐掔儫娴嬭瘯
+         run: node test/smoke.mjs
+-      - name: 对抗测试
+-        run: node test/adversarial.mjs
++      - name: 瀵规姉娴嬭瘯
++        run: node test/adversarial.mjs
++      - name: 门禁（基线 + 异常）
++        run: node review/gate.mjs
++      - name: 变异（每条新增测试逐条）
++        run: node review/mutate.mjs
 diff --git a/_tools/lazy-tools/.gitignore b/_tools/lazy-tools/.gitignore
 new file mode 100644
 index 0000000..d3efb8b
@@ -61,12 +139,25 @@ index 0000000..d3efb8b
 +review/last-*.txt
 +review/anomalies.json
 diff --git a/_tools/lazy-tools/CHANGELOG.md b/_tools/lazy-tools/CHANGELOG.md
-index 042920e..ecc055c 100644
+index 042920e..e2ab436 100644
 --- a/_tools/lazy-tools/CHANGELOG.md
 +++ b/_tools/lazy-tools/CHANGELOG.md
-@@ -1,4 +1,32 @@
+@@ -1,4 +1,45 @@
 -﻿## [0.18.6] - 2026-11-06
-+﻿## [0.18.7] - 2026-11-06
++﻿## [0.18.8] - 2026-11-06
++
++**元宝 P0 队列（全部附复现/测试）**：
++
++- **清空角色真正生效**：`managedRoles:{}` 不再被 `delete` 后跳过，`roleSource` 置空并按变化刷新（原来返回 200 但运行时角色还在）。`POST /policy` 写盘后追平 `policyMtime`；`applyPolicy` 只在角色表真的变化时才 `refreshManagedRoles(true)`（原来合并后的补丁必带 `managedRoles`，勾一个复选框会重建两轮）。新增桥测试断言 `setPolicyMtime` 被调用。
++- **手写组万能匹配的结构防线**：哨兵可被 `re:^[a-z0-9_]+$` 绕过；新增“正则组覆盖本轮全部可隐藏工具（≥3）”的结构判定，命中即忽略并记账（`[60b]`）。
++- **受管会话的 `mode` / “收纳本对话”不再假成功**：`applySessionPolicy` 对受管会话直接返回错误（测试 `[61]` 断言），不再改一个被忽略的 `st.modes`。
++- **加载即崩的口子**：`config.js` 的 `readdirSync(profilesRoot)` 包 try/catch，目录不可读时退回 `.dsh` 根继续解析。
++- **hotRatio 显示与决策同源**：去掉 `Math.round`，不再出现“显示 0.3、决策 0.295”的边界漂移。
++- **save_groups 描述与实现一致**：默认只写文件、下次会话生效；`applyNow=true` 才立刻生效。
++
++测试：冒烟 126 项、对抗 29 项；新增 `[60c]` 晚注册、受管 mode 拒绝、mtime 值断言；refresh/config 的专门测试仍缺（冷读候选）。
++
++## [0.18.7] - 2026-11-06
 +
 +**复现并修复了一类「3 秒重建链」**（原始风暴日志的具体触发工具未验证，不宣称就是那一次）：
 +
@@ -98,6 +189,255 @@ index 042920e..ecc055c 100644
  
  DSH 2.0.22（上游 0.2.2-rc.1）适配的**诚实版**：
  
+diff --git a/_tools/lazy-tools/PROCESS.md b/_tools/lazy-tools/PROCESS.md
+new file mode 100644
+index 0000000..dcd69e1
+--- /dev/null
++++ b/_tools/lazy-tools/PROCESS.md
+@@ -0,0 +1,140 @@
++﻿# PROCESS.md — 单一权威流程（2026-11-06）
++
++> 这份文件是**唯一权威**。`perf-/开发流程-20261103.md`、`dev-ticket-loop/SKILL.md`、
++> `incident-archive/SKILL.md` 里与本文冲突的条款**以本文为准**；旧文只保留历史说明。
++> 改流程的顺序：先改本文 → 再改派生文件 → 跑 `node review/check-process.mjs` 必须 0 差异。
++
++## 一、角色
++
++| 谁 | 只做 | 不做 |
++|---|---|---|
++| 用户 | 定方向、拍板「要不要 / 值不值 / 可逆吗」 | 不看代码细节 |
++| 主会话（AI） | 写票、派工、跑测试、汇总 | 不自己给自己做冷读 |
++| 执行者（子代理） | 按票做，交付四段 | 不扩范围、不提交 |
++| 冷读（子代理，无上下文） | 找红线 | 不改代码 |
++| 一致性（子代理） | 文档 vs 代码 | 不改代码 |
++
++**常设只有这两类评审（2 个）**；挑刺/可维护性并入一致性提示词，按需启用。
++「一次一个行为」指的是**对外部 AI 的提示词**；同一轮可以并行派冷读和一致性两个不同行为。
++
++## 二、发版门槛（只有这一套，7 项，缺一不发）
++
++1. `package.json` 版本 + `CHANGELOG` 有该版本段；
++2. 冒烟全过 + 对抗全过，**连跑两次**；
++3. **冷读裁决**：`verdict.json` 由 `review/verify-coldread.mjs` 生成，类型必须是 `cold`、红数 0、未验证 0、基线全跑；**报告末行字符串不算数**；
++4. 编码体检 0 问题（BOM / 行尾 / 孤立 CR）；
++5. 一致性断言（`perf-\59-一致性断言.ps1`）通过；
++6. **恶性 bug 清单 4/4 已勾，不可跳过**；
++7. `git status` 干净；发完 Release 两个资产 + 台账一行。
++
++**附加条件门禁（2026-11-06，票 findings-54）**：`review/findings.json` 存在时，
++`node review/findings.mjs status` 必须退出 0（台账收敛：`round>=2`、`open=0`、连续两轮无新 finding），
++否则阻止发版；它是 54 里的 `6h/7` 步骤，且不可跳过。**没有台账时自动 PASS** ——
++0.18.8 以前没有台账，不能因为这条把老发版卡死。台账只是「记录」不是「门禁」的日子到此为止。
++
++**`-Skip` 允许跳过**：`smoke`（只跳第二次；第一次冒烟和对抗永远跑）、`encoding`。
++**不可跳过**：版本号、冷读裁决、恶性清单、`git` 干净、对抗、一致性、findings（有台账时）。
++`malignant` 不在白名单；把它加回去，`check-process.mjs` 直接红。
++
++## 三、发版与公开动作
++
++- **发版**：用户已授权自动发（「反正我看不懂」），不需要再过目；
++- **其他公开动作**（issue / PR / Discussion / 评论）：**先给用户过目**，说过「发吧」只对那一次有效；
++- 两者不矛盾：发版是用户明确授权的固定流水线，其余公开动作仍要过目。
++
++## 四、冷读（唯一不可跳过的软门槛，必须机器判）
++
++- 冷读提示词以 `review/coldread-prompt.md` 为**单一来源**；只给仓库路径、commit 区间、只读要求、证据格式、覆盖声明要求；
++  **不给**：改动摘要、已知风险、点名清单、上一轮结论；
++- 冷读分**两轨**：A 发布物（lib/client.js/test）；B 门禁（review/ 脚本，只审“能不能被绕过/假绿”）；
++- 给了摘要/清单 ⇒ 报告类型记为 `directed`（定向核对），**不许占冷读名额**；
++- 报告末尾三行：`基线：N 条全跑，新增 0`、`未验证：N`、`结论：N 红（A=.. B=..）`；
++- `review/verify-coldread.mjs` 会：判定类型、解析红数、把未验证写进 `review/unverified.json`、
++  生成 `verdict.json`；**gate 读 verdict，不读报告文本**；
++- 0 红但 unverified > 0 ⇒ 发版红；要发就先补跑或把未验证条目降级为已知限制并写进 release notes。
++
++## 五、测试与变异
++
++- 每条**新增/修改**的测试，必须在测试文件里声明 `protectedBy`（保护它的实现点/判据）；
++- `review/mutations.json` 为每类判据登记至少一条变异（file + find + replace + **expectText**，唯一断言文本，不许用测试号子串）；
++- `node review/mutate.mjs` 必须全部 RED（变异后冒烟失败且命中预期断言）；任何一条绿 ⇒ 门禁红；
++- 不再要求「一条变异」；要求的是**每个新增测试至少一条**；
++- `review/gate-integrity.test.mjs` 是门禁自身的负向测试（裁决取末行、基线>0、编号未验证、mutate 归因）；它进 `baseline.json`。
++- **断言只认行为/退出码/稳定 token，不认文案顺序**：`-Skip findings` 这类测试要么同时接受两种人类文案，要么让脚本输出 machine code；只匹配一种语序的测试会在合并后红，且不是功能坏了。
++- **角色产出的测试必须在合并目标/干净 worktree 复跑一次**：worktree 里通过 ≠ 主仓通过（54 的 `$SrcRepo` 硬编码就是实例）。
++
++### bug 票三态
++
++- 修之前先写 `templates/bug-assess.md`：现象 / 复现 / 根因 / 严重度 / 修复计划；
++- 修之后写 `templates/bug-test-report.md`：命令 / 结果 / 修复前红 / 修复后绿；
++- verdict 只认 `verified / partial / failed`；`partial/failed` 不进 release notes，留票；
++- 没 assess 的 bug 票不算可发版。
++
++### review 分级
++
++- review 每条 finding 标 `class: blocking / suggestion / nit`；
++- 红只给 blocking；suggestion 标黄；nit 不挡发版；
++- 没有 findings 表的 review 不算完成。
++
++### 小 CL / 一票一行为
++
++- 一张票只做一个行为；行为变更与重构分开；
++- 冷读范围只审该票的 commit + 受影响测试，不把流程文档一起塞进去；
++- 票超范围就拆票，不靠“顺手”扩大。
++
++### 定时审计
++
++- `templates/audit-report.md` 只跑 baseline / 变异 / CI / findings；
++- 审计**不生成** `review/verdict.json`，不挡发版；
++- schedule 只能由顶层 supervisor 建，子代理会被官方包拒绝。
++## 六、翻车档案与检查表
++
++- 档案正本：`C:\deepsleep脚本工程\翻车档案.md`（**77 条**，不是 29）；
++- 写前 60 秒**不是硬门槛**：改成**事后回填**——票收工时用 `lessons.md` 的「现象→根因」反查档案，
++  命中追加族标签，没命中提议开新族；
++- `review/check-process.mjs` 校验：档案可打开、条数与索引一致、路径存在；
++- 票体检不再只查 `checked:` 字符串，要查「档案 hash + 命中族与 scope 关键词匹配」；
++  在脚本改完前，`checked:` 只作为提示，不作为派工门槛。
++
++## 七、数字口径
++
++- 测试项数、资产字节、Release id **只认当次输出**；文档里不写死，或由脚本注入；
++- 出现两个不同数字 ⇒ `check-process.mjs` 红。
++
++## 八、外部审阅（发版后，一次）
++
++- 时点：**发版后一次**（不是发版前、不是每次）；
++- 给公开链接/快照；结论先复现再入票；P0 进**下个版本首票**，不要求本轮修完；
++- 每天最多 5–6 次；卡住刷新；不当中断门禁。
++
++## 九、工作流改动本身也要负向测试
++
++改流程/门禁脚本时，必须同时交一条**负向测试**（故意破坏后必须红），否则算“改了但没验证”：
++- 裁决解析：前 0 红、末行 3 红 → FAIL；基线 0 条 → FAIL；编号未验证 → 计数；
++- gate：verdict 红 → FAIL；
++- mutate：错误 expectText → FAIL；
++- 54：`-Skip smoke` 后对抗仍跑；`-Skip consistency` 直接 FAIL。
++
++## 九·二 红线的触发条件门槛（防止无限修）
++
++红条只有在**满足触发条件**时才阻止发版；否则降级为候选，写进 release notes。
++
++**阻止发版（红）必须同时满足：**
++1. **正常路径可达**：默认配置、按文档操作、无手工伪造；
++2. **影响落在承诺上**：权限、数据、工具可见性、发版完整性；
++3. **能给出用户可复现步骤**（不是只有测试脚本/构造对象）；
++4. 或者是**本版引入的回归**。
++
++**降级为候选（黄，不挡发版）：**
++- 需要手工伪造 verdict/报告、注释掉代码、构造非法 JSON、改源码才能触发；
++- 只在第三方极端时序、非默认配置、权限故障下出现；
++- 只影响门禁脚本自身的“守卫的守卫”，不影响产品行为；
++- 修它需要继续扩大解析器/正则，收益低于维护成本。
++
++**判定写法**：每条红必须写「触发条件」；写不出正常路径的，直接标 `[黄/苛刻]`。
++发版说明里列一条「已知限制」，不假装没有。
++
++## 十、冲突裁决
++
++按顺序：**用户当前指令 > PROCESS.md > 派生文档 > 旧账本**。
++遇到两条都标「已确认」的冲突，以本文为准，并在本文写一条「废止：<旧条款>」。
+diff --git a/_tools/lazy-tools/README.en.md b/_tools/lazy-tools/README.en.md
+index b05504d..1258283 100644
+--- a/_tools/lazy-tools/README.en.md
++++ b/_tools/lazy-tools/README.en.md
+@@ -7,7 +7,12 @@
+ > actually use on the bench, lets stale ones sink on their own — and brings a tool back with one call,
+ > a guard that catches a real call and reopens it, or an explicit `lazy_tools_enable`.
+ 
+-**Status:** `0.17.x` — used daily on one DSH installation; the config surface may still change.
++**Status:** `0.18.8` released; `0.19.0-dev` under test.
++
++> **0.19.0-dev:** `review:` / `build:` / `research:` label-scoped tool surfaces;
++> `review:`/`research:` hide edit/write; findings ledger; mutation score;
++> the official `schedule` package is on by default for the top-level agent.
++ — used daily on one DSH installation; the config surface may still change.
+ 
+ Tested hosts: **DSH 2.0.20-next** and **2.0.21-next** (2.0.21 replaced `pwsh` with `ops_*`; the plugin does not branch on versions — the protected list is the union of both generations, and names a host does not have are no-ops).
+ Issues and PRs are welcome, but maintenance is **best-effort**. If DSH ships native on-demand tool
+diff --git a/_tools/lazy-tools/README.md b/_tools/lazy-tools/README.md
+index 451fe26..1ecd565 100644
+--- a/_tools/lazy-tools/README.md
++++ b/_tools/lazy-tools/README.md
+@@ -6,7 +6,13 @@
+ 
+ 工具抽屉处理的就是这件事：平时用不上的工具组收起来，要用的时候再放出来。
+ 
+-**状态：0.18.x。** 在一台机器上日常使用。配置面仍可能变化。Issue 和 PR 都欢迎，维护是尽力而为；需要稳定保证请自行 fork。DSH 若实现原生按需加载，这个项目应当退场。
++**状态：0.18.8 已发，0.19.0-dev 在测。**
++
++> **0.19.0-dev 新增**：`review:` / `build:` / `research:` 角色 label（按 label 裁工具面）；
++> `review:`/`research:` 隐藏 edit/write；`findings` 台账与收敛判定；
++> mutation score 校准；`schedule` 官方包默认开启（只给顶层 agent）。
++> 这些还在测试，未发版。
++ 在一台机器上日常使用。配置面仍可能变化。Issue 和 PR 都欢迎，维护是尽力而为；需要稳定保证请自行 fork。DSH 若实现原生按需加载，这个项目应当退场。
+ 
+ 实测过的宿主：**DSH 2.0.20-next** 与 **2.0.21-next**（2.0.21 起 `pwsh` 被 `ops_*` 取代；插件不做版本分支，保护清单用两代并集，缺失的名字是空操作）。更早的版本未测。
+ 
+diff --git a/_tools/lazy-tools/cordis.patch.yml b/_tools/lazy-tools/cordis.patch.yml
+index 9965686..38dd8fa 100644
+--- a/_tools/lazy-tools/cordis.patch.yml
++++ b/_tools/lazy-tools/cordis.patch.yml
+@@ -1,10 +1,18 @@
+-- insert:
++﻿- insert:
+     - id: lazy-tools
+       name: dsh-tool-drawer
+       config:
+         level: medium
+         minTools: 3
+         groups:
++          - id: web
++            match: ['web_search', 'web_fetch', 'platform_search', 'domain_search', 'research', 'read_page', 'x_search', 'multi_search', 'advanced_search', 'video_search', 'weather', 'cache_search']
++            title: 搜索·联网
++            defaultOn: false
++          - id: schedule
++            match: ['schedule_create', 'schedule_list', 'schedule_view', 'schedule_edit']
++            title: 定时任务
++            defaultOn: true
+           - id: cua-screen
+             match:
+               [
+@@ -49,3 +57,10 @@
+             title: 视觉·重
+             defaultOn: false
+             expect: 8
++        managedRoles:
++          review:
++            allowGroups: [browser-heavy]
++          build:
++            allowGroups: ['*']
++          research:
++            allowGroups: [web, browser-heavy]
+diff --git a/_tools/lazy-tools/lib/api.js b/_tools/lazy-tools/lib/api.js
+index 9c69cb2..c79e117 100644
+--- a/_tools/lazy-tools/lib/api.js
++++ b/_tools/lazy-tools/lib/api.js
+@@ -391,6 +391,9 @@ export function mountBridge(ctx, host, options) {
+                     host.record('policy write', new Error(detail))
+                     return send(500, { error: detail })
+                   }
++                  // 2026-11-06（元宝 P0）：写盘成功后必须追平 mtime，否则下一次 agent/created
++                  // 会误判"文件被外部改过"再热重载一遍，等于一次勾选框重建两轮。
++                  if (typeof options.setPolicyMtime === 'function') options.setPolicyMtime(policyFileMtime())
+                   options.applyPolicy(merged)
+                 } catch (error) {
+                   return send(500, { error: `保存策略失败：${String((error && error.message) || error)}` })
+diff --git a/_tools/lazy-tools/lib/config.js b/_tools/lazy-tools/lib/config.js
+index 9fab91c..a65847e 100644
+--- a/_tools/lazy-tools/lib/config.js
++++ b/_tools/lazy-tools/lib/config.js
+@@ -27,7 +27,11 @@ function resolveSchemastery() {
+   if (home) {
+     const profilesRoot = join(home, '.dsh', 'profiles')
+     if (existsSync(profilesRoot)) {
+-      for (const entry of readdirSync(profilesRoot)) candidates.push(join(profilesRoot, entry))
++      try {
++        for (const entry of readdirSync(profilesRoot)) candidates.push(join(profilesRoot, entry))
++      } catch {
++        // 目录存在但不可读（权限/临时故障）：退回 .dsh 根继续找，不让整个插件 import 失败。
++      }
+     }
+     candidates.push(join(home, '.dsh'))
+   }
 diff --git a/_tools/lazy-tools/lib/host.js b/_tools/lazy-tools/lib/host.js
 index 93de207..8897ea4 100644
 --- a/_tools/lazy-tools/lib/host.js
@@ -344,10 +684,100 @@ index 93de207..8897ea4 100644
      countToolCall() {
        counters.toolCalls += 1
 diff --git a/_tools/lazy-tools/lib/index.js b/_tools/lazy-tools/lib/index.js
-index b6967bf..d59d59e 100644
+index b6967bf..6d1dadb 100644
 --- a/_tools/lazy-tools/lib/index.js
 +++ b/_tools/lazy-tools/lib/index.js
-@@ -651,6 +651,28 @@ export function apply(ctx, config) {
+@@ -11,9 +11,9 @@
+ import { createHost } from './host.js'
+ import { Config } from './config.js'
+ import { mountBridge, readStoredPolicy, readStoredPolicyStrict, readPolicyRaw, clientPing, readUserGroups, writeUserGroups, applyPolicyPatch, policyFileMtime, writeStoredPolicy } from './api.js'
+-import { loadUsage, saveUsage, recordUsage, isToolHot, LEVEL_DAYS } from './usage.js'
++import { loadUsage, saveUsage, recordUsage, isToolHot, hotRatio as usageHotRatio, LEVEL_DAYS } from './usage.js'
+ import { suggestGroups, normalizeAutoMode, CORE_TOOLS } from './autogroups.js'
+-import { normalizeManagedRoles, resolveManagedRole, isAllowedByPolicy, auditManagedRoles, labelRoleCandidates, labelOfSession } from './roles.js'
++import { applyManagedRolesPatch, normalizeManagedRoles, resolveManagedRole, isAllowedByPolicy, auditManagedRoles, labelRoleCandidates, labelOfSession } from './roles.js'
+ import { createPrompt, mountPromptSection } from './prompt.js'
+ import { createTools } from './tools/index.js'
+ 
+@@ -40,7 +40,23 @@ const CUA_SCREEN =
+ const CUA_INPUT =
+   're:^cua_driver_native__(bring_to_front|browser_(click|dialog|download|navigate|pointer|prepare|set_input_files|type)|click|clipboard_write|double_click|drag|end_session|escalate_session|hotkey|install_ffmpeg|invoke_menu|kill_app|launch_app|move_cursor|page|press_key|replay_trajectory|right_click|scroll|set_(agent_cursor_(enabled|motion|theme)|config|value|window_frame)|start_(recording|session)|stop_recording|type_text|zoom)$'
+ 
++// 受管角色允许隐藏的 CORE 写工具：review/research 要能真正只读（read/pwsh/glob/grep 仍保留）。
++// 这正是 2026-11-06 实测的边界：以前所有 CORE 都不能藏，review 只能靠提示词。
++const ROLE_HIDEABLE_CORE = new Set(['edit', 'write'])
++
+ const DEFAULT_GROUPS = [
++  {
++    id: 'web',
++    match: ['web_search', 'web_fetch', 'platform_search', 'domain_search', 'research', 'read_page', 'x_search', 'multi_search', 'advanced_search', 'video_search', 'weather', 'cache_search'],
++    title: '搜索·联网',
++    defaultOn: false,
++  },
++  {
++    id: 'schedule',
++    match: ['schedule_create', 'schedule_list', 'schedule_view', 'schedule_edit'],
++    title: '定时任务',
++    defaultOn: true,
++  },
+   {
+     id: 'cua-screen',
+     match: [CUA_SCREEN],
+@@ -208,6 +224,9 @@ export function apply(ctx, config) {
+         // universal：这个组的匹配式能匹配**任意名字**（`*` / `re:.*`）—— 与工具数量无关地判定，
+         // 所以 cua_* 这类前缀组不会被误伤（2026-10-31，回答「宿主改名追不动」）。
+         const sentinel = '\u0000lazy-tools-probe\u0000'
++        // 2026-11-06（冷读红 2）：单探针可被 re:^[a-z0-9_]+$ 绕过；用多个异形探针，
++        // 全中才算“万能匹配”。前缀组不会全中，字面枚举也不会。
++        const probes = ['zz_probe_alpha', 'probe_beta_9', '000_probe', 'x_y_z9', 'zzprobealpha']
+         // 2026-11-05（外部审阅抓到的 P0）：V8 在**首次 test() 时才编译**正则 ——
+         // 超长模式会在 test 抛 SyntaxError，把整个 apply 带崩（加载即失败）。
+         // 所以这里真的执行一次 test；抛错的匹配式按无效处理并记账，不许逃出 apply。
+@@ -224,7 +243,7 @@ export function apply(ctx, config) {
+           }
+         }
+         res = tested
+-        const universal = res.some((re) => re.test(sentinel))
++        const universal = res.some((re) => probes.every((probe) => re.test(probe)))
+         return {
+           ...rest,
+           res,
+@@ -266,10 +285,24 @@ export function apply(ctx, config) {
+   }
+   let rolesGroupSig = ''
+   const auditHitsSeen = new Set()
+-  const refreshManagedRoles = (force = false) => {
++  const refreshManagedRoles = (force = false, hadRolesOverride = null) => {
+     if (!roleSource) {
++      // 只有「从有角色变成没角色」才需要解锁现存会话；启动时本来就没角色，别遍历重建。
++      const hadRoles = hadRolesOverride === null ? Boolean(policy.managedRoles) : Boolean(hadRolesOverride)
+       policy.managedRoles = null
+       rolesGroupSig = ''
++      if (hadRoles) {
++        try {
++          for (const agent of host.agentList()) {
++            const st = states.get(agent)
++            if (!st) continue
++            st.managed = null
++            if (typeof rebuild === 'function') rebuild(agent)
++          }
++        } catch (error) {
++          host.record('managedRoles rebuild', error)
++        }
++      }
+       return
+     }
+     const groupIds = groups.map((g) => g.id)
+@@ -625,7 +658,7 @@ export function apply(ctx, config) {
+     const visibleAfterLift = host.toolNames(agent)
+     const source = visibleAfterLift
+     const wanted = st.managed
+-      ? source.filter((name) => !CORE_TOOLS.has(name) && !isAllowedByPolicy(st.managed, name, groupOf))
++      ? source.filter((name) => (!CORE_TOOLS.has(name) || ROLE_HIDEABLE_CORE.has(name)) && !isAllowedByPolicy(st.managed, name, groupOf))
+       : source.filter((name) => hiddenBy(st, name))
+     // 2026-11-04（与别名/scoped 工具共存）：宿主只允许 mask **全局工具**，
+     // 别的插件注册在 agent 作用域的工具（如别名转发壳）天然不可 restrict。
+@@ -651,6 +684,28 @@ export function apply(ctx, config) {
      for (const name of host.toolNames(agent)) st.seen.add(name)
      // 2026-11-01（0.18 隔离约束②）：撤销后回读。上一轮我们藏过、现在仍不可见、
      // 且不是本轮要藏的名字 ⇒ 被外部层挡住（不是我们）。只记证据，不抢别人的锁。
@@ -376,7 +806,16 @@ index b6967bf..d59d59e 100644
      const nextHidden = new Set(hidden)
      const stuck = (st.hiddenNames || []).filter(
        (name) => !visibleAfterLift.includes(name) && !nextHidden.has(name) && !CORE_TOOLS.has(name),
-@@ -860,13 +882,36 @@ export function apply(ctx, config) {
+@@ -753,7 +808,7 @@ export function apply(ctx, config) {
+       // 会话档位改过后 status 会和决策打架（组收起了还报 hot=true）。同一个判据，走同一个函数。
+       const idleDaysView = sessionIdleDays(agent ? stateFor(agent) : null)
+       const hotCount = inGroup.filter((name) => isToolHot(usageLedger, name, idleDaysView)).length
+-      const hotRatio = inGroup.length === 0 ? 0 : Math.round((hotCount / inGroup.length) * 100) / 100
++      const hotRatio = usageHotRatio(hotCount, inGroup.length)
+       const entry = {
+         id: g.id,
+         title: g.title || g.id,
+@@ -860,13 +915,36 @@ export function apply(ctx, config) {
        leakTimers.set(agent, timer)
        return
      }
@@ -415,6 +854,132 @@ index b6967bf..d59d59e 100644
    })
    // 卸载/热重载时清掉待办定时器 —— 孤儿定时器会和孤儿限制一样难查。
    try {
+@@ -1023,25 +1101,35 @@ export function apply(ctx, config) {
+       },
+       applyPolicy: (next) => {
+         // 走 applyPolicyPatch：只改档位时天数跟着档位走（详见 api.js 里的注释）
++        const beforeRoles = JSON.stringify(roleSource || null)
++        const hadRolesBefore = Boolean(policy.managedRoles)
+         const patch = Object.assign({}, next)
+         // 冷读红 4b：设置页把 managedRoles **原样**塞进来会绕过归一化与审计 ——
+         // allowGroups: [] 会静默把会话锁死，类型写错会让 isAllowedByPolicy 抛错（多给）。
+         // 所以这里必须走和启动/热重载同一条归一化 + 审计。
+         const touchesRoles = Object.prototype.hasOwnProperty.call(patch, 'managedRoles')
++        let explicitClear = false
+         if (touchesRoles) {
+-          patch.managedRoles = normalizeManagedRoles(patch.managedRoles)
+-          if (patch.managedRoles === null) delete patch.managedRoles
++          // 2026-11-06（冷读红 1/B）：空对象是「清空角色」；无效输入保持原值。
++          const rolePatch = applyManagedRolesPatch(roleSource, patch.managedRoles)
++          explicitClear = rolePatch.explicitClear
++          if (!rolePatch.ignored) patch.managedRoles = rolePatch.next
++          else delete patch.managedRoles
+         }
+         applyPolicyPatch(policy, patch)
+         if (touchesRoles) {
+           // patch 里带了新角色表才换源；没带（=设置页没碰这一格）就保持原源 ——
+           // 别拿「生效表」（可能已被审计删过条目）覆盖「配置源」。
+-          if (patch.managedRoles) roleSource = patch.managedRoles
+-          refreshManagedRoles(true)
++          if (explicitClear) roleSource = null
++          else if (patch.managedRoles) roleSource = patch.managedRoles
++          // 2026-11-06（元宝 P0）：角色表没变就不 refresh/rebuild；否则一次勾选框会把
++          // 所有存活会话的前缀缓存全废掉。
++          if (JSON.stringify(roleSource || null) !== beforeRoles) refreshManagedRoles(true, hadRolesBefore)
+         }
+         host.log('info', `policy updated via settings: ${JSON.stringify(policy)}`)
+       },
+       record: (where, error) => host.record(where, error),
++      setPolicyMtime: (v) => setPolicyMtime(v),
+     })
+     // 桥的返回值原来没人接（对面 2026-10-29 指出是死代码）：插件卸载后它还在回请求。
+     // 挂到 ctx.effect 上，随插件生命周期一起关掉。
+@@ -1115,6 +1203,9 @@ export function apply(ctx, config) {
+   const applySessionPolicy = (agent, spec) => {
+     if (!agent) return { error: 'no agent' }
+     const st = stateFor(agent)
++    // 2026-11-06（元宝 P0）：受管会话的工具面由角色决定，st.modes 在 rebuild 里被忽略；
++    // 继续返回成功就是假成功。这里明确拒绝。
++    if (st.managed) return { error: '受管会话由角色决定工具面：mode / 收纳本对话不生效' }
+     const input = spec || {}
+     if (input.reset === true) {
+       st.level = null
+diff --git a/_tools/lazy-tools/lib/roles.js b/_tools/lazy-tools/lib/roles.js
+index 7d456e9..90d39a5 100644
+--- a/_tools/lazy-tools/lib/roles.js
++++ b/_tools/lazy-tools/lib/roles.js
+@@ -104,14 +104,21 @@ export function roleCandidatesFromLabel(label) {
+  * 绝不扫第三段以后（那是任务摘要，正是误认的来源）。
+  * 调用方按顺序挑「配过的那个」。
+  */
++const ROLE_FIRST_SEGMENT = new Set(['review', 'build', 'research'])
++
+ export function labelRoleCandidates(label) {
+   if (typeof label !== 'string' || !label.trim()) return []
+   const segs = label.trim().toLowerCase().split(/[:/|\s]+/).filter(Boolean)
+   const ok = (part) =>
+     !!part && /^[a-z0-9_-]{1,32}$/.test(part) && !GENERIC_LABEL_WORDS.has(part) && !/^\d+$/.test(part)
+   const out = []
+-  if (segs.length > 1 && ok(segs[1])) out.push(segs[1])
+-  if (ok(segs[0])) out.push(segs[0])
++  // 2026-11-06（A/B 评审 F2）：显式角色必须优先第一段；
++  // 否则 `review: build the plugin` 会被当成 build，绕过 review 的只读面。
++  // MyGO 旧标签 `dsh-my-go:hermes: ...` 的第一段不是已知角色，仍按第二段取。
++  if (segs.length > 1 && ok(segs[1])) {
++    if (ROLE_FIRST_SEGMENT.has(segs[0])) out.push(segs[0], segs[1])
++    else out.push(segs[1], segs[0])
++  } else if (ok(segs[0])) out.push(segs[0])
+   return out
+ }
+ /**
+@@ -251,3 +258,22 @@ export function auditManagedRoles(managedRoles, groupIds) {
+   }
+   return out
+ }
++
++/**
++ * 计算一次 managedRoles 补丁的结果（纯函数，便于测试）。
++ * 空对象 = 用户明确清空；normalize 失败 = 无效输入、保持原值。
++ */
++export function applyManagedRolesPatch(current, raw) {
++  const explicitClear = Boolean(raw && typeof raw === 'object' && !Array.isArray(raw) && Object.keys(raw).length === 0)
++  const normalized = normalizeManagedRoles(raw)
++  if (normalized === null && !explicitClear) {
++    return { next: current, changed: false, explicitClear: false, ignored: true }
++  }
++  const next = explicitClear ? null : normalized
++  return {
++    next,
++    changed: JSON.stringify(next || null) !== JSON.stringify(current || null),
++    explicitClear,
++    ignored: false,
++  }
++}
+diff --git a/_tools/lazy-tools/lib/tools/groups.js b/_tools/lazy-tools/lib/tools/groups.js
+index 55c024a..d9ac2df 100644
+--- a/_tools/lazy-tools/lib/tools/groups.js
++++ b/_tools/lazy-tools/lib/tools/groups.js
+@@ -224,7 +224,7 @@ export function createGroupTools(deps) {
+   const saveGroupsTool = {
+   name: 'lazy_tools_save_groups',
+   description:
+-    '把 agent 分好的组写进 ~/.dsh/lazy-tools.groups.json 并立刻生效（长期有效，用户随时可手改）。会做安全校验：含常驻工具、少于 2 个、与现有组重叠过多都会被拒。',
++    '把 agent 分好的组写进 ~/.dsh/lazy-tools.groups.json（长期有效，用户随时可手改）。默认只写文件、下次会话生效；applyNow=true 才立刻生效（会打断本会话前缀缓存）。会做安全校验：含常驻工具、少于 2 个、与现有组重叠过多都会被拒。',
+   parameters: {
+     type: 'object',
+     properties: {
+@@ -244,6 +244,11 @@ export function createGroupTools(deps) {
+   execute: async (args, exec) => {
+     const agent = exec && exec.agent
+     const incoming = Array.isArray(args && args.groups) ? args.groups : []
++    // 2026-11-06（A/B 评审 F1）：受管会话只能由角色决定工具面；save_groups 以前漏了守卫，
++    // review 虽然藏了 edit/write，却仍能改全局组配置。这里与 enable/disable 用同一判据。
++    if (agent && incoming.length && stateFor(agent).managed) {
++      return { error: '受管会话：工具面由角色策略决定，不允许写全局组配置；请编辑 groups 文件或 managedRoles。' }
++    }
+     // 2026-10-30 合并：不传 groups = 要分类材料（原 lazy_tools_classify）。
+     if (!incoming.length) {
+       const namesU = unclassifiedNames(agent)
 diff --git a/_tools/lazy-tools/lib/tools/health.js b/_tools/lazy-tools/lib/tools/health.js
 index 69598db..b780893 100644
 --- a/_tools/lazy-tools/lib/tools/health.js
@@ -443,18 +1008,53 @@ index 69598db..b780893 100644
          ...(probeWanted && report.nameProbe ? { nameProbe: report.nameProbe } : {}),
          ...(layersWanted && report.filterReport ? { filterReport: report.filterReport } : {}),
          ...(_args && _args.bench ? { bench: report.bench } : {}),
+diff --git a/_tools/lazy-tools/lib/usage.js b/_tools/lazy-tools/lib/usage.js
+index ed8b32f..8fe1e4f 100644
+--- a/_tools/lazy-tools/lib/usage.js
++++ b/_tools/lazy-tools/lib/usage.js
+@@ -88,3 +88,8 @@ export function isToolHot(usage, toolName, idleDays, now = Date.now()) {
+ }
+ 
+ export { DAY }
++
++/** 热度比例：显示与决策共用的唯一算法（不取整）。 */
++export function hotRatio(hotCount, total) {
++  return total === 0 ? 0 : hotCount / total
++}
 diff --git a/_tools/lazy-tools/package.json b/_tools/lazy-tools/package.json
-index 349ad5f..d8947e3 100644
+index 349ad5f..c84c150 100644
 --- a/_tools/lazy-tools/package.json
 +++ b/_tools/lazy-tools/package.json
-@@ -1,6 +1,6 @@
+@@ -1,10 +1,10 @@
  {
    "name": "dsh-tool-drawer",
 -  "version": "0.18.6",
-+  "version": "0.18.7",
++  "version": "0.18.8",
    "private": false,
    "type": "module",
    "main": "lib/index.js",
+-  "description": "On-demand tool groups for DeepSeek Harness: hide heavy tool sets from the context, open them on demand.",
++  "description": "On-demand tool groups and role-scoped tool surfaces for DeepSeek Harness: hide heavy tools, switch review/build/research by label.",
+   "exports": {
+     ".": "./lib/index.js",
+     "./client": "./client.js",
+@@ -19,12 +19,15 @@
+     "locale/*.json",
+     "icon.svg",
+     "README.md",
++    "README.en.md",
+     "CHANGELOG.md",
+     "DESIGN.md",
+     "INTEROP.md",
+     "POLICY.md",
+     "LICENSE",
+-    "test"
++    "test",
++    "skills",
++    "templates"
+   ],
+   "dsh": {
+     "bundle": {
 diff --git a/_tools/lazy-tools/review/anomalies.json b/_tools/lazy-tools/review/anomalies.json
 new file mode 100644
 index 0000000..e605bf1
@@ -520,40 +1120,231 @@ index 0000000..d6d8f54
 +for (const a of anomalies) console.log(`ANOMALY ${a.job}:${a.line} ${a.kind} ${a.text}`)
 +console.log(`\n异常：${anomalies.length}；退出失败：${failed}`)
 +if (anomalies.length > 0 || failed > 0) process.exitCode = 1
+diff --git a/_tools/lazy-tools/review/audit.mjs b/_tools/lazy-tools/review/audit.mjs
+new file mode 100644
+index 0000000..d9ac3c0
+--- /dev/null
++++ b/_tools/lazy-tools/review/audit.mjs
+@@ -0,0 +1,150 @@
++// 审计薄壳：只把 review/gate.mjs 的完整输出落成一份报告，自己不跑任何检查。
++// 用法：node review/audit.mjs --out <报告路径>
++//
++// 为什么是薄壳（2026-11-06 票 a7）：原方案让 audit 自己顺序跑 baseline / 对抗 / 变异分数，
++// 那三步是 gate.mjs 的真子集（少掉 anomalies / calibration / verdict / unverified / 流程一致性），
++// 会造出「audit 绿、gate 红」的假绿。所以这里不重写编排，只转发。
++//
++// 契约（每条都能用命令证伪）：
++//   1. 子进程固定为 `node review/gate.mjs --mutation-score --process --findings`，不追加、不改写参数；
++//   2. --out 必填；缺参数 exit 2，不猜默认路径；
++//   3. 报告 = 头部说明 + gate stdout + gate stderr；两段原文完整落盘，不裁剪、不改写
++//      （只做两种排版：小节之间加空行分隔；原文结尾没有换行时补一个换行，否则下个标题会粘在同一行）；
++//   4. 退出码 = gate 退出码；gate 被信号杀死或超时 => 1；audit 自己出错（参数/写报告）=> 2；
++//   5. 不跑检查、不写 review/verdict.json、review/unverified.json、review/findings.json
++//      （后三个是门禁输入/台账，误写会洗掉证据，所以 --out 指到它们时直接拒绝）。
++//
++// 实测（2026-11-06，Node v24.21.0，Windows，本机）：
++//   PASS：临时放一份收敛台账 review/findings.json => exit 0，报告含「门禁：PASS」；
++//   FAIL：台账不收敛 => exit 1，报告含「门禁：FAIL」；
++//   两次跑完 review/verdict.json 与 review/unverified.json 的 sha256 均不变。
++import { spawnSync } from 'node:child_process'
++import { existsSync, realpathSync, statSync, writeFileSync } from 'node:fs'
++import { basename, dirname, join, resolve } from 'node:path'
++import { fileURLToPath } from 'node:url'
++
++const here = dirname(fileURLToPath(import.meta.url))
++const root = dirname(here)
++const GATE = join(here, 'gate.mjs')
++const GATE_ARGS = ['--mutation-score', '--process', '--findings']
++// 只是安全网；gate 每个步骤自己有 300s 超时，正常一轮是分钟级。
++const TIMEOUT_MS = 45 * 60 * 1000
++// 报告不许写成这三个文件：它们是门禁的输入/台账，覆盖掉就洗掉了证据。
++const GUARDED = ['verdict.json', 'unverified.json', 'findings.json']
++
++const usage = '用法：node review/audit.mjs --out <报告路径>（--out 必填，没有默认路径）'
++
++class UsageError extends Error {}
++
++const parseArgs = (argv) => {
++  let out = ''
++  for (let i = 0; i < argv.length; i += 1) {
++    const arg = argv[i]
++    if (arg === '--out') {
++      const value = argv[i + 1] || ''
++      if (!value || value.startsWith('--')) throw new UsageError(`--out 后面缺少报告路径。${usage}`)
++      out = value
++      i += 1
++    } else if (arg.startsWith('--out=')) {
++      const value = arg.slice('--out='.length)
++      if (!value) throw new UsageError(`--out= 后面缺少报告路径。${usage}`)
++      out = value
++    } else {
++      throw new UsageError(`不认识的参数：${arg}。${usage}`)
++    }
++  }
++  if (!out) throw new UsageError(`缺少 --out。${usage}`)
++  const target = resolve(out)
++  const parent = dirname(target)
++  if (!existsSync(parent) || !statSync(parent).isDirectory()) {
++    throw new UsageError(`报告目录不存在：${parent}（不猜、不自动建）`)
++  }
++  // NTFS 大小写不敏感，必须按真实路径 + 小写比较；realpath 同时挡住 junction/symlink。
++  const canonicalParent = realpathSync.native(parent).toLowerCase()
++  const canonical = join(canonicalParent, basename(target).toLowerCase())
++  const guardedDir = realpathSync.native(here).toLowerCase()
++  for (const name of GUARDED) {
++    if (canonical === join(guardedDir, name)) {
++      throw new UsageError(`报告不能写成 review/${name}（它是门禁输入/台账，audit 不许覆盖）`)
++    }
++  }
++  if (existsSync(target)) {
++    throw new UsageError(`报告已存在：${target}（audit 不覆盖已有文件；换路径或先删）`)
++  }
++  return target
++}
++
++// 原文直接落盘；只有「结尾没有换行」时补一个，否则下一个小节标题会粘在同一行。
++const block = (text) => (text && !text.endsWith('\n') ? `${text}\n` : text)
++
++const main = () => {
++  let outPath
++  try {
++    outPath = parseArgs(process.argv.slice(2))
++  } catch (error) {
++    if (!(error instanceof UsageError)) throw error
++    console.error(`audit：${error.message}`)
++    process.exitCode = 2
++    return
++  }
++
++  const started = new Date()
++  const result = spawnSync(process.execPath, [GATE, ...GATE_ARGS], {
++    cwd: root,
++    encoding: 'utf8',
++    maxBuffer: 64 * 1024 * 1024,
++    timeout: TIMEOUT_MS,
++  })
++  const stdout = result.stdout || ''
++  const stderr = result.stderr || ''
++
++  // 原样透传：gate 的每一行失败都要出现在 audit 自己的输出里（规范第 6 条：失败必须计数并输出），
++  // 否则 CI 日志里只剩一个退出码，排查又要去翻文件。
++  if (stdout) process.stdout.write(stdout)
++  if (stderr) process.stderr.write(stderr)
++
++  let exitCode = result.status
++  let note = ''
++  if (result.error && result.error.code === 'ETIMEDOUT') {
++    exitCode = 1
++    note = `gate 超过 ${TIMEOUT_MS / 60000} 分钟被超时终止`
++  } else if (result.error) {
++    exitCode = 2
++    note = `audit 起不了 gate：${result.error.message}`
++  } else if (result.status === null) {
++    exitCode = 1
++    note = `gate 被信号 ${result.signal || '未知'} 终止`
++  }
++
++  const report = [
++    '# 审计报告（review/audit.mjs 生成，只转发 gate 输出）',
++    '',
++    `- 时间：${started.toISOString()}（UTC）`,
++    `- 工作目录：${root}`,
++    `- 子进程：${process.execPath} ${GATE} ${GATE_ARGS.join(' ')}`,
++    `- gate 退出码：${result.status === null ? 'null' : result.status}`,
++    `- audit 退出码：${exitCode}`,
++    ...(note ? [`- 注意：${note}`] : []),
++    '',
++    '## gate stdout（原样）',
++    '',
++    block(stdout),
++    '## gate stderr（原样）',
++    '',
++    block(stderr),
++    '',
++  ].join('\n')
++
++  try {
++    // 含中文的报告按仓库约定带 BOM；wx = 绝不覆盖（上面 exists 检查挡早了一步，这里挡竞态）。
++    writeFileSync(outPath, '\uFEFF' + report, { encoding: 'utf8', flag: 'wx' })
++  } catch (error) {
++    console.error(`audit：报告写入失败（${outPath}）：${error.message}`)
++    process.exitCode = 2
++    return
++  }
++  console.error(`audit：报告已写入 ${outPath}`)
++  process.exitCode = exitCode
++}
++
++main()
 diff --git a/_tools/lazy-tools/review/baseline.json b/_tools/lazy-tools/review/baseline.json
 new file mode 100644
-index 0000000..8fa3b7a
+index 0000000..b7a718e
 --- /dev/null
 +++ b/_tools/lazy-tools/review/baseline.json
-@@ -0,0 +1,30 @@
+@@ -0,0 +1,65 @@
 +[
 +  {
 +    "id": "smoke",
 +    "desc": "冒烟全过",
-+    "cmd": ["test/smoke.mjs"],
++    "cmd": [
++      "test/smoke.mjs"
++    ],
 +    "expectExit": 0,
 +    "expectRegex": "smoke: \\d+ 项全过"
 +  },
 +  {
 +    "id": "adversarial",
 +    "desc": "对抗全过且 RED 0",
-+    "cmd": ["test/adversarial.mjs"],
++    "cmd": [
++      "test/adversarial.mjs"
++    ],
 +    "expectExit": 0,
 +    "expectRegex": "RED 0"
 +  },
 +  {
 +    "id": "tool-names-view",
 +    "desc": "toolNames 优先 view（[105] 在冒烟里）",
-+    "cmd": ["test/smoke.mjs"],
++    "cmd": [
++      "test/smoke.mjs"
++    ],
 +    "expectExit": 0,
 +    "expectRegex": "\\[105\\] toolNames 优先 view"
 +  },
 +  {
 +    "id": "empty-view",
 +    "desc": "空视图回退 schemas（[107]）",
-+    "cmd": ["test/smoke.mjs"],
++    "cmd": [
++      "test/smoke.mjs"
++    ],
 +    "expectExit": 0,
 +    "expectRegex": "\\[107\\] 空视图必须回退 schemas"
++  },
++  {
++    "id": "gate-integrity",
++    "desc": "门禁完整性负向测试",
++    "cmd": [
++      "review/gate-integrity.test.mjs"
++    ],
++    "expectExit": 0,
++    "expectRegex": "门禁完整性：PASS"
++  },
++  {
++    "id": "config-readdir",
++    "desc": "config profiles 不可读时不崩",
++    "cmd": [
++      "test/config.test.mjs"
++    ],
++    "expectExit": 0,
++    "expectRegex": "config：PASS"
++  },
++  {
++    "id": "54-skip",
++    "desc": "54 skip 语义",
++    "cmd": [
++      "review/check-54-skip.mjs"
++    ],
++    "expectExit": 0,
++    "expectRegex": "54 skip：PASS"
 +  }
 +]
 diff --git a/_tools/lazy-tools/review/build-bundle.mjs b/_tools/lazy-tools/review/build-bundle.mjs
@@ -656,6 +1447,124 @@ index 0000000..16620f6
 +const bundle = parts.join('\n')
 +writeFileSync(outfile, bundle)
 +console.log(`bundle: ${outfile}  ${(bundle.length / 1024).toFixed(1)} KB  files=${files.length}  range=${range}`)
+diff --git a/_tools/lazy-tools/review/calibration/bad-missing.md b/_tools/lazy-tools/review/calibration/bad-missing.md
+new file mode 100644
+index 0000000..eb63174
+--- /dev/null
++++ b/_tools/lazy-tools/review/calibration/bad-missing.md
+@@ -0,0 +1,18 @@
++﻿# Cold read — dsh-tool-drawer 0.18.8
++
++*Calibration fixture for review/check-calibration.mjs.*
++
++Reader: independent pass, no context from the author.
++Material read: published tarball contents, cordis.patch.yml, lib/*.js, test/smoke.mjs.
++
++## Checks
++
++1. Tool names and group ids match DESIGN.md.
++2. apply() hides the documented groups on a fresh profile.
++3. Restrict and release round-trip cleanly.
++4. Smoke suite: 128 checks, all pass.
++
++## Result
++
++No red findings and nothing unverified. The author of this fixture forgot to append
++the machine-readable block, so the judge must treat this report as missing.
+diff --git a/_tools/lazy-tools/review/calibration/bad-red.md b/_tools/lazy-tools/review/calibration/bad-red.md
+new file mode 100644
+index 0000000..3d6ae0b
+--- /dev/null
++++ b/_tools/lazy-tools/review/calibration/bad-red.md
+@@ -0,0 +1,25 @@
++﻿# Cold read — dsh-tool-drawer 0.18.8
++
++*Calibration fixture for review/check-calibration.mjs. The findings below are synthetic:
++they describe no real defect of this release and exist only to test the judge.*
++
++Reader: independent pass, no context from the author.
++Material read: published tarball contents, cordis.patch.yml, lib/*.js, test/smoke.mjs.
++All findings below were reproduced locally.
++
++## Findings
++
++1. Red — group state written to disk uses the raw group id as a key, so two profiles with the same id overwrite each other.
++2. Red — a failed restrict() during open leaves the group in "open" state while nothing is actually hidden.
++3. Red — locale fallback silently drops keys instead of returning the English string.
++4. Track A — the README claims a 30% saving that the code does not guarantee.
++5. Track B — the smoke suite never exercises the reload path.
++6. Track B — the patch yml mounts the client bundle without a version guard.
++
++## Result
++
++Three red findings and two minor ones. Nothing in this report is unverified.
++
++```verdict
++{"red":3,"A":1,"B":2,"unverified":0,"baseline":7}
++```
+diff --git a/_tools/lazy-tools/review/calibration/bad-unverified.md b/_tools/lazy-tools/review/calibration/bad-unverified.md
+new file mode 100644
+index 0000000..cc4685b
+--- /dev/null
++++ b/_tools/lazy-tools/review/calibration/bad-unverified.md
+@@ -0,0 +1,25 @@
++﻿# Cold read — dsh-tool-drawer 0.18.8
++
++*Calibration fixture for review/check-calibration.mjs. The open items below are synthetic:
++they describe no real defect of this release and exist only to test the judge.*
++
++Reader: independent pass, no context from the author.
++Material read: published tarball contents, cordis.patch.yml, the loader docs, test/smoke.mjs.
++
++## Confirmed
++
++- apply() on a fresh profile hides the documented set of groups.
++- The smoke suite completes without errors.
++
++## Could not confirm
++
++1. The claimed token saving on a long session — no long session was available, so the number in the README was not reproduced.
++2. The reload path under plugin upgrade — the upgrade was not exercised, the assertion stays open.
++
++## Result
++
++No red findings. Two items remain unverified.
++
++```verdict
++{"red":0,"A":0,"B":0,"unverified":2,"baseline":7}
++```
+diff --git a/_tools/lazy-tools/review/calibration/good.md b/_tools/lazy-tools/review/calibration/good.md
+new file mode 100644
+index 0000000..110b4f3
+--- /dev/null
++++ b/_tools/lazy-tools/review/calibration/good.md
+@@ -0,0 +1,26 @@
++﻿# Cold read — dsh-tool-drawer 0.18.8
++
++*Calibration fixture for review/check-calibration.mjs.*
++
++Reader: independent pass, no context from the author.
++Material read: published tarball contents, cordis.patch.yml, lib/*.js, test/smoke.mjs.
++Everything below was reproduced by running the code, not copied from the README.
++
++## Checks
++
++1. Group table and tool names in the shipped bundle match DESIGN.md.
++2. apply() hides the documented number of groups on a fresh profile.
++3. Opening a group restores exactly its members and leaves no orphan restriction.
++4. Closing a group removes only what it added; a second open/close cycle is stable.
++5. Unknown group ids and empty views fall back without throwing.
++6. Locale strings load for every shipped language.
++7. Smoke suite: 128 checks, 0 failures on a clean checkout.
++8. No network access, no writes outside os.tmpdir(), no secrets in the package.
++
++## Result
++
++No red findings. Nothing was left unverified: every line above was checked by running it.
++
++```verdict
++{"red":0,"A":0,"B":0,"unverified":0,"baseline":7}
++```
 diff --git a/_tools/lazy-tools/review/callers.mjs b/_tools/lazy-tools/review/callers.mjs
 new file mode 100644
 index 0000000..095414d
@@ -695,6 +1604,82 @@ index 0000000..095414d
 +    }
 +  })
 +}
+diff --git a/_tools/lazy-tools/review/check-54-skip.mjs b/_tools/lazy-tools/review/check-54-skip.mjs
+new file mode 100644
+index 0000000..ff3b9d4
+--- /dev/null
++++ b/_tools/lazy-tools/review/check-54-skip.mjs
+@@ -0,0 +1,70 @@
++// 54 发版脚本的 skip 语义静态检查：对抗在 skip 之前、一致性跳过必须判 FAIL。
++import { spawnSync } from 'node:child_process'
++import { existsSync, readFileSync } from 'node:fs'
++import { dirname, join } from 'node:path'
++import { fileURLToPath } from 'node:url'
++
++const here = dirname(fileURLToPath(import.meta.url))
++const ps1Path = join(here, '..', '..', '..', 'perf-', '54-发版.ps1')
++if (!existsSync(ps1Path)) {
++  console.log('54 skip：PASS（SKIP：本环境没有 perf-/54-发版.ps1）')
++  process.exit(0)
++}
++const ps1 = readFileSync(ps1Path, 'utf8')
++const spec = JSON.parse(readFileSync(join(here, 'gate-spec.json'), 'utf8'))
++let failed = 0
++const check = (name, ok, detail = '') => {
++  console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${detail ? `：${detail}` : ''}`)
++  if (!ok) failed += 1
++}
++
++const advPos = ps1.indexOf("$advScript = Join-Path $SrcRepo \"test/adversarial.mjs\"")
++const skipPos = ps1.indexOf("Test-Skipped 'smoke'")
++check('对抗在 skip 之前', advPos > 0 && skipPos > 0 && advPos < skipPos, `adv=${advPos} skip=${skipPos}`)
++check(
++  '一致性跳过必须判 FAIL',
++  /Test-Skipped 'consistency'\)\s*\{\s*Step '6e\/7' '一致性断言' \$false/.test(ps1),
++)
++check(
++  'gate-spec 只允许 smoke / encoding',
++  JSON.stringify(spec.skippable) === JSON.stringify(['smoke', 'encoding']),
++  JSON.stringify(spec.skippable),
++)
++check('54 拒绝未知 skip', /-notin @\('smoke', 'encoding'\)/.test(ps1))
++check('对抗不可跳过', spec.notSkippable.includes('adversarial'))
++check('一致性不可跳过', spec.notSkippable.includes('consistency'))
++check('gate-spec 缺失直接报错', /缺 review\/gate-spec\.json/.test(ps1))
++
++// B1 台账接入（2026-11-06 票 findings-54）：findings 收敛必须真的出现在 54 里。
++// protectedBy: perf-/54-发版.ps1 的「4e. findings 收敛」段 + review/gate-spec.json 的 notSkippable
++// 只断言「字符串存在」会漏掉三种退化：① 步骤被删；② 挪到别的门禁步骤前面去；③ 无台账也不 PASS（把老发版卡死）。
++const findingsPos = ps1.indexOf("Step '6h/7' 'findings 收敛'")
++const mutPos = ps1.indexOf("Step '6g/7' '变异'")
++check('findings 步骤存在（6h/7）', findingsPos > 0, `pos=${findingsPos}`)
++check('findings 步骤排在变异（6g）之后', mutPos > 0 && findingsPos > mutPos, `findings=${findingsPos} mut=${mutPos}`)
++check('findings 无台账时 PASS（不卡老发版）', /Step '6h\/7' 'findings 收敛' \$true '无台账/.test(ps1))
++check('findings 台账路径来自 $SrcRepo', /\$findingsFile = Join-Path \$SrcRepo 'review\/findings\.json'/.test(ps1))
++check('findings 调 findings.mjs status', /& \$gateNode \$findingsScript status/.test(ps1))
++check('findings 有台账时不可跳过', spec.notSkippable.includes('findings'))
++
++check('包内含英文介绍', /package\/README\.en\.md/.test(ps1))
++check('Release 说明含验证证据', /验证证据（自动生成）/.test(ps1))
++check('证据含制品 sha256', /制品：.*sha256=/.test(ps1))
++
++const run54 = (args) => spawnSync('powershell', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', join(here, '..', '..', '..', 'perf-', '54-发版.ps1'), ...args], { encoding: 'utf8', timeout: 30000 })
++const bogus = run54(['-Skip', 'bogus', '-Why', 'review-test'])
++check('54 运行时拒绝未知 skip', bogus.status !== 0 && /未知跳过项 bogus/.test((bogus.stdout || '') + (bogus.stderr || '')))
++const adv = run54(['-Skip', 'adversarial', '-Why', 'review-test'])
++check('54 运行时拒绝对抗跳过', adv.status !== 0 && /不可跳过/.test((adv.stdout || '') + (adv.stderr || '')))
++// -Skip findings 也不许生效。注意：这个工作树跑 54 时 $SrcRepo 写死指向主检出，拒绝理由可能来自
++// 主仓的旧 gate-spec（未知跳过项）或本树的 gate-spec（不可跳过）—— 两种都算过，但退出码必须非 0。
++const skipFindings = run54(['-Skip', 'findings', '-Why', 'review-test'])
++check(
++  '54 运行时拒绝跳过 findings',
++  skipFindings.status !== 0 && /(findings.*不可跳过|不可跳过.*findings|未知跳过项.*findings)/.test((skipFindings.stdout || '') + (skipFindings.stderr || '')),
++  `exit=${skipFindings.status}`,
++)
++
++console.log(`
++54 skip：${failed === 0 ? 'PASS' : 'FAIL'}`)
++if (failed > 0) process.exitCode = 1
 diff --git a/_tools/lazy-tools/review/check-baseline.mjs b/_tools/lazy-tools/review/check-baseline.mjs
 new file mode 100644
 index 0000000..3549ba8
@@ -749,37 +1734,622 @@ index 0000000..3549ba8
 +
 +console.log(`\n基线：${lines.length} 条；FAIL ${failed}；UNVERIFIED ${unverified}`)
 +if (failed > 0 || unverified > 0) process.exitCode = 1
-diff --git a/_tools/lazy-tools/review/gate.mjs b/_tools/lazy-tools/review/gate.mjs
+diff --git a/_tools/lazy-tools/review/check-calibration.mjs b/_tools/lazy-tools/review/check-calibration.mjs
 new file mode 100644
-index 0000000..1b6f012
+index 0000000..38a6832
 --- /dev/null
-+++ b/_tools/lazy-tools/review/gate.mjs
-@@ -0,0 +1,42 @@
-+// 门禁：基线 + 异常 + 未验证计数；任一不绿即 fail。
-+// 用法：node review/gate.mjs
++++ b/_tools/lazy-tools/review/check-calibration.mjs
+@@ -0,0 +1,85 @@
++// 校准集：拿四份已知答案的报告给冷读裁判做回归（B2）。
++// 用法：node review/check-calibration.mjs
++// 每份报告的裁决都写到 os.tmpdir() 下的临时目录 —— 绝不碰 review/verdict.json。
 +import { spawnSync } from 'node:child_process'
-+import { readFileSync } from 'node:fs'
++import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
++import { tmpdir } from 'node:os'
 +import { dirname, join } from 'node:path'
 +import { fileURLToPath } from 'node:url'
 +
 +const here = dirname(fileURLToPath(import.meta.url))
++const verifier = join(here, 'verify-coldread.mjs')
++const verdictFile = join(here, 'verdict.json')
++const unverifiedFile = join(here, 'unverified.json')
++
++const cases = [
++  { file: 'good.md', ok: true },
++  { file: 'bad-red.md', ok: false },
++  { file: 'bad-unverified.md', ok: false },
++  { file: 'bad-missing.md', ok: false },
++]
++
++const readOrNull = (path) => {
++  try {
++    return readFileSync(path, 'utf8')
++  } catch {
++    return null
++  }
++}
++
++const before = readOrNull(verdictFile)
++const beforeUnverified = readOrNull(unverifiedFile)
++const diffs = []
++const work = mkdtempSync(join(tmpdir(), 'coldread-calibration-'))
++let passed = 0
++
++try {
++  for (const item of cases) {
++    const out = join(work, `${item.file.replace(/\.md$/u, '')}.verdict.json`)
++    const run = spawnSync(process.execPath, [verifier, join(here, 'calibration', item.file), '--out', out], {
++      encoding: 'utf8',
++      timeout: 60000,
++    })
++    if (run.error) {
++      diffs.push(`${item.file}：裁判没跑起来（${run.error.message}）`)
++      continue
++    }
++    if (!existsSync(out)) {
++      diffs.push(`${item.file}：没有写出 ${out}（status=${run.status}）`)
++      continue
++    }
++    let verdict = null
++    try {
++      verdict = JSON.parse(readFileSync(out, 'utf8'))
++    } catch (error) {
++      diffs.push(`${item.file}：输出不是 JSON（${String(error && error.message)}）`)
++      continue
++    }
++    const problems = []
++    if (verdict.ok !== item.ok) problems.push(`ok 期望 ${item.ok}，实际 ${verdict.ok}`)
++    if (verdict.type !== 'cold') problems.push(`type 期望 cold，实际 ${verdict.type}`)
++    if (item.ok && run.status !== 0) problems.push(`退出码期望 0，实际 ${run.status}`)
++    if (!item.ok && run.status === 0) problems.push('失败用例的退出码不能是 0')
++    if (!item.ok && !(Array.isArray(verdict.reasons) && verdict.reasons.length > 0)) problems.push('失败用例没给原因')
++    if (problems.length) {
++      diffs.push(`${item.file}：${problems.join('；')}（reasons=${JSON.stringify(verdict.reasons)}）`)
++      continue
++    }
++    passed += 1
++    console.log(`PASS ${item.file}  ok=${verdict.ok}  type=${verdict.type}`)
++  }
++} finally {
++  rmSync(work, { recursive: true, force: true })
++}
++
++// 这一条是任务硬要求：校准跑完，仓库里的 verdict 必须一个字节都没变。
++if (readOrNull(verdictFile) !== before) diffs.push('review/verdict.json 被覆盖了 —— 校准必须走 --out')
++if (readOrNull(unverifiedFile) !== beforeUnverified) diffs.push('review/unverified.json 被覆盖了 —— 校准必须走 --out')
++
++if (diffs.length) {
++  console.log(`校准：FAIL ${passed}/${cases.length}`)
++  for (const diff of diffs) console.log(`  - ${diff}`)
++  process.exitCode = 1
++} else {
++  console.log(`校准：PASS ${passed}/${cases.length}`)
++}
+diff --git a/_tools/lazy-tools/review/check-process.mjs b/_tools/lazy-tools/review/check-process.mjs
+new file mode 100644
+index 0000000..6810298
+--- /dev/null
++++ b/_tools/lazy-tools/review/check-process.mjs
+@@ -0,0 +1,124 @@
++// 流程一致性检查：只查可证伪的冲突，不查文风。
++// 用法：node review/check-process.mjs [--root <工作区>]
++import { existsSync, readFileSync } from 'node:fs'
++import { dirname, join } from 'node:path'
++import { fileURLToPath } from 'node:url'
++
++const here = dirname(fileURLToPath(import.meta.url))
++const repo = dirname(here)
++const workspace = process.argv[2] || join(repo, '..', '..')
++const skill = join(process.env.USERPROFILE || process.env.HOME || '', '.dsh', 'skills', 'dev-ticket-loop', 'SKILL.md')
++const incidentSkill = join(process.env.USERPROFILE || process.env.HOME || '', '.dsh', 'skills', 'incident-archive', 'SKILL.md')
++const devFlow = join(workspace, 'perf-', '开发流程-20261103.md')
++const archive = join(workspace, '翻车档案.md')
++
++const read = (path) => (existsSync(path) ? readFileSync(path, 'utf8') : '')
++const problems = []
++const check = (name, ok, detail) => {
++  if (ok) console.log(`PASS ${name}`)
++  else {
++    problems.push(`${name}：${detail}`)
++    console.log(`FAIL ${name}：${detail}`)
++  }
++}
++
++const processText = read(join(repo, 'PROCESS.md'))
++const devText = read(devFlow)
++const skillText = read(skill)
++const incidentText = read(incidentSkill)
++
++check('PROCESS.md 存在', processText.length > 0, '缺 PROCESS.md')
++check('翻车档案存在', existsSync(archive), archive)
++check('翻车档案条数口径=77', /77\s*条/.test(incidentText + read(archive)) || /77/.test(incidentText), '没有 77 条口径')
++check(
++  '没有 perf-\\翻车档案 错路径',
++  !/perf-[\\/]翻车档案/.test(skillText + incidentText + devText),
++  '存在 perf-\\翻车档案（实际在根目录）',
++)
++check(
++  '恶性清单不在 -Skip 白名单',
++  !/(可跳过|Skip)[^\n]*malignant/i.test(devText),
++  '开发流程仍把 malignant 列为可跳过',
++)
++check(
++  '发版是否需人看：只有一种说法',
++  !(/发版不加人看一眼|不需要人看/.test(devText) && /发版[^\n]*先给用户过目|公开动作[^\n]*过目/.test(skillText)),
++  '开发流程说发版不用人看，技能说公开动作要先过目（PROCESS 已裁决：发版免、其他要）',
++)
++check(
++  '外部审阅时点：不横跳',
++  !(/发版后/.test(devText) && /只在发版前|发版前一次/.test(devText)),
++  '开发流程同时写"发版前"和"发版后"',
++)
++const reviewerCounts = new Set()
++for (const text of [devText, skillText]) {
++  for (const match of text.matchAll(/常设[^。\n]{0,12}?(\d+)\s*个/g)) reviewerCounts.add(match[1])
++}
++check('常设评审数量只有一个数', reviewerCounts.size <= 1, `出现 ${[...reviewerCounts].join('/')} 个`)
++check(
++  '不再要求"一条变异"',
++  !/一条变异/.test(devText + skillText),
++  '仍写"一条变异"（PROCESS 要求每测试一条）',
++)
++const counts = new Set()
++for (const text of [devText, skillText, processText]) {
++  for (const match of text.matchAll(/冒烟\s*(\d+)\s*项/g)) counts.add(match[1])
++}
++check('冒烟数字不写死冲突', counts.size <= 1, `出现 ${[...counts].join('/')} 项`)
++check('冷读裁决脚本存在', existsSync(join(here, 'verify-coldread.mjs')), '缺 verify-coldread.mjs')
++check('变异清单存在', existsSync(join(here, 'mutations.json')) && existsSync(join(here, 'mutate.mjs')), '缺 mutate')
++
++
++// ---- 2026-11-06（元宝流程复审）：补 7 条硬约束 ----
++let spec = null
++try {
++  spec = JSON.parse(readFileSync(join(here, 'gate-spec.json'), 'utf8'))
++} catch {
++  spec = null
++}
++check('gate-spec.json 存在且可解析', Boolean(spec), '缺 gate-spec.json')
++check(
++  'spec：恶性清单不可跳过',
++  Boolean(spec && spec.notSkippable && spec.notSkippable.includes('malignant')),
++  'notSkippable 缺 malignant',
++)
++check(
++  'spec：常设 2 个 / 发版后 1 次',
++  Boolean(spec && spec.standingReviewers === 2 && spec.postRelease && spec.postRelease.externalReview === 1),
++  'standingReviewers 或 postRelease 不对',
++)
++check(
++  '发版门槛不含外部审阅',
++  !/## 5\.[\s\S]*?外部审阅[\s\S]*?## 6\./.test(devText),
++  '§5 发版门槛仍列了外部审阅',
++)
++check(
++  'P0 不再要求本轮修完',
++  !/P0\s*必须在本轮修完/.test(devText),
++  '仍写"P0 必须在本轮修完"',
++)
++const sixes = (devText.match(/^6\. /gm) || []).length
++check('发版清单编号不重复', sixes <= 1, `出现 ${sixes} 个"6."`)
++check(
++  '不可跳过含恶性清单',
++  /不可跳过[^\n]*恶性/.test(devText) && /不可跳过[^\n]*恶性/.test(skillText),
++  '开发流程或技能的不跳过清单缺"恶性"',
++)
++check(
++  'CI 跑 gate',
++  /review\/gate\.mjs/.test(read(join(repo, '.github', 'workflows', 'test.yml')) || ''),
++  'CI 没有 gate 步骤',
++)
++
++
++// ---- 2026-11-06 V4：把"只改一份"和"执行器没接"也变成断言 ----
++check('spec：consistency 不可跳过', Boolean(spec && Array.isArray(spec.skippable) && !spec.skippable.includes('consistency')), 'gate-spec 仍允许跳过 consistency')
++check('开发流程 §0 已降级', /不再作为派工硬门槛/.test(devText), '仍把写前查档当硬门槛')
++check('技能读 verdict.json', /verdict\.json/.test(skillText), '技能仍以报告末行字符串为准')
++check('技能 §13 不重复', (skillText.match(/## 十三、外部审阅/g) || []).length <= 1, '出现多个 §13 外部审阅')
++const legacy = /一条变异|常设只保留 5|四个评论员|P0 必须在本轮|6e|11\+1/
++check('派生文档无旧词', !legacy.test(devText + skillText), '仍有旧词：一条变异/5 个/四个评论员/P0 本轮/6e/11+1')
++check('两份派生文档都指 PROCESS', /PROCESS\.md/.test(devText) && /PROCESS\.md/.test(skillText), '有一份没指向 PROCESS.md')
++
++console.log(`\n流程检查：${problems.length === 0 ? 'PASS' : `FAIL（${problems.length} 项）`}`)
++if (problems.length > 0) process.exitCode = 1
+diff --git a/_tools/lazy-tools/review/coldread-prompt.md b/_tools/lazy-tools/review/coldread-prompt.md
+new file mode 100644
+index 0000000..0c79783
+--- /dev/null
++++ b/_tools/lazy-tools/review/coldread-prompt.md
+@@ -0,0 +1,31 @@
++﻿# 冷读提示词（单一来源，2026-11-06 v2：双轨）
++
++> 用法：复制本文件，替换 `<仓库>`、`<base>`、`<head>`；**不要**加改动摘要、已知风险、点名清单。
++> 机器裁决：`node review/verify-coldread.mjs` 读报告生成 `verdict.json`；末行字符串不算数。
++
++```text
++你是独立冷读评审，没有任何上下文。只读，不改仓库文件（可跑测试、写临时脚本到系统临时目录）。
++
++范围：<仓库> 的 <base>..<head>，分两轨，各出结论：
++  A 发布物：lib、client.js、test（产品红线）
++  B 门禁：review/ 下的脚本（只审“能不能被绕过/假绿”，不评流程文档）
++
++1) 先跑 `node review/check-baseline.mjs`，逐条报 PASS / FAIL / UNVERIFIED。
++   红线以 `review/baseline.json` 为准；你只能追加候选，候选单列，不许混进 0 红。
++2) A 轨：对每条新增测试做一次“删掉被保护代码 → 必须变红”的变异；做不到的写「未验证」。
++3) B 轨：逐项验证门禁本身：
++   - verify-coldread 是否只取**最后一个** ```verdict 块，且 A+B=red、baseline=baselineActual；
++   - gate 是否读 verdict.json（有则必判），且坏裁决必须 FAIL；
++   - mutate 是否用**唯一断言文本**归因，而不是测试号子串；
++   - 54 的 -Skip 是否只跳允许项（smoke 第二次 / encoding），不跳对抗/一致性。
++4) 每条结论：文件:行 + 可重跑命令/脚本；[实测] 与 [推定] 分开；不能复现写「未验证」。
++5) 覆盖声明：读了什么、跑了什么、没读/没跑什么。没覆盖不能写成绿。
++
++末尾附加一个 **机器可读块**（verify-coldread 只读它，不解析正文）：
++
++```verdict
++{"baseline": 7, "unverified": 0, "red": 0, "A": 0, "B": 0}
++```
++
++要求：baseline = review/baseline.json 实际条数；unverified 必须 0；red=A+B 且必须 0；
++正文可以写结论，但门禁不认正文。
+diff --git a/_tools/lazy-tools/review/findings.mjs b/_tools/lazy-tools/review/findings.mjs
+new file mode 100644
+index 0000000..0cc3056
+--- /dev/null
++++ b/_tools/lazy-tools/review/findings.mjs
+@@ -0,0 +1,114 @@
++// findings 台账：把“N 红”变成可逐条关闭的条目，并提供收敛判定（B1）。
++// 用法：
++//   node review/findings.mjs status [--json]
++// 台账格式（review/findings.json）：
++//   {
++//     "round": 3,
++//     "lastNewRound": 1,
++//     "items": [
++//       { "id": "F1", "gapType": "missing", "severity": "blocking",
++//         "status": "fixed", "evidence": "lib/x.js:12", "openedRound": 1, "closedRound": 3 }
++//     ]
++//   }
++// 收敛：round >= 2 且 open=0 且 round - lastNewRound >= 2（连续两轮没有新 finding）。
++import { existsSync, readFileSync } from 'node:fs'
++import { dirname, join } from 'node:path'
++import { fileURLToPath } from 'node:url'
++
++const here = dirname(fileURLToPath(import.meta.url))
++
++export const GAPS = new Set(['missing', 'partial', 'contradicts', 'unrequested'])
++export const SEVERITIES = new Set(['blocking', 'suggestion', 'nit'])
++export const STATUSES = new Set(['open', 'fixed', 'deferred'])
++
++export function validateFindings(data) {
++  const errors = []
++  if (!data || typeof data !== 'object' || Array.isArray(data)) return ['台账必须是对象']
++  const round = data.round
++  if (!Number.isInteger(round) || round < 0) errors.push('round 必须是非负整数')
++  const lastNewRound = data.lastNewRound
++  if (!Number.isInteger(lastNewRound) || lastNewRound < 0) errors.push('lastNewRound 必须是非负整数')
++  if (lastNewRound > round) errors.push('lastNewRound 不能大于 round')
++  if (!Array.isArray(data.items)) {
++    errors.push('items 必须是数组')
++    return errors
++  }
++  const ids = new Set()
++  data.items.forEach((item, i) => {
++    const at = `items[${i}]`
++    if (!item || typeof item !== 'object' || Array.isArray(item)) {
++      errors.push(`${at} 必须是对象`)
++      return
++    }
++    if (typeof item.id !== 'string' || !item.id.trim()) errors.push(`${at}.id 必填`)
++    if (ids.has(item.id)) errors.push(`${at}.id 重复：${item.id}`)
++    ids.add(item.id)
++    if (!GAPS.has(item.gapType)) errors.push(`${at}.gapType 非法`)
++    if (!SEVERITIES.has(item.severity)) errors.push(`${at}.severity 非法`)
++    if (!STATUSES.has(item.status)) errors.push(`${at}.status 非法`)
++    if (!Number.isInteger(item.openedRound) || item.openedRound < 1) errors.push(`${at}.openedRound 必须是正整数`)
++    if (item.openedRound > round) errors.push(`${at}.openedRound 不能大于 round`)
++    if (item.status === 'fixed' || item.status === 'deferred') {
++      if (!Number.isInteger(item.closedRound) || item.closedRound < item.openedRound) {
++        errors.push(`${at}.closedRound 必须是 >= openedRound 的整数`)
++      }
++      if (item.closedRound > round) errors.push(`${at}.closedRound 不能大于 round`)
++    }
++    if (item.status === 'deferred' && (typeof item.reason !== 'string' || !item.reason.trim())) {
++      errors.push(`${at} deferred 必须写 reason`)
++    }
++  })
++  return errors
++}
++
++export function summarizeFindings(data) {
++  const items = Array.isArray(data && data.items) ? data.items : []
++  const round = Number.isInteger(data && data.round) ? data.round : 0
++  const lastNewRound = Number.isInteger(data && data.lastNewRound)
++    ? data.lastNewRound
++    : items.reduce((max, item) => Math.max(max, item.openedRound || 0), 0)
++  const open = items.filter((item) => item.status === 'open')
++  const blockingOpen = open.filter((item) => item.severity === 'blocking')
++  const newThisRound = items.filter((item) => item.openedRound === round)
++  const converged = round >= 2 && open.length === 0 && round - lastNewRound >= 2
++  return {
++    round,
++    lastNewRound,
++    total: items.length,
++    open: open.length,
++    blockingOpen: blockingOpen.length,
++    fixed: items.filter((item) => item.status === 'fixed').length,
++    deferred: items.filter((item) => item.status === 'deferred').length,
++    newThisRound: newThisRound.length,
++    converged,
++  }
++}
++
++function main() {
++  const file = process.env.LAZY_TOOLS_FINDINGS_FILE || join(here, 'findings.json')
++  if (!existsSync(file)) {
++    console.log(`findings：没有台账（${file}）`)
++    process.exitCode = 2
++    return
++  }
++  let data
++  try {
++    data = JSON.parse(readFileSync(file, 'utf8'))
++  } catch (error) {
++    console.error(`findings：JSON 解析失败：${String(error && error.message)}`)
++    process.exitCode = 2
++    return
++  }
++  const errors = validateFindings(data)
++  if (errors.length) {
++    console.error('findings：台账不合法')
++    for (const error of errors) console.error(`  - ${error}`)
++    process.exitCode = 2
++    return
++  }
++  const summary = summarizeFindings(data)
++  console.log(JSON.stringify(summary, null, 2))
++  process.exitCode = summary.converged ? 0 : 1
++}
++
++if (process.argv[1] && process.argv[1].endsWith('findings.mjs')) main()
+diff --git a/_tools/lazy-tools/review/findings.test.mjs b/_tools/lazy-tools/review/findings.test.mjs
+new file mode 100644
+index 0000000..6401638
+--- /dev/null
++++ b/_tools/lazy-tools/review/findings.test.mjs
+@@ -0,0 +1,37 @@
++import assert from 'node:assert/strict'
++import { summarizeFindings, validateFindings } from './findings.mjs'
++
++const base = {
++  round: 2,
++  lastNewRound: 1,
++  items: [
++    { id: 'F1', gapType: 'missing', severity: 'blocking', status: 'fixed', openedRound: 1, closedRound: 2, evidence: 'x:1' },
++    { id: 'F2', gapType: 'partial', severity: 'suggestion', status: 'deferred', openedRound: 1, closedRound: 2, evidence: 'x:2', reason: '下一版' },
++  ],
++}
++
++assert.deepEqual(validateFindings(base), [])
++const s = summarizeFindings(base)
++assert.equal(s.open, 0)
++assert.equal(s.blockingOpen, 0)
++assert.equal(s.fixed, 1)
++assert.equal(s.deferred, 1)
++assert.equal(s.converged, false, 'round-lastNewRound=1 不能算连续两轮')
++
++const s2 = summarizeFindings({ ...base, round: 3 })
++assert.equal(s2.converged, true, 'round 3 / lastNewRound 1 / open 0 应收敛')
++
++const open = summarizeFindings({ ...base, round: 3, items: [{ ...base.items[0], status: 'open', closedRound: undefined }] })
++assert.equal(open.open, 1)
++assert.equal(open.converged, false)
++
++const bad = validateFindings({
++  ...base,
++  items: [{ id: 'F1', gapType: 'nope', severity: 'blocking', status: 'deferred', openedRound: 1 }],
++})
++assert.ok(bad.length >= 3, '非法 gap/deferred 无 reason 必须报错')
++
++const dup = validateFindings({ ...base, items: [base.items[0], base.items[0]] })
++assert.ok(dup.some((e) => e.includes('重复')))
++
++console.log('findings：PASS 6/6')
+diff --git a/_tools/lazy-tools/review/gate-integrity.test.mjs b/_tools/lazy-tools/review/gate-integrity.test.mjs
+new file mode 100644
+index 0000000..445edf6
+--- /dev/null
++++ b/_tools/lazy-tools/review/gate-integrity.test.mjs
+@@ -0,0 +1,79 @@
++// 门禁完整性：负向测试冷读裁决（JSON 块）+ verdict 校验 + 变异归因唯一性。
++// 用法：node review/gate-integrity.test.mjs
++import { spawnSync } from 'node:child_process'
++import { cpSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
++import { tmpdir } from 'node:os'
++import { dirname, join } from 'node:path'
++import { fileURLToPath } from 'node:url'
++import { evaluateVerdict } from './verdict-check.mjs'
++
++const here = dirname(fileURLToPath(import.meta.url))
++const root = dirname(here)
++const dir = mkdtempSync(join(tmpdir(), 'gate-integrity-'))
++let failed = 0
++const check = (name, ok, detail = '') => {
++  console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${detail ? `：${detail}` : ''}`)
++  if (!ok) failed += 1
++}
++
++try {
++  mkdirSync(join(dir, 'review'), { recursive: true })
++  for (const file of ['verify-coldread.mjs', 'baseline.json']) {
++    cpSync(join(here, file), join(dir, 'review', file))
++  }
++  cpSync(join(root, 'package.json'), join(dir, 'package.json'))
++  const writeReport = (content) => {
++    const file = join(dir, 'report.md')
++    writeFileSync(file, content)
++    const out = spawnSync(process.execPath, [join(dir, 'review', 'verify-coldread.mjs'), file], { encoding: 'utf8' })
++    return { status: out.status, verdict: JSON.parse(readFileSync(join(dir, 'review', 'verdict.json'), 'utf8')) }
++  }
++  const run = (block, extra = '') =>
++    writeReport(`# x\n${extra}\n\`\`\`verdict\n${JSON.stringify(block)}\n\`\`\`\n`)
++  const goodBody = { baseline: 7, unverified: 0, red: 0, A: 0, B: 0 }
++
++  const good = run(goodBody)
++  check('裁决：正常 0 红通过', good.status === 0 && good.verdict.ok === true)
++
++  check('裁决：缺 verdict 块必须失败', writeReport('# x\n正文没有块\n').status !== 0)
++  check('裁决：red=3 必须失败', run({ ...goodBody, red: 3, A: 3 }).status !== 0)
++  check('裁决：unverified=2 必须失败', run({ ...goodBody, unverified: 2 }).status !== 0)
++  check('裁决：baseline 999 必须失败', run({ ...goodBody, baseline: 999 }).status !== 0)
++  check('裁决：A+B≠red 必须失败', run({ ...goodBody, red: 0, A: 1, B: 1 }).status !== 0)
++  check('裁决：坏 JSON 必须失败', writeReport('# x\n```verdict\n{broken\n```\n').status !== 0)
++  check('裁决：正文含“对象：”必须失败', run(goodBody, '对象：这是摘要').status !== 0)
++  check('裁决：字段 null 必须失败', run({ baseline: 7, unverified: null, red: null, A: null, B: null }).status !== 0)
++  check('裁决：字段空串必须失败', run({ baseline: 7, unverified: '', red: '', A: '', B: '' }).status !== 0)
++  check('裁决：baseline 字符串必须失败', run({ baseline: '7', unverified: 0, red: 0, A: 0, B: 0 }).status !== 0)
++} finally {
++  rmSync(dir, { recursive: true, force: true })
++}
++
++const version = '0.18.8'
++const shape = { version, type: 'cold', exists: true, sha256: 'deadbeefdeadbeef', red: 0, trackA: 0, trackB: 0, unverified: 0, baseline: 7, baselineActual: 7, ok: true }
++check('verdict：正常通过', evaluateVerdict(shape, version).ok === true)
++check('verdict：null 必须失败', evaluateVerdict(null, version).ok === false)
++check('verdict：最小对象必须失败', evaluateVerdict({ ok: true }, version).ok === false)
++check('verdict：陈旧版本必须失败', evaluateVerdict({ ...shape, version: '0.18.7' }, version).ok === false)
++check('verdict：ok=false 必须失败', evaluateVerdict({ ...shape, ok: false }, version).ok === false)
++check('verdict：红数必须失败', evaluateVerdict({ ...shape, red: 1 }, version).ok === false)
++check('verdict：未验证必须失败', evaluateVerdict({ ...shape, unverified: 1 }, version).ok === false)
++check('verdict：directed 必须失败', evaluateVerdict({ ...shape, type: 'directed' }, version).ok === false)
++check('verdict：exists=false 必须失败', evaluateVerdict({ ...shape, exists: false }, version).ok === false)
++check('verdict：sha256 空必须失败', evaluateVerdict({ ...shape, sha256: '' }, version).ok === false)
++check('verdict：baselineActual 不符必须失败', evaluateVerdict({ ...shape, baseline: 999 }, version).ok === false)
++check('verdict：A+B 不符必须失败', evaluateVerdict({ ...shape, trackA: 1, trackB: 1 }, version).ok === false)
++
++const mutations = JSON.parse(readFileSync(join(here, 'mutations.json'), 'utf8'))
++const smoke = readFileSync(join(root, 'test', 'smoke.mjs'), 'utf8')
++let unique = 0
++for (const mutation of mutations) {
++  if (!mutation.expectText || mutation.expectTest) continue
++  const count = smoke.split(mutation.expectText).length - 1
++  if (count === 1) unique += 1
++  else console.log(`FAIL 归因不唯一：${mutation.id} expectText 出现 ${count} 次`)
++}
++check('mutate：每条 expectText 在测试里唯一', unique === mutations.length, `${unique}/${mutations.length}`)
++
++console.log(`\n门禁完整性：${failed === 0 ? 'PASS' : `FAIL（${failed} 项）`}`)
++if (failed > 0) process.exitCode = 1
+diff --git a/_tools/lazy-tools/review/gate-spec.json b/_tools/lazy-tools/review/gate-spec.json
+new file mode 100644
+index 0000000..8979df2
+--- /dev/null
++++ b/_tools/lazy-tools/review/gate-spec.json
+@@ -0,0 +1,38 @@
++{
++  "version": 1,
++  "authority": "PROCESS.md",
++  "releaseConditions": [
++    "version+changelog",
++    "smoke+adversarial x2",
++    "coldread verdict",
++    "encoding",
++    "consistency",
++    "findings converge (when ledger exists)",
++    "malignant 4/4",
++    "git clean"
++  ],
++  "notSkippable": [
++    "version",
++    "coldread",
++    "malignant",
++    "git",
++    "smoke-first",
++    "adversarial",
++    "consistency",
++    "findings"
++  ],
++  "skippable": [
++    "smoke",
++    "encoding"
++  ],
++  "standingReviewers": 2,
++  "mutationPolicy": "per-test",
++  "postRelease": {
++    "externalReview": 1,
++    "p0": "next-version-first-ticket"
++  },
++  "humanReview": {
++    "release": false,
++    "publicActions": true
++  }
++}
+diff --git a/_tools/lazy-tools/review/gate.mjs b/_tools/lazy-tools/review/gate.mjs
+new file mode 100644
+index 0000000..2bd3e20
+--- /dev/null
++++ b/_tools/lazy-tools/review/gate.mjs
+@@ -0,0 +1,78 @@
++// 门禁：基线 + 异常 + unverified；可选流程检查 / 变异 / 冷读裁决。
++// 用法：node review/gate.mjs [--process] [--mutations] [--mutation-score] [--cold-read]
++import { spawnSync } from 'node:child_process'
++import { existsSync, readFileSync } from 'node:fs'
++import { dirname, join } from 'node:path'
++import { fileURLToPath } from 'node:url'
++import { evaluateVerdict } from './verdict-check.mjs'
++
++const here = dirname(fileURLToPath(import.meta.url))
++const root = dirname(here)
++const flags = new Set(process.argv.slice(2))
 +const run = (args) => spawnSync(process.execPath, args, {
-+  cwd: dirname(here),
++  cwd: root,
 +  encoding: 'utf8',
 +  timeout: 300000,
 +  maxBuffer: 32 * 1024 * 1024,
 +})
 +
 +let bad = 0
-+const base = run(['review/check-baseline.mjs'])
-+process.stdout.write(base.stdout || '')
-+process.stderr.write(base.stderr || '')
-+if (base.status !== 0) bad += 1
++const step = (label, args) => {
++  const result = run(args)
++  process.stdout.write(result.stdout || '')
++  process.stderr.write(result.stderr || '')
++  if (result.status !== 0) bad += 1
++  console.log(`[gate] ${label}: ${result.status === 0 ? 'PASS' : 'FAIL'}`)
++}
 +
-+const anomalies = run(['review/anomalies.mjs'])
-+process.stdout.write(anomalies.stdout || '')
-+process.stderr.write(anomalies.stderr || '')
-+if (anomalies.status !== 0) bad += 1
++step('基线', ['review/check-baseline.mjs'])
++step('异常', ['review/anomalies.mjs'])
++step('校准', ['review/check-calibration.mjs'])
++if (flags.has('--process')) step('流程一致性', ['review/check-process.mjs'])
++if (flags.has('--findings')) {
++  const findingsFile = join(root, 'review', 'findings.json')
++  if (!existsSync(findingsFile)) console.log('[gate] findings 收敛: SKIP（无台账）')
++  else step('findings 收敛', ['review/findings.mjs', 'status'])
++}
++if (flags.has('--mutations')) step('变异', ['review/mutate.mjs'])
++if (flags.has('--mutation-score')) step('变异分数', ['review/mutation-score.mjs'])
++if (flags.has('--cold-read')) step('冷读裁决', ['review/verify-coldread.mjs'])
++
++// 2026-11-06（冷读红 B-1）：verdict 必须完整且版本匹配；null/最小/陈旧文件都算失败。
++const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'))
++let verdict = null
++let verdictFileExists = false
++try {
++  verdictFileExists = true
++  verdict = JSON.parse(readFileSync(join(here, 'verdict.json'), 'utf8'))
++} catch {
++  verdict = null
++}
++if (verdictFileExists && process.env.CI !== 'true') {
++  const judged = evaluateVerdict(verdict, pkg.version)
++  if (verdict && typeof verdict === 'object') {
++    console.log(`冷读裁决：type=${verdict.type} red=${verdict.red} unverified=${verdict.unverified} ok=${verdict.ok}`)
++  }
++  for (const reason of judged.reasons) console.log(`  - ${reason}`)
++  if (!judged.ok) bad += 1
++} else if (process.env.CI === 'true') {
++  console.log('[gate] CI 环境：verdict 由 54-发版 脚本判定，这里跳过')
++}
 +
 +let unverified = { count: 0, items: [] }
 +try {
@@ -788,68 +2358,22 @@ index 0000000..1b6f012
 +  console.log('UNVERIFIED review/unverified.json 缺失')
 +  bad += 1
 +}
-+
 +if (unverified.count > 0) {
-+  console.log(`\nUNVERIFIED ${unverified.count} 条：`)
++  console.log(`
++UNVERIFIED ${unverified.count} 条：`)
 +  for (const item of unverified.items || []) console.log(`  - ${item}`)
 +  bad += 1
 +}
 +
-+console.log(`\n门禁：${bad === 0 ? 'PASS' : 'FAIL'}（unverified=${unverified.count || 0}）`)
++console.log(`
++门禁：${bad === 0 ? 'PASS' : 'FAIL'}（unverified=${unverified.count || 0}）`)
 +if (bad > 0) process.exitCode = 1
-diff --git a/_tools/lazy-tools/review/last-adversarial.txt b/_tools/lazy-tools/review/last-adversarial.txt
-new file mode 100644
-index 0000000..d2a84fe
---- /dev/null
-+++ b/_tools/lazy-tools/review/last-adversarial.txt
-@@ -0,0 +1,41 @@
-+=== A. 配置畸形（要求：不抛 + 8 个自救工具注册）===
-+ok  A groups=null  — 可加载
-+ok  A groups="string"  — 可加载
-+ok  A groups=42  — 可加载
-+ok  A groups=[null]  — 可加载
-+ok  A groups=[{}]  — 可加载
-+ok  A match=字符串  — 可加载
-+ok  A match=[null]  — 可加载
-+ok  A id=数字  — 可加载
-+ok  A id=Unicode  — 可加载
-+ok  A id 含零字节  — 可加载
-+ok  A 重复 id  — 可加载
-+ok  A 1000 个组  — 1000 组可加载
-+
-+=== B. 恶意匹配式（要求：不挂死 + 万能式被忽略 + 记账）===
-+ok  B "*" 万能式被忽略并记账  — 忽略 + 记账
-+ok  B "re:.*" 万能式被忽略  — 忽略
-+ok  B 坏正则 re:( 被忽略并记账  — 记账
-+ok  B 超长 pattern（100k 字符）不许把 apply 带崩  — 可加载（坏组被忽略）
-+ok  B ReDoS 回溯炸弹不挂死（子进程 3s 上限）  — 3s 内完成 (69ms)
-+
-+=== C. 脏数据文件（要求：不崩、能记账、默认值可用）===
-+ok  C groups.json 非法 JSON  — health 仍可用
-+ok  C groups.json 是对象不是数组  — 可加载
-+ok  C usage 文件损坏 JSON  — 按空账本处理
-+ok  C policy 文件损坏 / 类型错  — 回默认策略
-+
-+=== D. 压力 ===
-+ok  D 5000 工具 + 20 组  — 可加载
-+ok  D 连续 100 次 enable/disable  — 100 轮无异常
-+ok  D 同一 agent 连续 50 次 tools/change  — 50 次无异常
-+
-+=== E. 运行时边界 ===
-+ok  E 宿主没有 agent.ctx.tools（坏宿主）  — 创建后未抛
-+ok  E enable 不存在的名字  — found:false
-+ok  E enable 名字含正则元字符（a.b 不能误匹配 aXb）  — 字面匹配
-+ok  E Unicode 工具名 enable  — found:true
-+ok  E 组 id 与出厂组重名  — 可加载
-+
-+=== 结果：PASS 29 / KNOWN 0 / YELLOW 0 / RED 0 ===
-+
 diff --git a/_tools/lazy-tools/review/last-smoke.txt b/_tools/lazy-tools/review/last-smoke.txt
 new file mode 100644
-index 0000000..8cca145
+index 0000000..df47920
 --- /dev/null
 +++ b/_tools/lazy-tools/review/last-smoke.txt
-@@ -0,0 +1,262 @@
+@@ -0,0 +1,270 @@
 +[1] 载入与注册
 +  ok  七个工具都注册上了（0.16.0 由 11 个合并而来）
 +[2] agent 创建时按 defaultOn 收起
@@ -982,8 +2506,16 @@ index 0000000..8cca145
 +  ok  两代宿主工具名（pwsh / ops_*）都在保护清单里
 +[60] 手写组匹配整张表 → 忽略并记账（不依赖宿主工具名）
 +  ok  全匹配手写组被忽略并可见记账（宿主换名字也照样兜住）
++[60b] 手写组用正则绕过哨兵：结构判定仍要挡住
++  ok  正则绕过哨兵：结构判定兜住
++[60c] 万能匹配 + 晚注册：apply 时没有工具，注册后仍要挡住
++  ok  晚注册：万能组仍被挡住
 +[61] 受管角色：preset 决定策略、封闭默认、自愈不绕过
 +  ok  受管角色只认 preset/parentSession，封闭默认生效，自愈不绕过
++[61b] label 角色：review/build/research 解析与工具面（CORE 不可藏）
++  ok  label 三角色解析正确；CORE 工具不可被角色隐藏（只读只能靠提示词/沙箱）
++[61c] 受管角色能藏 edit/write（review 只读），build 不藏
++  ok  受管角色能藏 edit/write；CORE 其余仍保护
 +[62] 受管角色：preset 在创建后才选中（竞态）
 +  ok  preset 晚选中也能重算角色并重建（竞态兜住）
 +[63] 隔离：放行后仍不可见 ⇒ 标成外部 deny
@@ -1093,7 +2625,7 @@ index 0000000..8cca145
 +[118] 陈旧 hideReport：上轮 transient、本轮退成别名壳，仍要锁
 +  ok  陈旧 hideReport：退成别名后仍锁，100 次事件有界
 +
-+smoke: 124 项全过
++smoke: 128 项全过
 +
 +[lazy-tools] tools.restrict: 这些名字不可限制（已逐个跳过，其余照常隐藏）：bad_name
 +[lazy-tools] tools.restrict: 限制失败（非名单问题，已中止逐个重试）：restrict backend unavailable
@@ -1112,6 +2644,408 @@ index 0000000..8cca145
 +[lazy-tools] probe: e9
 +[lazy-tools] probe: e1
 +[lazy-tools] tools.view: view boom
+diff --git a/_tools/lazy-tools/review/mutate.mjs b/_tools/lazy-tools/review/mutate.mjs
+new file mode 100644
+index 0000000..c5cbe50
+--- /dev/null
++++ b/_tools/lazy-tools/review/mutate.mjs
+@@ -0,0 +1,62 @@
++// 自动变异：每条 mutations.json 在临时副本上应用，要求冒烟失败且命中预期测试。
++// 用法：node review/mutate.mjs
++import { spawnSync } from 'node:child_process'
++import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
++import { tmpdir } from 'node:os'
++import { dirname, join } from 'node:path'
++import { fileURLToPath } from 'node:url'
++
++const here = dirname(fileURLToPath(import.meta.url))
++const root = dirname(here)
++const mutations = JSON.parse(readFileSync(join(here, 'mutations.json'), 'utf8'))
++
++let failed = 0
++// 2026-11-06（冷读 B-3）：先跑未变异对照组，expectText 不能在绿跑输出里出现。
++const baselineRun = spawnSync(process.execPath, ['test/smoke.mjs'], {
++  cwd: root,
++  encoding: 'utf8',
++  timeout: 120000,
++  maxBuffer: 32 * 1024 * 1024,
++})
++const baselineOut = (baselineRun.stdout || '') + '\n' + (baselineRun.stderr || '')
++if (baselineRun.status !== 0) {
++  console.log('FAIL 对照组 smoke 未通过，变异结果不可信')
++  process.exitCode = 1
++}
++for (const mutation of mutations) {
++  const work = mkdtempSync(join(tmpdir(), 'lt-mutate-'))
++  try {
++    cpSync(root, work, {
++      recursive: true,
++      filter: (src) => !src.includes(`${join(root, '.git')}`) && !src.includes(`${join(root, 'review', '.mutate')}`),
++    })
++    const file = join(work, mutation.file)
++    const before = readFileSync(file, 'utf8')
++    if (!before.includes(mutation.find)) {
++      failed += 1
++      console.log(`MISS ${mutation.id}：变异点没找到`)
++      continue
++    }
++    writeFileSync(file, before.replace(mutation.find, mutation.replace))
++    const run = spawnSync(process.execPath, ['test/smoke.mjs'], {
++      cwd: work,
++      encoding: 'utf8',
++      timeout: 120000,
++      maxBuffer: 32 * 1024 * 1024,
++    })
++    const out = `${run.stdout || ''}\n${run.stderr || ''}`
++    const caught = run.status !== 0 && out.includes(mutation.expectText) && !baselineOut.includes(mutation.expectText)
++    if (caught) {
++      console.log(`PASS ${mutation.id}：${mutation.expectText} 变红`)
++    } else {
++      failed += 1
++      console.log(`FAIL ${mutation.id}：期待「${mutation.expectText}」红，实际 exit=${run.status}`)
++      console.log(out.split('\n').slice(-6).join('\n'))
++    }
++  } finally {
++    rmSync(work, { recursive: true, force: true })
++  }
++}
++
++console.log(`\n变异：${mutations.length} 条；未抓住 ${failed}`)
++if (failed > 0) process.exitCode = 1
+diff --git a/_tools/lazy-tools/review/mutation-score.mjs b/_tools/lazy-tools/review/mutation-score.mjs
+new file mode 100644
+index 0000000..f792ee3
+--- /dev/null
++++ b/_tools/lazy-tools/review/mutation-score.mjs
+@@ -0,0 +1,124 @@
++// 变异分数：默认只验元数据（protectedBy 非空 / expectText 唯一）；--run 实跑变异算击杀率。
++// 用法：
++//   node review/mutation-score.mjs                     # 元数据模式（gate --mutation-score 用这个）
++//   node review/mutation-score.mjs --file <清单.json>   # 元数据模式，指定清单（负向测试用）
++//   node review/mutation-score.mjs --run               # 跑 review/mutate.mjs，解析 PASS/FAIL
++// 退出码：0 全绿；1 缺元数据 / expectText 重复 / 有 survived / 变异跑崩。
++// 输出：元数据模式一行 JSON {total,protected,missing,duplicates,score}；
++//       --run 模式先转发 mutate.mjs 原输出，再输出一行 JSON {total,killed,survived,score}。
++import { spawnSync } from 'node:child_process'
++import { readFileSync } from 'node:fs'
++import { dirname, join, resolve } from 'node:path'
++import { fileURLToPath } from 'node:url'
++
++const here = dirname(fileURLToPath(import.meta.url))
++const root = dirname(here)
++
++// 元数据口径：
++// - missing：protectedBy 不是非空字符串，或 expectText 不是非空字符串（没有断言文本就谈不上唯一）；
++// - duplicates：非空 expectText 出现多于一次；
++// - protected：protectedBy 非空的条数；score = protected / total（total=0 记 0）。
++export function metadataScore(mutations) {
++  const list = Array.isArray(mutations) ? mutations : []
++  const total = list.length
++  const missing = []
++  const duplicates = []
++  const seen = new Map()
++  let protectedCount = 0
++
++  for (let index = 0; index < total; index += 1) {
++    const mutation = list[index]
++    const id = mutation && typeof mutation.id === 'string' && mutation.id.trim() ? mutation.id : `#${index + 1}`
++    if (!mutation || typeof mutation.protectedBy !== 'string' || !mutation.protectedBy.trim()) {
++      missing.push(id)
++    } else {
++      protectedCount += 1
++    }
++    const expectText = mutation && mutation.expectText
++    if (typeof expectText !== 'string' || !expectText.trim()) {
++      if (!missing.includes(id)) missing.push(id)
++      continue
++    }
++    seen.set(expectText, (seen.get(expectText) || 0) + 1)
++  }
++  for (const [text, count] of seen) if (count > 1) duplicates.push(text)
++
++  const score = total === 0 ? 0 : Number((protectedCount / total).toFixed(4))
++  return { total, protected: protectedCount, missing, duplicates, score }
++}
++
++// 解析 mutate.mjs 输出：`PASS <id>：` = 击杀；`FAIL|MISS <id>：` = 没击杀。
++// survived 按清单总数减击杀数算 —— mutate 中途崩掉、没跑到的条目也算 survived，不许假绿。
++export function summarizeRun(mutations, output) {
++  const list = Array.isArray(mutations) ? mutations : []
++  const known = new Set(
++    list.map((mutation) => mutation && mutation.id).filter((id) => typeof id === 'string' && id),
++  )
++  const killed = new Set()
++
++  for (const line of String(output || '').split(/\r?\n/)) {
++    const pass = line.match(/^PASS\s+(\S+?)\s*[：:]/)
++    if (pass && known.has(pass[1])) killed.add(pass[1])
++  }
++
++  const total = list.length
++  const killedCount = killed.size
++  const survived = Math.max(0, total - killedCount)
++  const score = total === 0 ? 0 : Number((killedCount / total).toFixed(4))
++  return { total, killed: killedCount, survived, score }
++}
++
++function main() {
++  const args = process.argv.slice(2)
++  const runMode = args.includes('--run')
++  const fileIndex = args.indexOf('--file')
++  if (runMode && fileIndex >= 0) {
++    console.error('mutation-score：--run 只跑仓库自带清单，不能和 --file 同用')
++    process.exitCode = 2
++    return
++  }
++  if (fileIndex >= 0 && !args[fileIndex + 1]) {
++    console.error('mutation-score：--file 后面要跟清单路径')
++    process.exitCode = 2
++    return
++  }
++  const file = fileIndex >= 0 ? resolve(args[fileIndex + 1]) : join(here, 'mutations.json')
++
++  let mutations
++  try {
++    mutations = JSON.parse(readFileSync(file, 'utf8'))
++  } catch (error) {
++    console.error(`mutation-score：读清单失败 ${file}：${String(error && error.message)}`)
++    process.exitCode = 1
++    return
++  }
++  if (!Array.isArray(mutations)) {
++    console.error(`mutation-score：清单必须是数组：${file}`)
++    process.exitCode = 1
++    return
++  }
++
++  if (!runMode) {
++    const report = metadataScore(mutations)
++    console.log(JSON.stringify(report))
++    if (report.missing.length > 0 || report.duplicates.length > 0) process.exitCode = 1
++    return
++  }
++
++  const run = spawnSync(process.execPath, ['review/mutate.mjs'], {
++    cwd: root,
++    encoding: 'utf8',
++    timeout: 900000,
++    maxBuffer: 32 * 1024 * 1024,
++  })
++  const output = `${run.stdout || ''}\n${run.stderr || ''}`
++  process.stdout.write(output.endsWith('\n') ? output : `${output}\n`)
++  if (run.error) console.error(`mutation-score：mutate.mjs 没跑起来：${String(run.error.message)}`)
++
++  const report = summarizeRun(mutations, output)
++  console.log(JSON.stringify(report))
++  // mutate.mjs 自己退出非 0 但条目全 PASS：说明它报了别的红（如对照组冒烟未过），不许当真绿。
++  if (report.survived > 0 || run.status !== 0) process.exitCode = 1
++}
++
++if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main()
+diff --git a/_tools/lazy-tools/review/mutation-score.test.mjs b/_tools/lazy-tools/review/mutation-score.test.mjs
+new file mode 100644
+index 0000000..3ea7f73
+--- /dev/null
++++ b/_tools/lazy-tools/review/mutation-score.test.mjs
+@@ -0,0 +1,126 @@
++// 变异分数负向测试：valid / 缺 protectedBy / expectText 重复三种临时清单，外加仓库真清单与 --run 解析。
++// protectedBy: review/mutation-score.mjs 的 metadataScore / summarizeRun / CLI 退出码
++import { spawnSync } from 'node:child_process'
++import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
++import { tmpdir } from 'node:os'
++import { dirname, join } from 'node:path'
++import { fileURLToPath } from 'node:url'
++import { summarizeRun } from './mutation-score.mjs'
++
++const here = dirname(fileURLToPath(import.meta.url))
++const script = join(here, 'mutation-score.mjs')
++const dir = mkdtempSync(join(tmpdir(), 'mutation-score-'))
++let checks = 0
++let failed = 0
++const check = (name, ok, detail = '') => {
++  checks += 1
++  if (!ok) failed += 1
++  console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${detail ? `：${detail}` : ''}`)
++}
++
++let seq = 0
++const runFile = (mutations) => {
++  seq += 1
++  const file = join(dir, `mutations-${seq}.json`)
++  writeFileSync(file, JSON.stringify(mutations))
++  const out = spawnSync(process.execPath, [script, '--file', file], { encoding: 'utf8' })
++  const lines = (out.stdout || '').trim().split(/\r?\n/)
++  let json = null
++  try {
++    json = JSON.parse(lines[lines.length - 1])
++  } catch {
++    json = null
++  }
++  return { status: out.status, json, stderr: (out.stderr || '').trim() }
++}
++
++try {
++  // 1) valid：两条都有 protectedBy、expectText 互不重复 ⇒ exit 0、满分。
++  const valid = runFile([
++    { id: 'm1', file: 'lib/index.js', find: 'a', replace: 'b', expectText: '甲断言', protectedBy: 'test/smoke.mjs [1] 甲' },
++    { id: 'm2', file: 'lib/index.js', find: 'c', replace: 'd', expectText: '乙断言', protectedBy: 'test/smoke.mjs [2] 乙' },
++  ])
++  check('valid：exit 0', valid.status === 0, `exit=${valid.status}${valid.stderr ? ` ${valid.stderr}` : ''}`)
++  check(
++    'valid：total=2 / protected=2 / score=1',
++    Boolean(valid.json) && valid.json.total === 2 && valid.json.protected === 2 && valid.json.score === 1,
++    JSON.stringify(valid.json),
++  )
++  check(
++    'valid：missing / duplicates 为空',
++    Boolean(valid.json) && valid.json.missing.length === 0 && valid.json.duplicates.length === 0,
++    JSON.stringify(valid.json),
++  )
++
++  // 2) 缺 protectedBy：那一条进 missing，分数要掉下来，退出码必须 1。
++  const missing = runFile([
++    { id: 'm1', expectText: '甲断言' },
++    { id: 'm2', expectText: '乙断言', protectedBy: 'test/smoke.mjs [2] 乙' },
++  ])
++  check('缺 protectedBy：exit 1', missing.status === 1, `exit=${missing.status}`)
++  check(
++    '缺 protectedBy：missing 点名 m1',
++    Boolean(missing.json) && missing.json.missing.length === 1 && missing.json.missing[0] === 'm1',
++    JSON.stringify(missing.json),
++  )
++  check('缺 protectedBy：score=0.5', Boolean(missing.json) && missing.json.score === 0.5, JSON.stringify(missing.json))
++
++  // 3) expectText 重复：两条断言文本一样 ⇒ duplicates 命中，退出码必须 1。
++  const duplicate = runFile([
++    { id: 'm1', expectText: '同一条断言', protectedBy: 'test/smoke.mjs [1]' },
++    { id: 'm2', expectText: '同一条断言', protectedBy: 'test/smoke.mjs [2]' },
++  ])
++  check('expectText 重复：exit 1', duplicate.status === 1, `exit=${duplicate.status}`)
++  check(
++    'expectText 重复：duplicates 命中',
++    Boolean(duplicate.json) &&
++      duplicate.json.duplicates.length === 1 &&
++      duplicate.json.duplicates[0] === '同一条断言',
++    JSON.stringify(duplicate.json),
++  )
++
++  // 4) 仓库真清单：8 条必须全部有 protectedBy，否则这票之后被人改漏会当场红。
++  const real = spawnSync(process.execPath, [script], { encoding: 'utf8' })
++  let realJson = null
++  try {
++    realJson = JSON.parse((real.stdout || '').trim().split(/\r?\n/).pop())
++  } catch {
++    realJson = null
++  }
++  check('仓库清单：exit 0', real.status === 0, `exit=${real.status}`)
++  check(
++    '仓库清单：protected=total 且无重复',
++    Boolean(realJson) &&
++      realJson.total > 0 &&
++      realJson.protected === realJson.total &&
++      realJson.missing.length === 0 &&
++      realJson.duplicates.length === 0,
++    JSON.stringify(realJson),
++  )
++
++  // 5) --run 解析：PASS 记击杀；FAIL/MISS 和没跑到的都算 survived；清单外 id 不算数。
++  const parsed = summarizeRun(
++    [{ id: 'a' }, { id: 'b' }, { id: 'c' }],
++    [
++      'PASS a：甲 变红',
++      'FAIL b：期待「乙」红，实际 exit=0',
++      'MISS c：变异点没找到',
++      'PASS zzz：不在清单里的 PASS 不算',
++    ].join('\n'),
++  )
++  check(
++    '--run 解析：killed=1 / survived=2',
++    parsed.total === 3 && parsed.killed === 1 && parsed.survived === 2,
++    JSON.stringify(parsed),
++  )
++  check(
++    '--run 解析：score=1/3 且不认清单外 id',
++    parsed.score === Number((1 / 3).toFixed(4)),
++    JSON.stringify(parsed),
++  )
++} finally {
++  rmSync(dir, { recursive: true, force: true })
++}
++
++console.log(`\nmutation-score：${failed === 0 ? 'PASS' : 'FAIL'} ${checks - failed}/${checks}`)
++if (failed > 0) process.exitCode = 1
+diff --git a/_tools/lazy-tools/review/mutations.json b/_tools/lazy-tools/review/mutations.json
+new file mode 100644
+index 0000000..cd6e1d0
+--- /dev/null
++++ b/_tools/lazy-tools/review/mutations.json
+@@ -0,0 +1,66 @@
++[
++  {
++    "id": "no-unhideable-latch",
++    "file": "lib/index.js",
++    "find": "    st.unhideable = wanted.filter((name) => stillVisible.includes(name) && !transient.has(name))",
++    "replace": "    st.unhideable = []",
++    "expectText": "作用域遮蔽不该形成 3 秒重建链",
++    "protectedBy": "test/smoke.mjs [108] scope 同名遮蔽：不反复重建（同步事件 + 3 秒链）"
++  },
++  {
++    "id": "stale-hidereport",
++    "file": "lib/index.js",
++    "find": "    const transient = hidden.length > 0 ? new Set(hideReport.transient || []) : new Set()",
++    "replace": "    const transient = new Set(hideReport.transient || [])",
++    "expectText": "陈旧报告不该造成每次事件重建",
++    "protectedBy": "test/smoke.mjs [118] 陈旧 hideReport：上轮 transient、本轮退成别名壳，仍要锁"
++  },
++  {
++    "id": "old-batch-boolean",
++    "file": "lib/index.js",
++    "find": "    st.unhideable = wanted.filter((name) => stillVisible.includes(name) && !transient.has(name))",
++    "replace": "    st.unhideable = hidden.length > 0 && !applied ? [] : wanted.filter((name) => stillVisible.includes(name))",
++    "expectText": "transient 的 p_fail 不能锁",
++    "protectedBy": "test/smoke.mjs [114] 真实部分失败：p_ok 藏住、p_fail systemic、p_bad 坏名"
++  },
++  {
++    "id": "universal-probes",
++    "file": "lib/index.js",
++    "find": "const universal = res.some((re) => probes.every((probe) => re.test(probe)))",
++    "replace": "const universal = false",
++    "expectText": "匹配全部工具的手写组必须被忽略",
++    "protectedBy": "test/smoke.mjs [60] 手写组匹配整张表 → 忽略并记账（不依赖宿主工具名）"
++  },
++  {
++    "id": "managed-mode-reject",
++    "file": "lib/index.js",
++    "find": "if (st.managed) return { error: '受管会话由角色决定工具面：mode / 收纳本对话不生效' }",
++    "replace": "if (false) return { error: '受管会话由角色决定工具面：mode / 收纳本对话不生效' }",
++    "expectText": "受管会话里 mode 必须明确拒绝",
++    "protectedBy": "test/smoke.mjs [61] 受管角色：preset 决定策略、封闭默认、自愈不绕过"
++  },
++  {
++    "id": "mtime-value",
++    "file": "lib/api.js",
++    "find": "options.setPolicyMtime(policyFileMtime())",
++    "replace": "options.setPolicyMtime(0)",
++    "expectText": "追平的 mtime 必须是有效值",
++    "protectedBy": "test/smoke.mjs [101] 桥鉴权行为：无头 403、带头 200、GET 不受限"
++  },
++  {
++    "id": "hotratio-round",
++    "file": "lib/usage.js",
++    "find": "return total === 0 ? 0 : hotCount / total",
++    "replace": "return total === 0 ? 0 : Math.round((hotCount / total) * 100) / 100",
++    "expectText": "hotRatio 不许取整",
++    "protectedBy": "test/smoke.mjs [18] 用量账本：热/冷判定"
++  },
++  {
++    "id": "explicit-clear",
++    "file": "lib/roles.js",
++    "find": "const explicitClear = Boolean(raw && typeof raw === 'object' && !Array.isArray(raw) && Object.keys(raw).length === 0)",
++    "replace": "const explicitClear = false",
++    "expectText": "空对象必须清空角色",
++    "protectedBy": "test/smoke.mjs [18] 用量账本：热/冷判定"
++  }
++]
 diff --git a/_tools/lazy-tools/review/poc.template.mjs b/_tools/lazy-tools/review/poc.template.mjs
 new file mode 100644
 index 0000000..d5c7c85
@@ -1141,11 +3075,707 @@ index 0000000..c097b2a
 +  "count": 0,
 +  "items": []
 +}
+diff --git a/_tools/lazy-tools/review/verdict-check.mjs b/_tools/lazy-tools/review/verdict-check.mjs
+new file mode 100644
+index 0000000..76a132e
+--- /dev/null
++++ b/_tools/lazy-tools/review/verdict-check.mjs
+@@ -0,0 +1,24 @@
++// 冷读裁决的判定函数：独立可测，gate 与 gate-integrity 共用。
++export function evaluateVerdict(verdict, version) {
++  const reasons = []
++  if (!verdict || typeof verdict !== 'object') {
++    return { ok: false, reasons: ['verdict 缺失或不是对象'] }
++  }
++  if (verdict.type !== 'cold') reasons.push('verdict.type 不是 cold')
++  if (verdict.exists !== true) reasons.push('verdict.exists 不是 true')
++  if (typeof verdict.sha256 !== 'string' || verdict.sha256.length < 8) reasons.push('verdict.sha256 缺失')
++  if (verdict.version !== version) reasons.push(`verdict 版本 ${verdict.version} ≠ package ${version}`)
++  if (typeof verdict.ok !== 'boolean') reasons.push('verdict.ok 不是布尔')
++  if (!Number.isInteger(verdict.red) || verdict.red < 0) reasons.push('verdict.red 不是非负整数')
++  if (!Number.isInteger(verdict.unverified) || verdict.unverified < 0) reasons.push('verdict.unverified 不是非负整数')
++  if (!Number.isInteger(verdict.baseline) || verdict.baseline <= 0) reasons.push('verdict.baseline 必须 > 0')
++  if (!Number.isInteger(verdict.baselineActual) || verdict.baseline !== verdict.baselineActual) {
++    reasons.push(`verdict.baseline ${verdict.baseline} ≠ baselineActual ${verdict.baselineActual}`)
++  }
++  if (!Number.isInteger(verdict.trackA) || !Number.isInteger(verdict.trackB)) reasons.push('verdict.A/B 必须是整数')
++  else if (verdict.trackA + verdict.trackB !== verdict.red) reasons.push('A+B ≠ red')
++  if (verdict.ok !== true) reasons.push('verdict.ok 不是 true')
++  if (verdict.red > 0) reasons.push(`红 ${verdict.red}`)
++  if (verdict.unverified > 0) reasons.push(`未验证 ${verdict.unverified}`)
++  return { ok: reasons.length === 0, reasons }
++}
+diff --git a/_tools/lazy-tools/review/verdict.json b/_tools/lazy-tools/review/verdict.json
+new file mode 100644
+index 0000000..1f9a625
+--- /dev/null
++++ b/_tools/lazy-tools/review/verdict.json
+@@ -0,0 +1,15 @@
++{
++  "version": "0.18.8",
++  "report": "C:\\deepsleep脚本工程\\perf-\\冷读-0.18.8.md",
++  "exists": true,
++  "type": "cold",
++  "red": 0,
++  "trackA": 0,
++  "trackB": 0,
++  "unverified": 0,
++  "baseline": 7,
++  "baselineActual": 7,
++  "sha256": "2d3bf851bad215c6",
++  "ok": true,
++  "reasons": []
++}
+diff --git a/_tools/lazy-tools/review/verify-coldread.mjs b/_tools/lazy-tools/review/verify-coldread.mjs
+new file mode 100644
+index 0000000..d185faa
+--- /dev/null
++++ b/_tools/lazy-tools/review/verify-coldread.mjs
+@@ -0,0 +1,108 @@
++// 机器判冷读：读报告末尾的 ```verdict JSON 块，不再解析自由文本。
++// 用法：node review/verify-coldread.mjs [报告路径] [--out <输出路径>]
++import { createHash } from 'node:crypto'
++import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
++import { dirname, join, resolve } from 'node:path'
++import { fileURLToPath } from 'node:url'
++
++const here = dirname(fileURLToPath(import.meta.url))
++const root = dirname(here)
++const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'))
++const version = pkg.version
++// --out：裁决写到指定路径（默认仍是 review/verdict.json）；判定的逻辑一个字没动。
++// 校准集要能反复跑，所以带 --out 时 unverified 边车也写到输出同目录，
++// 否则跑完 bad-unverified 就会把 review/unverified.json 改脏（gate 会红）。
++const argv = process.argv.slice(2)
++let reportArg = null
++let outArg = null
++for (let i = 0; i < argv.length; i += 1) {
++  const arg = argv[i]
++  if (arg === '--out' || arg.startsWith('--out=')) {
++    outArg = arg === '--out' ? argv[i + 1] : arg.slice('--out='.length)
++    if (!outArg) {
++      console.error('--out 需要跟一个输出路径')
++      process.exit(1)
++    }
++    if (arg === '--out') i += 1
++  } else if (reportArg === null) {
++    reportArg = arg
++  }
++}
++const reportPath = reportArg || join(root, '..', '..', 'perf-', `冷读-${version}.md`)
++const outBase = outArg ? resolve(outArg) : join(here, 'verdict.json')
++const unverifiedPath = outArg ? join(dirname(outBase), 'unverified.json') : join(here, 'unverified.json')
++if (outArg) mkdirSync(dirname(outBase), { recursive: true })
++
++const verdict = {
++  version,
++  report: reportPath,
++  exists: existsSync(reportPath),
++  type: 'missing',
++  red: null,
++  trackA: null,
++  trackB: null,
++  unverified: null,
++  baseline: null,
++  baselineActual: null,
++  sha256: null,
++  ok: false,
++  reasons: [],
++}
++
++let baselineActual = null
++try {
++  const list = JSON.parse(readFileSync(join(here, 'baseline.json'), 'utf8'))
++  baselineActual = Array.isArray(list) ? list.length : null
++} catch {
++  baselineActual = null
++}
++verdict.baselineActual = baselineActual
++
++if (verdict.exists) {
++  const text = readFileSync(reportPath, 'utf8')
++  verdict.sha256 = createHash('sha256').update(text).digest('hex').slice(0, 16)
++  const forbidden = /改动摘要|已知风险|逐条核对|点名|本轮改了什么|对象\s*[：:]/
++  verdict.type = forbidden.test(text) ? 'directed' : 'cold'
++
++  // 只认最后一个 ```verdict 块；JSON 解析失败即失败。
++  const blocks = [...text.matchAll(/```verdict\s*\r?\n([\s\S]*?)```/g)]
++  const block = blocks.length ? blocks[blocks.length - 1][1] : null
++  if (!block) {
++    verdict.reasons.push('缺 ```verdict JSON 块')
++  } else {
++    try {
++      const body = JSON.parse(block)
++      const int = (value) => typeof value === 'number' && Number.isInteger(value) && value >= 0
++      verdict.red = int(body.red) ? body.red : null
++      verdict.trackA = int(body.A) ? body.A : null
++      verdict.trackB = int(body.B) ? body.B : null
++      verdict.unverified = int(body.unverified) ? body.unverified : null
++      verdict.baseline = int(body.baseline) && body.baseline > 0 ? body.baseline : null
++      if (verdict.red === null) verdict.reasons.push('verdict.red 必须是整数')
++      if (verdict.unverified === null) verdict.reasons.push('verdict.unverified 必须是整数')
++      if (verdict.baseline === null) verdict.reasons.push('verdict.baseline 必须是正整数')
++      if (verdict.trackA === null || verdict.trackB === null) verdict.reasons.push('verdict.A/B 必须是整数')
++      if (verdict.trackA + verdict.trackB !== verdict.red) verdict.reasons.push(`A+B=${verdict.trackA + verdict.trackB} ≠ red ${verdict.red}`)
++      if (baselineActual === null) verdict.reasons.push('读不到 review/baseline.json')
++      else if (verdict.baseline !== baselineActual) verdict.reasons.push(`baseline ${verdict.baseline} ≠ baseline.json ${baselineActual}`)
++      if (verdict.red !== 0) verdict.reasons.push(`red ${verdict.red}`)
++      if (verdict.unverified !== 0) verdict.reasons.push(`unverified ${verdict.unverified}`)
++    } catch (error) {
++      verdict.reasons.push(`verdict JSON 解析失败：${String(error && error.message)}`)
++    }
++  }
++  if (verdict.type !== 'cold') verdict.reasons.push('报告含改动摘要/清单/对象：只能算定向核对')
++} else {
++  verdict.reasons.push('报告不存在')
++}
++
++verdict.ok = verdict.reasons.length === 0
++writeFileSync(outBase, JSON.stringify(verdict, null, 2) + '\n')
++writeFileSync(
++  unverifiedPath,
++  JSON.stringify({ count: verdict.unverified || 0, items: verdict.unverified ? ['见冷读报告 verdict 块'] : [] }, null, 2) + '\n',
++)
++
++console.log(`冷读裁决：${verdict.ok ? 'PASS' : 'FAIL'}  类型=${verdict.type}  红=${verdict.red}  未验证=${verdict.unverified}  基线=${verdict.baseline}/${verdict.baselineActual}`)
++for (const reason of verdict.reasons) console.log(`  - ${reason}`)
++if (!verdict.ok) process.exitCode = 1
+diff --git a/_tools/lazy-tools/skills/single-conversation-sa/SKILL.md b/_tools/lazy-tools/skills/single-conversation-sa/SKILL.md
+new file mode 100644
+index 0000000..2b456a5
+--- /dev/null
++++ b/_tools/lazy-tools/skills/single-conversation-sa/SKILL.md
+@@ -0,0 +1,157 @@
++﻿---
++name: single-conversation-sa
++description: 单对话 SA（supervisor）工作法：用 subagent 的 description 作为 label，把活分给 review / build / research 三个角色，按交付物和 verdict 收敛。开工、派子代理、验收、发版前读。
++whenToUse: 用户说「按 A1 流程做」「派 review/build/research」「这张票走一遍」「supervisor 该怎么分」时读。
++---
++
++# 单对话 SA：一个 supervisor，三个角色
++
++## 0. 先说清楚边界（实测，2026-11-06）
++
++- **子代理的 label = `subagent` 工具的 `description`**。
++  官方 `dsh-tool-subagent` 把 `args.description` 直接传给 `startActivation({ label })`。
++  所以 supervisor 必须写：
++  - `description: "review: 审计 0.19 角色面"`
++  - `description: "build: 实现角色默认值"`
++  - `description: "research: 查官方 schedule 能力"`
++- **角色只认 label 第一段**（`labelRoleCandidates`）：`review:` / `build:` / `research:`。
++  MyGO 旧标签 `dsh-my-go:hermes: ...` 仍按第二段解析；不要改这个顺序。
++- **CORE 边界（2026-11-06 实测+修正）**：`read/glob/grep/pwsh/skill/todo_write/...` 仍受保护；
++  但 `edit/write` 已加入 `ROLE_HIDEABLE_CORE`，受管 `review:`/`research:` **会真正藏掉 edit/write**。
++  ⇒ review 的只读是**工具面 + 提示词双保险**；但 `pwsh` 仍可见，pwsh 能写仓库，所以 review 仍不得用 pwsh 改文件。
++- **冷读是另一条线**：冷读子代理**不读 spec、不给背景**，只读发布物；它不能用 `review:` 角色，
++  也不能复用 review 报告。发版 verdict 只认冷读。
++- **schedule 工具只给 supervisor**：`dsh-tool-schedule` 在 `delegationDepth > 0` 时直接拒绝；
++  子代理不能建定时任务。用户没明确要求时，不主动创建。
++
++## 1. 分派前先判类型
++
++| 用户说什么 | 先派 | 产出 | 然后 |
++|---|---|---|---|
++| 「值不值得做 / 查一下」 | `research:` | `assessment.md`：go / clarify / kill（建议） | 用户拍板；go 才进 build |
++| 「做这个功能 / 修这个 bug」 | `build:` | `spec.md` + `plan.md` + `tasks.md` + 代码/测试；bug 加 `assess.md` + `test-report.md` | 进 review |
++| 「审一下 / 验收」 | `review:` | `review-report.md` + verdict：blocking/suggestion/nit | 红回 build；绿由用户决定发不发 |
++| 「发版」 | 不派 review；走独立冷读 + 54 | `冷读-<版本>.md` + `verdict.json` | 54 门禁 |
++
++## 2. 子代理契约
++
++### `research:`
++
++只做建议，不做决定：
++
++```markdown
++## 结论
++go / clarify / kill（三选一，必须给理由）
++
++## 证据
++- 支持：
++- 反证：
++- 未验证：
++
++## 如果 go，最小验证
++```
++
++规则：
++- 证据不足只能 `clarify`，不能 `go`；
++- `kill` 要写“为什么不做”，不是“做不了”；
++- 不替用户拍板；用户说做才进 build。
++
++### `build:`
++
++功能：
++1. `spec.md`：目标、用户故事、验收（可证伪）、不做、回滚；
++2. `plan.md`：改哪些文件、依赖、风险、复杂度例外；
++3. `tasks.md`：任务、顺序、测试；
++4. 实现 + 测试；测试与代码同票；
++5. 交付时写“改了什么 / 证据 / 回滚”。
++
++bug：
++1. `assess.md`：现象、根因、复现、风险；
++2. 修复 + 回归测试；
++3. `test-report.md`：命令、结果、证据；verdict `verified / partial / failed`。
++
++规则：
++- 票是入口，spec 不能超票范围；扩大要新票；
++- 不顺手重构；重构单独票；
++- 不自己宣布“已验证”，交给 review。
++
++### `review:`
++
++只做规格 conform，不做冷读：
++
++```markdown
++## Scope
++commit / 文件 / 对应 spec
++
++## Findings
++| id | gapType | severity | class | evidence | status |
++|---|---|---|---|---|---|
++| F1 | missing/partial/contradicts/unrequested | blocking/suggestion/nit | ... | 文件:行 | open/fixed/deferred |
++
++## 做得对
++- ...
++
++## Verdict
++open blocking = 0 ? PASS : FAIL
++```
++
++规则：
++- 读 spec/plan/tasks，按验收逐条对；
++- **不写“冷读”**；不引用冷读提示词；
++- 红只给 blocking；nit 不挡；
++- 不自己改代码（工具面已隐藏 edit/write；`pwsh` 仍可见，但不得用 pwsh 写仓库）。
++
++### 冷读（独立，不是 review）
++
++- 不给背景、不给 spec、不给“已知问题”；
++- 只读发布物/改动；
++- 输出 JSON verdict 块（见 `review/coldread-prompt.md`）；
++- 发版只认这一份。
++
++## 3. supervisor 的收敛循环
++
++```
++派 review → 读 findings
++  ├─ open blocking > 0 → 派 build 修（只修 findings）
++  ├─ 新 finding → round + 1
++  └─ 连续两轮 new=0 && open=0 → 收敛
++最多 3 轮；剩余 deferred 必须写 reason + owner + release notes
++```
++
++规则：
++- supervisor 不自己审自己；
++- 不把 review 的“建议”当 blocking；
++- 不因为“怕超时”跳过复读；
++- 没有 findings 表，就不算收敛。
++
++## 4. 发版前
++
++1. 独立冷读（无 spec）；
++2. `verify-coldread` PASS；
++3. `gate` PASS（baseline / anomalies / 校准 / 可选 process、mutations、cold-read；findings 是人工表，不在 gate）；
++4. 54 dry-run；CI 绿；制品 hash 一致；
++5. 用户点头才发。
++
++## 4.5 定时任务（官方 schedule 包）
++
++- 官方包 `@deepseek-ai/dsh-tool-schedule` 已装进 profile；工具组 `schedule` 是 `defaultOn: true`，**不需要手动 enable**。
++- 顶层 supervisor 直接可用：`schedule_create/list/view/edit`。
++- **只有顶层能用**：子代理调用会返回 `{ code: "subagent_session" }`（官方包自己拒绝）。
++- 用户没明确要求时，不主动建任务。
++- review/research 角色看不到 schedule 组；build 角色能看到但会被官方包拒绝。
++
++## 4.6 直派 vs 角色：默认路由
++
++- **默认直派**：单文件、小改、写工具/测试/脚本，不要套 spec/plan/tasks。
++- **升级到 `build:`**：多文件实现、需要明确验收/回滚、需要交接文档。
++- **升级到 `review:`**：独立审计、发版边界、需要“漏了会出事”的检查。
++- **`research:` 只给建议**，不拍板。
++
++实测边界（n 小，方向）：角色买“独立/覆盖”，直派买“快/代码直接”；没有“角色普遍更快”的数据。
++## 5. 明确不做
++
++- 不建 Agent Teams / 多会话团队（A2 不是方向）；
++- 不让子代理建定时任务；
++- 不让 `review:` 冒充冷读；
++- 不把 `auto-review` 当代码审查（它是工具调用安全闸）；
++- 不在 review 里顺手改代码。
+diff --git a/_tools/lazy-tools/templates/assessment.md b/_tools/lazy-tools/templates/assessment.md
+new file mode 100644
+index 0000000..1040034
+--- /dev/null
++++ b/_tools/lazy-tools/templates/assessment.md
+@@ -0,0 +1,37 @@
++﻿# Assessment：<想法/票名>
++
++- 日期：
++- 提议人：
++
++## 1. Intake（原始需求）
++
++- 用户原话：
++- 要解决的问题：
++- 谁受益：
++
++## 2. Research（证据）
++
++- 支持：
++- 反证：
++- 现有替代：
++- 未验证：
++
++## 3. Define（边界）
++
++- 做什么：
++- 不做什么：
++- 最小验证：
++
++## 4. Shape（做法）
++
++- 方案 A：
++- 方案 B：
++- 成本/风险：
++
++## 5. Decide（建议，不是决定）
++
++- 结论：go / clarify / kill
++- 理由：
++- 如果 go，第一步：
++- 如果 kill，为什么不做：
++- 需要用户拍板的问题：
+diff --git a/_tools/lazy-tools/templates/audit-report.md b/_tools/lazy-tools/templates/audit-report.md
+new file mode 100644
+index 0000000..b68a3c3
+--- /dev/null
++++ b/_tools/lazy-tools/templates/audit-report.md
+@@ -0,0 +1,23 @@
++﻿# 定时审计报告：<日期>
++
++- 范围：baseline / 变异 / CI / findings
++- 触发：schedule（只由 supervisor 建）
++
++## 结果
++
++| 检查 | 结果 | 证据 |
++|---|---|---|
++| baseline | | |
++| adversarial | | |
++| mutation | | |
++| findings | | |
++| CI | | |
++
++## 新问题
++
++- 
++
++## 结论
++
++- 通过 / 需处理：
++- 是否影响发版：**否**（审计不生成 verdict.json，不挡发版）
+diff --git a/_tools/lazy-tools/templates/bug-assess.md b/_tools/lazy-tools/templates/bug-assess.md
+new file mode 100644
+index 0000000..137a8ed
+--- /dev/null
++++ b/_tools/lazy-tools/templates/bug-assess.md
+@@ -0,0 +1,40 @@
++﻿# Bug assess：<票名>
++
++- 票号：
++- 版本：
++- 发现方式：用户 / 冷读 / 测试 / 外部
++
++## 现象
++
++- 用户看到：
++- 期望：
++- 实际：
++
++## 复现
++
++- 环境：
++- 步骤：
++- 最小复现：
++
++## 根因
++
++- 文件:行：
++- 机制：
++- 为什么之前没发现：
++
++## 严重度
++
++- critical / high / medium / low：
++- 影响范围：
++- 是否已有绕过：
++
++## 修复计划
++
++- 改哪些文件：
++- 测试：
++- 回滚：
++
++## 结论
++
++- valid / likely / invalid：
++- 理由：
+diff --git a/_tools/lazy-tools/templates/bug-test-report.md b/_tools/lazy-tools/templates/bug-test-report.md
+new file mode 100644
+index 0000000..e327beb
+--- /dev/null
++++ b/_tools/lazy-tools/templates/bug-test-report.md
+@@ -0,0 +1,29 @@
++﻿# Bug test report：<票名>
++
++- 票号：
++- 对应 assess：
++- 修复提交：
++
++## 命令
++
++```text
++
++```
++
++## 结果
++
++- 退出码：
++- 通过 / 失败：
++- 输出摘要：
++
++## 证据
++
++- 修复前红：
++- 修复后绿：
++- 相关测试：
++
++## 结论
++
++- verdict：verified / partial / failed
++- 未验证：
++- 回滚：
+diff --git a/_tools/lazy-tools/templates/plan.md b/_tools/lazy-tools/templates/plan.md
+new file mode 100644
+index 0000000..39ab57a
+--- /dev/null
++++ b/_tools/lazy-tools/templates/plan.md
+@@ -0,0 +1,41 @@
++﻿# Plan：<票名>
++
++- 对应 spec：
++- 票号：
++
++## 改哪些文件
++
++| 文件 | 改什么 | 为什么 |
++|---|---|---|
++| | | |
++
++## 依赖
++
++- 新增依赖：无 / ...
++- 宿主版本：
++- 配置：
++
++## 风险
++
++- 风险：
++- 触发条件：
++- 缓解：
++
++## 复杂度例外
++
++| 例外 | 为什么需要 | 更简单的替代为什么不行 |
++|---|---|---|
++| | | |
++
++## 测试计划
++
++- 单测：
++- 冒烟：
++- 对抗：
++- 变异：
++- 真机/UI：
++
++## 回滚
++
++- 一行回滚：
++- 不可逆部分：
+diff --git a/_tools/lazy-tools/templates/review-report.md b/_tools/lazy-tools/templates/review-report.md
+new file mode 100644
+index 0000000..46784eb
+--- /dev/null
++++ b/_tools/lazy-tools/templates/review-report.md
+@@ -0,0 +1,25 @@
++﻿# Review：<票名>
++
++- 票号：
++- Scope：commit / 文件
++- 对应 spec：
++
++## Findings
++
++| id | gapType | severity | class | evidence | status |
++|---|---|---|---|---|---|
++| F1 | missing / partial / contradicts / unrequested | blocking / suggestion / nit | | 文件:行 | open / fixed / deferred |
++
++## 做得对
++
++- ...
++
++## 未验证
++
++- ...
++
++## Verdict
++
++- open blocking：0 / N
++- 结论：PASS / FAIL
++- 建议：可发 / 回 build / 需用户决定
+diff --git a/_tools/lazy-tools/templates/spec.md b/_tools/lazy-tools/templates/spec.md
+new file mode 100644
+index 0000000..71c3620
+--- /dev/null
++++ b/_tools/lazy-tools/templates/spec.md
+@@ -0,0 +1,40 @@
++﻿# Spec：<票名>
++
++- 票号：
++- 版本：
++- 状态：draft / ready
++
++## 目标（一句话）
++
++## 用户故事（每条可独立验收）
++
++### P1 <标题>
++
++- 为什么是 P1：
++- 独立验收：
++- Given：
++- When：
++- Then：
++
++## 功能要求
++
++- FR-1：
++- FR-2：
++
++## 成功标准（可测）
++
++- SC-1：
++- SC-2：
++
++## 不做
++
++- 明确不做：
++
++## 回滚
++
++- 代码回滚：
++- 数据/配置回滚：
++
++## 待确认
++
++- [NEEDS CLARIFICATION: ...]
+diff --git a/_tools/lazy-tools/templates/tasks.md b/_tools/lazy-tools/templates/tasks.md
+new file mode 100644
+index 0000000..8128d9b
+--- /dev/null
++++ b/_tools/lazy-tools/templates/tasks.md
+@@ -0,0 +1,36 @@
++﻿# Tasks：<票名>
++
++- 对应 plan：
++- 票号：
++
++## 阶段 1：准备
++
++- [ ] T1 ...
++- [ ] T2 ...
++
++## 阶段 2：实现
++
++- [ ] T3 ...
++- [ ] T4 ...
++
++## 阶段 3：测试
++
++- [ ] T5 单测
++- [ ] T6 冒烟
++- [ ] T7 变异
++
++## 阶段 4：交付
++
++- [ ] T8 更新 CHANGELOG
++- [ ] T9 写交付说明（改了什么/证据/回滚）
++- [ ] T10 交 review
++
++## 依赖
++
++- T3 依赖 T1
++- T5 依赖 T3
++
++## 验收
++
++- [ ] spec 的 SC-1 通过
++- [ ] spec 的 SC-2 通过
+diff --git a/_tools/lazy-tools/test/config.test.mjs b/_tools/lazy-tools/test/config.test.mjs
+new file mode 100644
+index 0000000..9c2b9aa
+--- /dev/null
++++ b/_tools/lazy-tools/test/config.test.mjs
+@@ -0,0 +1,30 @@
++// config.js：profiles 目录存在但不可读（这里用「是文件」造 ENOTDIR）时，import 不能崩。
++import { spawnSync } from 'node:child_process'
++import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
++import { tmpdir } from 'node:os'
++import { dirname, join } from 'node:path'
++import { fileURLToPath, pathToFileURL } from 'node:url'
++
++const here = dirname(fileURLToPath(import.meta.url))
++const root = dirname(here)
++const home = mkdtempSync(join(tmpdir(), 'lt-config-'))
++let failed = 0
++
++try {
++  mkdirSync(join(home, '.dsh'), { recursive: true })
++  writeFileSync(join(home, '.dsh', 'profiles'), 'not a directory')
++  const script = `import(${JSON.stringify(pathToFileURL(join(root, 'lib', 'config.js')).href)}).then(() => { console.log('IMPORT-OK') }).catch((e) => { console.error('IMPORT-FAIL', e && e.code); process.exit(1) })`
++  const run = spawnSync(process.execPath, ['-e', script], {
++    env: { ...process.env, USERPROFILE: home, HOME: home },
++    encoding: 'utf8',
++    timeout: 30000,
++  })
++  const ok = run.status === 0 && /IMPORT-OK/.test(run.stdout || '')
++  console.log(`${ok ? 'PASS' : 'FAIL'} config readdir 不可读时 import 不崩：${(run.stdout || run.stderr || '').trim()}`)
++  if (!ok) failed += 1
++} finally {
++  rmSync(home, { recursive: true, force: true })
++}
++
++console.log(`\nconfig：${failed === 0 ? 'PASS' : 'FAIL'}`)
++if (failed > 0) process.exitCode = 1
 diff --git a/_tools/lazy-tools/test/smoke.mjs b/_tools/lazy-tools/test/smoke.mjs
-index a9a9629..490992e 100644
+index a9a9629..0d1c99e 100644
 --- a/_tools/lazy-tools/test/smoke.mjs
 +++ b/_tools/lazy-tools/test/smoke.mjs
-@@ -72,6 +72,10 @@ function makeWorld(options = {}) {
+@@ -9,9 +9,10 @@
+ import assert from 'node:assert/strict'
+ import { apply } from '../lib/index.js'
+ import { normalizePolicy, mergePolicyForStorage } from '../lib/api.js'
+-import { isToolHot, recordUsage, LEVEL_DAYS, DAY } from '../lib/usage.js'
++import { hotRatio, isToolHot, recordUsage, LEVEL_DAYS, DAY } from '../lib/usage.js'
+ import { createHost } from '../lib/host.js'
+-import { auditManagedRoles, roleFromLabel, roleCandidatesFromLabel, labelOfSession, normalizeManagedRoles, resolveManagedRole } from '../lib/roles.js'
++import { CORE_TOOLS } from '../lib/autogroups.js'
++import { applyManagedRolesPatch, auditManagedRoles, roleFromLabel, roleCandidatesFromLabel, labelOfSession, normalizeManagedRoles, resolveManagedRole, isAllowedByPolicy, labelRoleCandidates } from '../lib/roles.js'
+ import { readFileSync, writeFileSync, rmSync, utimesSync, existsSync } from 'node:fs'
+ import { tmpdir } from 'node:os'
+ import { join } from 'node:path'
+@@ -72,6 +73,10 @@ function makeWorld(options = {}) {
    const activeByAgent = new Map() // agent -> [{ names }]：当前**真正挂着**的限制（孤儿会在这里露出来）
    // rc.3 的撤销是同步通知的。默认关（不影响其它用例），需要复现重入的用例自己打开。
    let fireOnRestrict = false
@@ -1156,7 +3786,7 @@ index a9a9629..490992e 100644
    const living = [] // «ctx.get('agents').list()» 返回的东西
    const effects = [] // «ctx.effect(cb)» 收下的回调，插件卸载时 Cordis 会调用它们
    const toolsChangeListeners = []
-@@ -149,9 +153,9 @@ function makeWorld(options = {}) {
+@@ -149,9 +154,9 @@ function makeWorld(options = {}) {
          }
          // scoped 注册不受 mask 影响，且**不可被 restrict**
          for (const name of scoped) visible.set(name, { name, scoped: true })
@@ -1169,7 +3799,7 @@ index a9a9629..490992e 100644
          return { visible, restrictableNames }
        },
      },
-@@ -180,6 +184,20 @@ function makeWorld(options = {}) {
+@@ -180,6 +185,20 @@ function makeWorld(options = {}) {
          },
          restrict(filter) {
            const deny = denyByAgent.get(agent)
@@ -1190,7 +3820,7 @@ index a9a9629..490992e 100644
            const added = Array.isArray(filter && filter.deny) ? [...filter.deny] : []
            // 真宿主的行为：deny 里混进不可限制的名字 ⇒ **整批抛错**（一个都不藏）
            const unknown = added.filter((name) => nonRestrictable.has(name))
-@@ -262,6 +280,20 @@ function makeWorld(options = {}) {
+@@ -262,6 +281,20 @@ function makeWorld(options = {}) {
      denyByAgent,
      activeByAgent,
      // 打开它 = mock 的 restrict 在「加上」和「解除」时都同步 fireToolsChange（rc.3 的行为）
@@ -1211,7 +3841,147 @@ index a9a9629..490992e 100644
      setSyncRestrictEvents(value) {
        fireOnRestrict = !!value
      },
-@@ -2822,7 +2854,7 @@ async function main() {
+@@ -669,6 +702,15 @@ async function main() {
+   assert.equal(isToolHot(usage, 'vision_ocr', 1, stamp), false)
+   assert.equal(isToolHot(usage, 'never_used', 7, stamp), false)
+   assert.equal(isToolHot(usage, 'never_used', 0, stamp), true)
++  assert.equal(hotRatio(8, 27), 8 / 27, 'hotRatio 不许取整')
++  assert.ok(hotRatio(8, 27) < 0.3, '8/27 必须小于 0.3')
++  const roleBase = { x: { allowGroups: ['a'] } }
++  const cleared = applyManagedRolesPatch(roleBase, {})
++  assert.equal(cleared.next, null, '空对象必须清空角色')
++  assert.equal(cleared.changed, true, '清空要算变化')
++  const roleNorm = normalizeManagedRoles(roleBase)
++  const same = applyManagedRolesPatch(roleNorm, roleNorm)
++  assert.equal(same.changed, false, '相同角色表不该刷新')
+   recordUsage(usage, 'dsh_browser_open', null, new Date(stamp))
+   assert.equal(typeof usage.tools.dsh_browser_open, 'string')
+   assert.equal(usage.groups.dsh_browser_open, undefined)
+@@ -1439,6 +1481,31 @@ async function main() {
+   assert.equal(sGuard.groups.find((g) => g.id === 'all').guarded, true, 'status 要如实标出这个组被忽略')
+   ok('全匹配手写组被忽略并可见记账（宿主换名字也照样兜住）')
+ 
++  log('[60b] 手写组用正则绕过哨兵：结构判定仍要挡住')
++  const worldGuard2 = makeWorld()
++  for (const name of ['biz2_a', 'biz2_b', 'biz2_c']) {
++    worldGuard2.ctx.tools.register({ name, description: 'x', parameters: {}, output: {} })
++  }
++  apply(worldGuard2.ctx, { groups: [{ id: 'all2', match: ['re:^[a-z0-9_]+$'], defaultOn: false }], autoGroups: 'off' })
++  const agentGuard2 = worldGuard2.createAgent('agent-guard2')
++  assert.equal(worldGuard2.denyByAgent.get(agentGuard2).size, 0, '正则覆盖全部工具也必须被忽略')
++  const sGuard2 = await runTool(worldGuard2, 'lazy_tools_status', {}, agentGuard2)
++  assert.equal(sGuard2.groups.find((g) => g.id === 'all2').guarded, true, 'status 要标 guarded')
++  ok('正则绕过哨兵：结构判定兜住')
++
++  log('[60c] 万能匹配 + 晚注册：apply 时没有工具，注册后仍要挡住')
++  const worldGuard3 = makeWorld()
++  apply(worldGuard3.ctx, { groups: [{ id: 'all3', match: ['re:^[a-z0-9_]+$'], defaultOn: false }], autoGroups: 'off' })
++  for (const name of ['late_a', 'late_b', 'late_c']) {
++    worldGuard3.ctx.tools.register({ name, description: 'x', parameters: {}, output: {} })
++  }
++  const agentGuard3 = worldGuard3.createAgent('agent-guard3')
++  worldGuard3.fireToolsChange()
++  assert.equal(worldGuard3.denyByAgent.get(agentGuard3).size, 0, '晚注册也不能被万能组吞掉')
++  const sGuard3 = await runTool(worldGuard3, 'lazy_tools_status', {}, agentGuard3)
++  assert.equal(sGuard3.groups.find((g) => g.id === 'all3').guarded, true, 'status 要标 guarded')
++  ok('晚注册：万能组仍被挡住')
++
+   // 2026-11-01：受管角色（默认关闭）—— preset / parentSession 决定策略，封闭默认，自愈不绕过。
+   log('[61] 受管角色：preset 决定策略、封闭默认、自愈不绕过')
+   const worldRole = makeWorld()
+@@ -1481,10 +1548,71 @@ async function main() {
+   const enableDef = worldRole.ctx.tools.get('lazy_tools_enable')
+   const deniedEnable = await enableDef.execute({ group: 'role-web' }, { agent: workerRole })
+   assert.ok(deniedEnable && deniedEnable.error && deniedEnable.error.includes('受管'), '受管会话里 enable 必须被拒')
++  const modeDef = worldRole.ctx.tools.get('lazy_tools_mode')
++  const deniedMode = await modeDef.execute({ collapseAll: true }, { agent: workerRole })
++  assert.ok(deniedMode && deniedMode.error && deniedMode.error.includes('受管'), '受管会话里 mode 必须明确拒绝')
++  const deniedSave = await runTool(worldRole, 'lazy_tools_save_groups', { groups: [{ id: 'role-new', match: ['role_fs_a', 'role_web_a'] }] }, workerRole)
++  assert.ok(deniedSave && deniedSave.error && deniedSave.error.includes('受管'), '受管会话里 save_groups 必须拒绝写全局组')
+   ok('受管角色只认 preset/parentSession，封闭默认生效，自愈不绕过')
+ 
+ 
+   // 2026-11-01：受管角色的 preset 竞态 —— Web UI 可能先用默认 preset 创建，再切回角色 preset。
++  log('[61b] label 角色：review/build/research 解析与工具面（CORE 不可藏）')
++  assert.deepEqual(labelRoleCandidates('review:任务'), ['review'], 'review:任务 第一段 review')
++  assert.deepEqual(labelRoleCandidates('build:改插件'), ['build'], 'build:改插件 第一段 build')
++  assert.deepEqual(labelRoleCandidates('research:查资料'), ['research'], 'research:查资料 第一段 research')
++  assert.deepEqual(labelRoleCandidates('dsh-my-go:hermes: 帮我改'), ['hermes', 'dsh-my-go'], 'MyGO 仍按第二段 hermes')
++  const roleMap = {
++    review: { allowGroups: ['browser-heavy'], unknown: 'hide' },
++    build: { allowGroups: ['*'], unknown: 'show' },
++    research: { allowGroups: ['search', 'browser-heavy'], unknown: 'hide' },
++  }
++  const groupOf = (name) => (name.startsWith('dsh_browser_') ? 'browser-heavy' : name.startsWith('web_') ? 'search' : null)
++  const labelAgent = (label) => ({ session: { header: { parentSession: 'role-parent', label } } })
++  assert.deepEqual(labelRoleCandidates('review: build the plugin'), ['review', 'build'], '显式 review 必须优先第一段')
++  assert.equal(resolveManagedRole(labelAgent('review: build the plugin'), roleMap).key, 'review', 'review 摘要含 build 也不能升级成 build')
++  assert.equal(resolveManagedRole(labelAgent('review:读'), roleMap).key, 'review', 'review label 必须解析成 review')
++  assert.equal(resolveManagedRole(labelAgent('build:改'), roleMap).key, 'build', 'build label 必须解析成 build')
++  assert.equal(resolveManagedRole(labelAgent('research:查'), roleMap).key, 'research', 'research label 必须解析成 research')
++  assert.equal(resolveManagedRole(labelAgent('whatever:做'), roleMap), null, '未知 label 不带角色')
++  assert.equal(isAllowedByPolicy({ role: roleMap.review }, 'dsh_browser_open', groupOf), true, 'review 允许 browser-heavy')
++  assert.equal(isAllowedByPolicy({ role: roleMap.review }, 'web_search', groupOf), false, 'review 不允许 search')
++  assert.equal(isAllowedByPolicy({ role: roleMap.research }, 'web_search', groupOf), true, 'research 允许 search')
++  assert.equal(isAllowedByPolicy({ role: roleMap.research }, 'dsh_browser_open', groupOf), true, 'research 允许 browser')
++  assert.equal(isAllowedByPolicy({ role: roleMap.build }, 'whatever', groupOf), true, 'build 不设限')
++  // CORE 边界：read/pwsh 仍保护；edit/write 已由 ROLE_HIDEABLE_CORE 允许受管角色隐藏。
++  for (const core of ['read', 'write', 'edit', 'pwsh', 'todo_write']) {
++    assert.equal(CORE_TOOLS.has(core), true, core + ' 必须在 CORE')
++  }
++  ok('label 三角色解析正确；CORE 工具不可被角色隐藏（只读只能靠提示词/沙箱）')
++
++  log('[61c] 受管角色能藏 edit/write（review 只读），build 不藏')
++  const worldCore = makeWorld()
++  for (const name of ['edit', 'write', 'core_a', 'core_b']) {
++    worldCore.ctx.tools.register({ name, description: 'x', parameters: {}, output: {} })
++  }
++  apply(worldCore.ctx, {
++    groups: [{ id: 'core-g', match: ['core_*'] }],
++    autoGroups: 'off',
++    managedRoles: {
++      'role-review': { allowGroups: ['core-g'], unknown: 'hide' },
++      'role-build': { allowGroups: ['*'], unknown: 'show' },
++    },
++  })
++  const coreReview = worldCore.createAgent('core-review', (agent) => {
++    agent.presets = { defaultId: 'cordis', composedPreset: () => 'role-review' }
++  })
++  const coreBuild = worldCore.createAgent('core-build', (agent) => {
++    agent.presets = { defaultId: 'cordis', composedPreset: () => 'role-build' }
++  })
++  const dCoreReview = worldCore.denyByAgent.get(coreReview)
++  const dCoreBuild = worldCore.denyByAgent.get(coreBuild)
++  assert.equal(dCoreReview.has('edit'), true, 'review 必须藏 edit')
++  assert.equal(dCoreReview.has('write'), true, 'review 必须藏 write')
++  assert.equal(dCoreReview.has('read'), false, 'review 不藏 read')
++  assert.equal(dCoreBuild.has('edit'), false, 'build 不藏 edit')
++  ok('受管角色能藏 edit/write；CORE 其余仍保护')
++
+   log('[62] 受管角色：preset 在创建后才选中（竞态）')
+   const worldRace2 = makeWorld()
+   for (const name of ['race_fs_a', 'race_web_a']) {
+@@ -2774,9 +2902,11 @@ async function main() {
+     inject() { return () => {} },
+   }
+   const appliedPolicies = []
++  const appliedMtimes = []
+   mountBridge(bridgeCtx, { own() {}, record() {} }, {
+     getState: () => ({ ok: true }),
+     applyPolicy: (next) => { appliedPolicies.push(next) },
++    setPolicyMtime: (v) => { appliedMtimes.push(v) },
+     record() {},
+   })
+   assert.ok(typeof bridgeHandler === 'function', '桥要注册 handler')
+@@ -2816,13 +2946,15 @@ async function main() {
+   const withHeader = await callBridge('POST', '/lazy-tools/api/policy', { 'content-type': 'application/json', 'x-lazy-tools': '1' }, { level: 'low' })
+   assert.equal(withHeader.code, 200, '带头必须放行：' + JSON.stringify(withHeader))
+   assert.equal(appliedPolicies.length, 1, '放行后要真的改策略')
++  assert.equal(appliedMtimes.length, 1, '写盘后要追平 mtime')
++  assert.ok(Number(appliedMtimes[0]) > 0, '追平的 mtime 必须是有效值，不能是 0')
+ 
+   const getState = await callBridge('GET', '/lazy-tools/api/state', {}, undefined)
+   assert.equal(getState.code, 200, 'GET 不受 POST 头限制：' + JSON.stringify(getState))
    ok('桥鉴权行为：无头 403、带头 200、GET 放行')
  
    // 2026-11-05（元宝挑刺 1）：managedRoles.allowGroups: ['*'] 必须 = 全开，不许记成 hide
@@ -1220,7 +3990,7 @@ index a9a9629..490992e 100644
    rmSync(`${NO_SUCH}.policy.json`, { force: true }) // 前面的 roles 写测试会留下 policy 文件（显式清空语义）
    const starWorld = makeWorld()
    starWorld.ctx.tools.register({ name: 'st_a', description: 'x', parameters: {}, output: {} })
-@@ -2918,11 +2950,230 @@ async function main() {
+@@ -2918,11 +3050,230 @@ async function main() {
    assert.deepEqual(hostEmpty.toolNames({}), ['s_one'], '空视图必须回退 schemas')
    ok('空视图回退 schemas（同 visibleNames 不变量）')
  
@@ -1456,6 +4226,695 @@ index a9a9629..490992e 100644
 +}
 +
 +export { makeWorld, runTool, assertJsonSafe }
+diff --git a/perf-/0.19.0-路线-20261106.md b/perf-/0.19.0-路线-20261106.md
+new file mode 100644
+index 0000000..a7621fc
+--- /dev/null
++++ b/perf-/0.19.0-路线-20261106.md
+@@ -0,0 +1,212 @@
++﻿# 0.19.0 路线：把外部方法拉进“我们要做的事”（2026-11-06）
++
++> 0.18.8 已发。下一步不是再修门禁，是 **A1 单对话 SA**：
++> `review:` / `build:` / `research:` 三个内置角色 + supervisor skill + health + 定时任务。
++> 本文只回答：**每一件要做的事，能借哪个外部方法；借哪一层；哪里会打架；先做哪件。**
++
++---
++
++## 0. 结论
++
++- **能拉上，而且大部分是“模板/契约”层，不是工具层。**
++- 真正要写代码的只有 4 件：**内置角色/工具面、supervisor skill、health、schedule 配方**。
++- Spec Kit 给 `build`/`review`/`research` 的**交付物形状**；Google 给**审阅单位**；Stryker 给**测试分数**；MS CD 给**制品门禁**；MLflow 给**裁判校准**。
++- **不要拉**：Spec Kit CLI、Stryker 全量、MLflow 平台、多级审批。
++- 最大的两个坑：**内置角色依赖内置组**（组 id 不存在时角色会被 audit 丢弃）、**cold read 不能和 `review:` 共用一个角色**。
++
++---
++
++## 1. 要做的事 × 方法（全表）
++
++| # | 我们要做的事 | 借哪个方法 | 具体借什么 | 交付物 | 依赖/冲突 |
++|---|---|---|---|---|---|
++| W1 | 内置 `build:` 角色 | Spec Kit S2/S3/S4/S5 | `spec.md` / `plan.md` / `tasks.md` / converge 的 gap 分类 | 三份轻量模板 + build skill | 票仍是入口；spec 不能超票范围 |
++| W2 | 内置 `review:` 角色 | Spec Kit S5 + Google G1-G8 + Stryker M1 | gap 分类（missing/partial/contradicts/unrequested）、blocking/nit、mutation score | review skill + verdict 模板 | **不能兼冷读**；review 读 spec 就是 anchored |
++| W3 | 内置 `research:` 角色 | Spec Kit S9（feature assess） | intake → research → define → shape → decide；go/clarify/kill | research skill + assessment 模板 | **kill 只是建议**，用户拍板 |
++| W4 | supervisor skill | Spec Kit S1（constitution）+ S5（converge）；Google G10（小 CL） | label 契约、派生规则、converge 条件、小步路由 | `skills/single-conversation-sa/SKILL.md` | supervisor 不能自审；C1 |
++| W5 | label → 工具面 | 无直接外部方法（这是我们的机制） | Spec Kit 的“角色职责”只做提示；工具面靠 `managedRoles.allowGroups` | `lib/roles.js` 内置三个 key + 三个组 | **内置组不存在 → 角色被 audit 丢弃**；见 §3 |
++| W6 | health 可见性 | MLflow J5/J6 + MS CD C3 | role/source、last verdict、calibration、rounds、CI 状态 | health 字段 + 面板 | 字段太多会稀释；先 5 个 |
++| W7 | 定时任务 | Spec Kit S5（converge）+ MS CD C3 | 夜间 audit 只跑 baseline/mutate/CI，不生成 release verdict；每周 research 评估 | schedule 配方 + audit 模式 | **审计 vs 发版 verdict**（C5） |
++| W8 | 短票/小 CL | Google G10/G11 | 一票一行为；测试同票；重构单独票 | 票模板 + 体检规则 | 与“一次审 13 提交”冲突 |
++| W9 | bug 修复流程 | Spec Kit S6/S8 | assess → fix → test；verified/partial/failed | 票模板 + test-report | 与现有四段交付合并 |
++| W10 | 发版制品 | MS CD C2/C3 | 同一 tgz hash 从 CI 到 Release；54 poll CI | 54 加 sha256 校验 | 先查 54 是否 pack 两次 |
++| W11 | 冷读裁判校准 | MLflow J1/J5 | 冻结 good/bad 报告集；改 verify 必跑 | `review/calibration/` | 校准集不能泄漏答案 |
++| W12 | 收敛判定 | Spec Kit S5（converged） | 连续两轮 new=0/open=0；最多 3 轮，deferred 写理由 | `review/findings.json` | deferred 与“0 红”冲突（C5） |
++| W13 | MyGO 兼容 | Spec Kit S1（治理/兼容） | 旧 label 规则不变；新角色只加映射 | 兼容测试 | 不能改 `labelRoleCandidates` 的既有顺序 |
++| W14 | 零配置 | Spec Kit S2-S4（模板即默认） | 三份模板 + 三个内置角色 + 三个组，开箱即用 | 默认配置 | 组 id/pattern 必须先定 |
++| W15 | 真机/UI 验证 | Google G2（UI 要真跑） | UI/并发变更必须真机或 demo；否则标未验证 | 手工验收清单 | 没真机时只能标黄 |
++
++---
++
++## 2. 先做哪几件（依赖顺序）
++
++```
++第 0 步（不做就全卡）：
++  W5 内置角色 + 内置组（review/build/research 三个 key 和 group id）
++
++第 1 步（A1 最小闭环）：
++  W1 build 模板
++  W2 review 模板（先 conform，不碰冷读）
++  W3 research 模板
++  W4 supervisor skill
++
++第 2 步（可观测）：
++  W6 health 五个字段
++  W7 schedule audit 配方
++
++第 3 步（流程硬化，可与第 1/2 并行）：
++  W12 findings + 收敛
++  W11 校准集
++  W8 小 CL 票规则
++  W9 bug 三态
++  W10 制品 hash
++
++第 4 步（验收）：
++  W15 真机/UI
++  一次 research → build → review → 红/绿 的端到端演练
++```
++
++**为什么 W5 必须第一个：**
++`lib/roles.js:119-124` 的 label 分支要求 `managedRoles` 里有这个 key，否则返回 null → 子代理不受管、工具面全开。
++所以“内置 review/build/research 三个角色”不是文档，是**代码里必须存在的 key**。
++
++---
++
++## 3. 内置角色/组的具体设计（最容易翻车）
++
++### 3.0 CORE 边界（2026-11-06 实测+修正）
++
++原实现：`wanted = source.filter(name => !CORE_TOOLS.has(name) && ...)` ⇒ 所有 CORE 都不能藏，review 的只读只能靠提示词。
++
++已改：新增 `ROLE_HIDEABLE_CORE = {edit, write}`，受管角色对这两个名字也走 `isAllowedByPolicy`：
++
++- `review:` → 藏 edit/write；read/glob/grep/pwsh 仍保留；
++- `research:` → 藏 edit/write；read/glob/grep/pwsh 仍保留；
++- `build:` → `allowGroups:["*"]`，不藏。
++
++**仍不可藏**：read / glob / grep / pwsh / skill / todo_write / 自愈工具。
++⇒ review 的只读现在是“edit/write 工具面 + 提示词”双保险；但 pwsh 仍可写仓库，skill 明令 review 不得用 pwsh 改文件。
++
++---
++### 3.1 角色
++
++```js
++// 当前默认（用户配置了就以用户为准，不覆盖）
++{
++  review:   { allowGroups: ['browser-heavy'], unknown: 'hide' },
++  build:    { allowGroups: ['*'], unknown: 'show' },
++  research: { allowGroups: ['search', 'browser-heavy'], unknown: 'hide' },
++}
++```
++
++- `build` 用 `'*'` 是逃生口：build 要 edit/write/pwsh，按组列不全；
++- `review`/`research` 依赖 `browser-heavy` / `search` 组；**组不存在时 `auditManagedRoles` 会把这个角色丢掉**（`roles.js:175-192`），会话退回普通会话，工具面全开——这是 fail-open，不是收紧。
++`review`/`research` 的 edit/write 由 `ROLE_HIDEABLE_CORE` 隐藏；read/pwsh 仍保留。
++
++### 3.2 组
++
++| 组 id | 用途 | 说明 |
++|---|---|---|
++| `browser-heavy` | review + research | 浏览器；review 只拿这一组可选工具 |
++| `search` | research | 搜索/抓网页 |
++| （无） | build | `allowGroups:["*"]`，全工具 |
++
++**问题：** 默认 `DEFAULT_GROUPS` 只有 cua 两组；用户配置了 `groups` 会整体替换默认组。所以内置组必须：
++- 要么进 `DEFAULT_GROUPS`（用户配置时合并而不是替换）；
++- 要么角色支持 `allowTools`/`allowPatterns`，不依赖组 id。
++**0.19 先做前者，后者留 0.20。**
++
++### 3.3 子会话与 preset 的坑
++
++`roles.js:127-142`：**preset 分支只在非子会话跑**；子会话先看 label，再看 `subagent` key。
++所以 A1 子代理**不能靠 preset 配角色**；必须：
++- label 第一段 = `review`/`build`/`research`；
++- 或配 `managedRoles.subagent` 兜底（但三个角色不能同时用一个兜底）。
++→ supervisor skill 必须写死“派生时带 label”。
++
++---
++
++## 4. 会打架的地方（必须先裁决）
++
++| # | 冲突 | 裁决（建议） |
++|---|---|---|
++| Y1 | `review:` 读 spec，cold read 不能读 spec | **两个东西**：`review:` 做 conform；cold read 保持独立子代理、不读 spec；verdict 分开 |
++| Y2 | supervisor 自审 | supervisor 默认不挂 review 工具；review 必须派生 |
++| Y3 | research 的 kill vs 用户决定权 | research 只给建议；用户拍板；skill 写死 |
++| Y4 | build 写 spec 扩大票范围 | 票是入口；spec 只能写票内；扩大要新票 |
++| Y5 | schedule 审计生成 release verdict | audit 模式独立，不写 `verdict.json` |
++| Y6 | 内置组不存在 → 角色被丢 | 启动时 audit；缺组必须 `record` + health 黄，不是静默 |
++| Y7 | MyGO 旧 label 与新 label 冲突 | 保持 `labelRoleCandidates` 第一段/第二段规则；新角色只是多三个 key，不改顺序 |
++| Y8 | review 只读 vs 跑测试写临时 | 临时目录 `%TEMP%`；review 结束 `git status` 检查；工具面不追求绝对 |
++
++---
++
++## 4.5 工具盘点（2026-11-06 实查）
++
++### 已有、够用
++| 工具/能力 | 来源 | 用途 |
++|---|---|---|
++| read / grep / glob / pwsh | 宿主内置 | review 读代码、跑测试 |
++| edit / write | 宿主内置 | build 改代码 |
++| subagent | DSH 插件 | supervisor 派生三个角色 |
++| skill | DSH 插件 | supervisor/角色说明 |
++| todo_write / present | 宿主内置 | 任务与交付 |
++| dsh_browser_* | 内置浏览器 | research 查网页、review 看 UI |
++| web_search / web_fetch / platform_search / domain_search | 搜索插件 | research |
++| lazy_tools_health / status / enable / disable | 本插件 | 观测与自救 |
++
++### 已补（本次）
++| 缺什么 | 补法 | 状态 |
++|---|---|---|
++| `review` 组 | 已删除：全由 CORE 组成，matched 0，无实际作用 | 已删 |
++| `review` 角色 | `managedRoles.review = {allowGroups:[browser-heavy]}`；edit/write 由 ROLE_HIDEABLE_CORE 藏 | 已加 |
++| `build` 角色 | `managedRoles.build = {allowGroups:["*"]}` | 已加 |
++| `research` 角色 | `managedRoles.research = {allowGroups:[search,browser-heavy]}`；edit/write 藏 | 已加 |
++
++### 仍缺（必须知道）
++| 缺什么 | 事实 | 影响 | 可选补法 |
++|---|---|---|---|
++| **schedule 代理工具** | 现成官方包已装并挂载；顶层 `schedule_list` 可用，`build:` 子代理返回 `subagent_session` | supervisor 可用四工具；子代理被拒 | **已验证**；不写新工具 |
++| **只读 pwsh** | review 组含 pwsh，pwsh 可写 | review 可能写仓库，54 的 git clean 会红 | 约定只写 %TEMP%；后置 git status；不做沙箱级只读 |
++| **research 组** | 没有单独 research 组，复用 review/search/browser | research 会拿到 pwsh（review 组） | 可接受；或加 research 组只含 read/grep/glob |
++| **cold read 角色** | 没有对应工具/角色；冷读是独立子代理 | 不能和 review: 共用 | 保持独立，不建角色 |
++| **角色→工具谓词** | 只支持 allowGroups，不支持 allowTools | 内置角色依赖组 id；组被用户替换时角色会被 audit 丢 | 0.20 加 allowTools/allowPatterns |
++
++### 结论
++
++- **能补的已补**：review 组、三个 managedRoles key、DEFAULT_GROUPS 的 review 组；
++- **不能靠本插件补的**：schedule_* 代理工具（DSH 只暴露服务/UI）、只读 pwsh（宿主沙箱级）；
++- **不要假装有的**：A1 定时任务目前只能“用户在 UI 建”或“外部计划任务”，不是 agent 自带。
++
++---
++
++## 5. 哪些方法不要拉进 0.19
++
++| 不拉 | 原因 |
++|---|---|
++| Spec Kit CLI / extension / catalog | 我们是 DSH 插件，不是它的宿主；拉进来等于再养一套流程 |
++| Spec Kit 的 hooks | 没有扩展市场，纯增配置 |
++| Stryker 全量 / incremental | 单文件插件收益低；保留 mutation score 概念即可 |
++| MS CD 的 canary/blue-green | 没有部署环境 |
++| MLflow 的 kappa/置信区间 | 没有第二个人类评审；只借“校准集” |
++| 多级审批 / 多 reviewer | 一个人 + AI，空转 |
++
++---
++
++## 6. 验收标准（0.19.0 做完怎么算成）
++
++1. **零配置**：不写 `managedRoles`，只给 label，`review:`/`build:`/`research:` 就能拿到不同工具面；
++2. **label 可观测**：health 里能看到 `role`、`source=label|subagent|preset`、`groups`；
++3. **supervisor 能路由**：`research` 出 go → `build` → `review` → 红/绿；
++4. **review 不冒充冷读**：review 报告有 spec 依据；冷读报告无 spec；
++5. **收敛**：findings 连续两轮 new=0/open=0，或 deferred 有理由；
++6. **定时审计不污染发版**：schedule 跑完不生成 `verdict.json`；
++7. **MyGO 兼容**：旧 `dsh-my-go:role:` label 仍能解析；
++8. **一次真机演练**：从 `research:` 到 `review:` 到发版，全链路有记录。
++
++---
++
++## 7. 一句话
++
++**外部方法不是“再加一层流程”，是给 `build/review/research` 三个角色各一份“交付物长什么样”的模板；supervisor 只做路由和收敛。**
++**0.19.0 的第一行代码不是模板，是 `managedRoles` 里的三个 key + 三个内置组；没有它们，label 解析返回 null，A1 就是纸面能跑。**
+diff --git a/perf-/54-发版.ps1 b/perf-/54-发版.ps1
+index 0910403..7d017c1 100644
+--- a/perf-/54-发版.ps1
++++ b/perf-/54-发版.ps1
+@@ -67,11 +67,17 @@ $ErrorActionPreference = 'Stop'
+ 
+ $SrcRepo = 'C:\deepsleep脚本工程\_tools\lazy-tools'
+ $PubRepo = 'C:\Users\14092\gh-publish\dsh-lazy-tools'
++$gateSpecFile = Join-Path $SrcRepo 'review/gate-spec.json'
++$gateSpec = $null
++if (Test-Path $gateSpecFile) { try { $gateSpec = Get-Content $gateSpecFile -Raw -Encoding UTF8 | ConvertFrom-Json } catch { $gateSpec = $null } }
++if (-not $gateSpec) { "错误: 缺 review/gate-spec.json（发版条件唯一来源）"; exit 1 }
++$gateNode = (Get-Command node -ErrorAction SilentlyContinue).Source
++if (-not $gateNode) { $gateNode = 'C:/Users/14092/.dsh/dsh-runtimes/dsh-next-primary-runtime/dependencies/node/bin/node.exe' }
+ $Owner = 'kmyy350234-dz'
+ $Repo = 'dsh-tool-drawer'
+ $SmokeScript = Join-Path $PSScriptRoot '53-工具抽屉冒烟.ps1'
+ # 只同步这些（白名单）：发布仓里还有 assets/、examples/、.gitattributes 这些它自己的东西，别碰
+-$SyncList = @('lib', 'client.js', 'locale', 'test', '.github', 'cordis.patch.yml', 'package.json',
++$SyncList = @('lib', 'client.js', 'locale', 'test', 'review', 'skills', 'templates', '.github', 'cordis.patch.yml', 'package.json',
+   'README.md', 'README.en.md', 'DESIGN.md', 'INTEROP.md', 'POLICY.md', 'MAINTAINING.md', 'CHANGELOG.md', 'icon.svg')
+ 
+ "运行身份: $([Security.Principal.WindowsIdentity]::GetCurrent().Name)"
+@@ -86,6 +92,14 @@ $fail = 0
+ # 规矩：用了 -Skip 就必须给 -Why，并落盘到 perf-\跳过-<版本>.md —— 跳过必须留痕。
+ $SkipList = @($Skip | ForEach-Object { "$_".Trim().ToLower() } | Where-Object { $_ })
+ if ($SkipSmoke) { $SkipList += 'smoke' }
++if ($gateSpec -and $gateSpec.notSkippable) {
++  foreach ($blocked in @($gateSpec.notSkippable)) {
++    if ($SkipList -contains "$blocked".ToLower()) { "错误: gate-spec 规定 $blocked 不可跳过"; exit 1 }
++  }
++  foreach ($item in $SkipList) {
++    if ($item -notin @('smoke', 'encoding')) { "错误: 未知跳过项 $item（只允许 smoke / encoding）"; exit 1 }
++  }
++}
+ if ($SkipList.Count -gt 0 -and [string]::IsNullOrWhiteSpace($Why)) {
+   "错误: 用了 -Skip 就必须给 -Why（跳过必须留痕：哪次、哪一项、原因）"
+   exit 1
+@@ -122,15 +136,20 @@ Step '3/7' 'CHANGELOG 有该版本段' $hasSection $(if ($hasSection) { "## [$Ve
+ # 规则见 代码规范.md §6「冷读测试」：派一个没有上下文的 subagent 读改动，结论写进
+ # perf-\冷读-<版本>.md。没有这份文件 = 没做冷读 = 不许发版（靠自觉的机制等于没有机制）。
+ $coldDir = Join-Path (Split-Path $PSScriptRoot -Parent) 'perf-'
+-$coldFile = Join-Path $coldDir ("冷读-$Version.md")
++$verdictFile = Join-Path $SrcRepo 'review/verdict.json'
+ $coldOk = $false
+-$coldDetail = "缺 $coldFile —— 先做独立冷读并把「结论：0 红」写进去"
+-if (Test-Path $coldFile) {
+-  $coldText = Get-Content $coldFile -Raw -Encoding UTF8
+-  $coldOk = ($coldText -match '结论[:：]\s*0\s*红')
+-  $coldDetail = if ($coldOk) { "结论 0 红：$coldFile" } else { "文件在但没有「结论：0 红」—— 冷读未过不许发" }
++$coldDetail = "缺 $verdictFile —— 先跑 node review/verify-coldread.mjs"
++if (Test-Path $verdictFile) {
++  try {
++    $v = Get-Content $verdictFile -Raw -Encoding UTF8 | ConvertFrom-Json
++    $coldOk = ($v.ok -eq $true -and $v.type -eq 'cold' -and [int]$v.red -eq 0 -and [int]$v.unverified -eq 0 -and "$($v.version)" -eq "$Version")
++    $coldDetail = "type=$($v.type) red=$($v.red) unverified=$($v.unverified) baseline=$($v.baseline) version=$($v.version)"
++  } catch {
++    $coldOk = $false
++    $coldDetail = "verdict.json 解析失败：$($_.Exception.Message)"
++  }
+ }
+-Step '3b/7' '独立冷读记录' $coldOk $coldDetail
++Step '3b/7' '冷读裁决（verdict.json）' $coldOk $coldDetail
+ 
+ # ── 2. 仓库状态 ─────────────────────────────────────────
+ "── 2. 仓库状态 ──"
+@@ -146,39 +165,37 @@ $env:GIT_TERMINAL_PROMPT = '0'
+ $remoteTags = & git -C $PubRepo ls-remote --tags origin "refs/tags/$tag" 2>$null
+ Step '5/7' "远端没有 $tag" ([string]::IsNullOrWhiteSpace(($remoteTags -join ''))) '已存在就换版本号，别覆盖'
+ 
+-# ── 4. 冒烟 ─────────────────────────────────────────────
+-"── 4. 冒烟 ──"
+-"── 4. 冒烟 ×2（防临时文件残留 / 环境脏）──"
+-if (Test-Skipped 'smoke') {
+-  "  [跳过] 冒烟 —— 已计入跳过记录，这份输出不能当作「可以发」的证据"
+-} else {
+-  # 2026-11-04：冒烟会把 [lazy-tools] 日志打到 stderr；PS 5.1 在 ErrorActionPreference=Stop 下
+-  # 会把原生命令的 stderr 当成异常直接中止脚本（实测：发版在这步炸掉，检查没跑完）。临时切 Continue。
+-  $prevEap = $ErrorActionPreference
+-  $ErrorActionPreference = 'Continue'
+-  try {
+-    $run1 = & powershell -NoProfile -ExecutionPolicy Bypass -File $SmokeScript -Tail 2 2>&1
+-    $code1 = $LASTEXITCODE
+-    $line1 = (($run1 | Where-Object { $_ -match 'smoke:\s*\d+\s*项全过' } | Select-Object -Last 1) -replace '^\s+','')
++# ── 4. 冒烟 / 对抗 ─────────────────────────────────────
++"── 4. 冒烟 / 对抗 ──"
++# 2026-11-06（冷读红 7）：-Skip smoke 只许跳**第二次**冒烟；第一次冒烟和对抗永远跑。
++$advScript = Join-Path $SrcRepo "test/adversarial.mjs"
++$advNode = (Get-Command node -ErrorAction SilentlyContinue).Source
++if (-not $advNode) { $advNode = "C:/Users/14092/.dsh/dsh-runtimes/dsh-next-primary-runtime/dependencies/node/bin/node.exe" }
++$advPrev = $ErrorActionPreference
++$ErrorActionPreference = 'Continue'
++try { $advOut = & $advNode $advScript 2>&1 } finally { $ErrorActionPreference = $advPrev }
++$advCode = $LASTEXITCODE
++$advLine = ($advOut | Where-Object { $_ -match '结果：PASS' } | Select-Object -Last 1)
++Step '6d/7' '对抗测试' ($advCode -eq 0 -and $advLine) "$advLine（退出码 $advCode）"
++
++$prevEap = $ErrorActionPreference
++$ErrorActionPreference = 'Continue'
++try {
++  $run1 = & powershell -NoProfile -ExecutionPolicy Bypass -File $SmokeScript -Tail 2 2>&1
++  $code1 = $LASTEXITCODE
++  $line1 = (($run1 | Where-Object { $_ -match 'smoke:\s*\d+\s*项全过' } | Select-Object -Last 1) -replace '^\s+','')
++  if (Test-Skipped 'smoke') {
++    $code2 = $code1
++    $line2 = '（第二次冒烟被 -Skip 跳过）'
++  } else {
+     $run2 = & powershell -NoProfile -ExecutionPolicy Bypass -File $SmokeScript -Tail 2 2>&1
+     $code2 = $LASTEXITCODE
+     $line2 = (($run2 | Where-Object { $_ -match 'smoke:\s*\d+\s*项全过' } | Select-Object -Last 1) -replace '^\s+','')
+-    $okBoth = ($code1 -eq 0 -and $code2 -eq 0 -and $line1 -and $line2)
+-    
+-  # 2026-11-04：adversarial 也要进发版门禁（之前只跑手动的 pnpm test）
+-  $advScript = Join-Path $SrcRepo "test/adversarial.mjs"
+-  $advNode = (Get-Command node -ErrorAction SilentlyContinue).Source
+-  if (-not $advNode) { $advNode = "C:/Users/14092/.dsh/dsh-runtimes/dsh-next-primary-runtime/dependencies/node/bin/node.exe" }
+-  $advPrev = $ErrorActionPreference
+-  $ErrorActionPreference = 'Continue'
+-  try { $advOut = & $advNode $advScript 2>&1 } finally { $ErrorActionPreference = $advPrev }
+-  $advCode = $LASTEXITCODE
+-  $advLine = ($advOut | Where-Object { $_ -match '结果：PASS' } | Select-Object -Last 1)
+-  Step '6d/7' '对抗测试' ($advCode -eq 0 -and $advLine) "$advLine（退出码 $advCode）"
+-Step '6/7' '冒烟 ×2 全过' $okBoth "第1次: $line1（退出码 $code1）／ 第2次: $line2（退出码 $code2）"
+-  } finally {
+-    $ErrorActionPreference = $prevEap
+   }
++  $okBoth = ($code1 -eq 0 -and $code2 -eq 0 -and $line1 -and $line2)
++  Step '6/7' '冒烟 ×2 全过' $okBoth "第1次: $line1（退出码 $code1）／ 第2次: $line2（退出码 $code2）"
++} finally {
++  $ErrorActionPreference = $prevEap
+ }
+ 
+ # ── 4b. 编码体检（BOM / 行尾 / 孤立 CR）──
+@@ -200,7 +217,7 @@ if (Test-Skipped 'encoding') {
+ # ── 4b-2. 一致性断言（2026-11-05 冷读红 1：原来被误放进「缺编码脚本」分支，永远不跑）──
+ "── 4b-2. 一致性断言 ──"
+ if (Test-Skipped 'consistency') {
+-  "  [跳过] 一致性断言"
++  Step '6e/7' '一致性断言' $false '不可跳过（gate-spec）：-Skip consistency 不允许'
+ } else {
+   $consistScript = Join-Path $PSScriptRoot "59-一致性断言.ps1"
+   if (-not (Test-Path $consistScript)) {
+@@ -218,7 +235,7 @@ if (Test-Skipped 'consistency') {
+ # ── 4c. 恶性 bug 清单（用户 2026-11-03：全绿 + 零恶性 bug）──
+ "── 4c. 恶性 bug 清单 ──"
+ if (Test-Skipped 'malignant') {
+-  "  [跳过] 恶性 bug 清单"
++  Step '6c/7' '恶性 bug 清单' $false "恶性清单不可跳过（gate-spec.notSkippable）"
+ } else {
+   $malFile = Join-Path $coldDir '恶性bug清单.md'
+   if (-not (Test-Path $malFile)) {
+@@ -231,6 +248,67 @@ if (Test-Skipped 'malignant') {
+   }
+ }
+ 
++# ── 4d. 流程一致性 + 变异（gate-spec 是唯一来源）──
++"── 4d. 流程一致性 + 变异 ──"
++$procScript = Join-Path $SrcRepo 'review/check-process.mjs'
++if (Test-Path $procScript) {
++  $procOut = & $gateNode $procScript 2>&1
++  $procCode = $LASTEXITCODE
++  $procLine = ($procOut | Where-Object { $_ -match '流程检查' } | Select-Object -Last 1)
++  Step '6f/7' '流程一致性' ($procCode -eq 0) "$procLine（退出码 $procCode）"
++}
++$mutScript = Join-Path $SrcRepo 'review/mutate.mjs'
++if (Test-Path $mutScript) {
++  $mutOut = & $gateNode $mutScript 2>&1
++  $mutCode = $LASTEXITCODE
++  $mutLine = ($mutOut | Where-Object { $_ -match '变异：' } | Select-Object -Last 1)
++  Step '6g/7' '变异' ($mutCode -eq 0) "$mutLine（退出码 $mutCode）"
++}
++
++# ── 4e. findings 收敛（B1 台账接入，2026-11-06）──
++# 为什么加这一步：B1 已经把「N 红」做成可逐条关闭的台账（review/findings.json + review/findings.mjs，
++# 收敛 = round>=2 且 open=0 且连续两轮没有新 finding），但发版根本不看它 —— 台账挂着红也照发。
++# 规矩：有台账就按台账判（status 退出 0 才算过）；没有台账保持旧行为（自动 PASS），
++# 不能因为这条把 0.18.8 以前那种「没有台账」的发版卡死。
++"── 4e. findings 收敛 ──"
++$findingsFile = Join-Path $SrcRepo 'review/findings.json'
++$findingsScript = Join-Path $SrcRepo 'review/findings.mjs'
++if (-not (Test-Path $findingsFile)) {
++  # 顺序很重要：先看台账在不在。不存在就不要调 node —— findings.mjs 那时会以 2 退出，
++  # 那是「没台账」不是「不收敛」，混在一起会造出一个假 FAIL。
++  Step '6h/7' 'findings 收敛' $true '无台账（review/findings.json 不存在），跳过'
++} elseif (-not (Test-Path $findingsScript)) {
++  Step '6h/7' 'findings 收敛' $false "有台账但缺 $findingsScript"
++} else {
++  # 钉死读哪一份台账：findings.mjs 认 LAZY_TOOLS_FINDINGS_FILE。不钉死的话，一个残留环境变量
++  # 就能把门禁指去一份「收敛了」的假台账（fail-open）；跑完把旧值原样写回（可能是 $null = 删除）。
++  $findingsPrevEnv = [Environment]::GetEnvironmentVariable('LAZY_TOOLS_FINDINGS_FILE')
++  [Environment]::SetEnvironmentVariable('LAZY_TOOLS_FINDINGS_FILE', $findingsFile)
++  $findingsPrevEap = $ErrorActionPreference
++  $ErrorActionPreference = 'Continue'
++  $findingsOut = @()
++  $findingsCode = -1
++  try {
++    $findingsOut = @(& $gateNode $findingsScript status 2>&1 | ForEach-Object { "$_" })
++    $findingsCode = $LASTEXITCODE
++  } finally {
++    $ErrorActionPreference = $findingsPrevEap
++    [Environment]::SetEnvironmentVariable('LAZY_TOOLS_FINDINGS_FILE', $findingsPrevEnv)
++  }
++  # 成功时 findings.mjs 打的是 pretty JSON，直接贴末行只会看到 `}`；抓三个数字拼一行，
++  # 抓不到（台账不合法时打的是错误文本）就退回原文末行 —— 不许把「没看懂」写成「过了」。
++  $findingsFlat = ($findingsOut -join ' ')
++  $fRound = [regex]::Match($findingsFlat, '"round":\s*(\d+)')
++  $fOpen = [regex]::Match($findingsFlat, '"open":\s*(\d+)')
++  $fConv = [regex]::Match($findingsFlat, '"converged":\s*(true|false)')
++  if ($fConv.Success) {
++    $findingsDetail = "round=$($fRound.Groups[1].Value) open=$($fOpen.Groups[1].Value) converged=$($fConv.Groups[1].Value)（退出码 $findingsCode）"
++  } else {
++    $findingsDetail = "$(($findingsOut | Select-Object -Last 1))（退出码 $findingsCode）"
++  }
++  Step '6h/7' 'findings 收敛' ($findingsCode -eq 0) $findingsDetail
++}
++
+ # ── 5. 凭据 ─────────────────────────────────────────────
+ "── 5. GitHub 凭据 ──"
+ # 2026-10-31：优先用环境变量（bash 里取好再传进来），避免 PS 5.1 管道给 git 的 stdin 丢字段；
+@@ -378,7 +456,7 @@ $tgzSha = (Get-FileHash $tgzPath -Algorithm SHA256).Hash.ToLower()
+ # 显式用 Windows 自带 bsdtar；找不到再退回 PATH 里的 tar。
+ $tarExe = if (Test-Path "$env:SystemRoot\System32\tar.exe") { "$env:SystemRoot\System32\tar.exe" } else { 'tar' }
+ $list = & $tarExe -tzf $tgzPath
+-foreach ($need in 'package/lib/index.js', 'package/DESIGN.md', 'package/README.md', 'package/test/smoke.mjs') {
++foreach ($need in 'package/lib/index.js', 'package/DESIGN.md', 'package/README.md', 'package/README.en.md', 'package/test/smoke.mjs') {
+   if ($list -notcontains $need) { "  包缺文件: $need"; exit 2 }
+ }
+ $tmp = Join-Path $env:TEMP "pkgchk-$Version"
+@@ -426,6 +504,25 @@ try {
+   Pop-Location
+ }
+ 
++# ── 8b. 发布仓 CI 必须绿（2026-11-06：0.18.8 先发 Release、CI 却红了几分钟）──
++"── 8b. 发布仓 CI ──"
++$ciSha = (git -C $PubRepo rev-parse HEAD).Trim()
++$ciOk = $false
++$ciDetail = "没有找到 $ciSha 的 CI run"
++$ciHeaders = @{ Authorization = "token $tok"; Accept = "application/vnd.github+json"; "User-Agent" = "dsh-release-script" }
++for ($i = 0; $i -lt 40; $i++) {
++  try {
++    $runs = Invoke-RestMethod -Uri "https://api.github.com/repos/$Owner/$Repo/actions/runs?head_sha=$ciSha&per_page=1" -Headers $ciHeaders -Proxy $Proxy -TimeoutSec 60
++    if ($runs.workflow_runs.Count -gt 0) {
++      $run = $runs.workflow_runs[0]
++      $ciDetail = "run $($run.id) status=$($run.status) conclusion=$($run.conclusion)"
++      if ($run.status -eq "completed") { $ciOk = ($run.conclusion -eq "success"); break }
++    }
++  } catch { $ciDetail = "CI 查询失败：$($_.Exception.Message)" }
++  Start-Sleep -Seconds 15
++}
++if ($ciOk) { "  [CI] OK    $ciDetail" } else { "  [CI] FAIL  $ciDetail"; "结论: 发布仓 CI 未绿，不建 Release（tag 已推；先修 CI 再发）"; exit 2 }
++
+ "── 9. 建 Release + 传两个资产 ──"
+ $h = @{ Authorization = "token $tok"; Accept = 'application/vnd.github+json'; 'User-Agent' = 'dsh-release-script' }
+ $apiBase = "https://api.github.com/repos/$Owner/$Repo"
+@@ -445,6 +542,26 @@ if ($start -ge 0) {
+   $section = ($body -join "`n").Trim()
+ }
+ if (-not $section) { $section = "v$Version" }
++# 2026-11-06：Release 说明附上本次实测证据（不是“全绿”三个字，贴命令结果与哈希）。
++# 变量都在上面步骤里产生；某一步被跳过/失败时写“未运行/失败”，不伪造。
++$commitSha = (git -C $SrcRepo rev-parse --short HEAD 2>$null)
++$evidenceLines = @(
++  '## 验证证据（自动生成）',
++  '',
++  "- 版本：v$Version（提交 $commitSha）",
++  "- 冒烟：$line1；$line2",
++  "- 对抗：$advLine",
++  "- 编码：$encLine",
++  "- 一致性：$consistLine",
++  "- 变异：$mutLine",
++  "- findings：$findingsDetail",
++  "- 冷读：$coldDetail",
++  "- 制品：$tgzName，$tgzBytes 字节，sha256=$tgzSha",
++  "- CI：$ciDetail"
++)
++$evidence = ($evidenceLines | ForEach-Object { if ($null -eq $_ -or "$_" -eq "") { "-（未运行/无输出）" } else { "$_" } }) -join "`n"
++$section = ($section.TrimEnd() + "`n`n" + $evidence)
++
+ $payload = @{ tag_name = $tag; name = "v$Version"; body = $section; draft = $false; prerelease = $false } | ConvertTo-Json -Depth 5
+ $rel = $null
+ try {
+diff --git a/perf-/A1-效率对照-20261106.md b/perf-/A1-效率对照-20261106.md
+new file mode 100644
+index 0000000..b1238a7
+--- /dev/null
++++ b/perf-/A1-效率对照-20261106.md
+@@ -0,0 +1,184 @@
++﻿# A1 效率对照：直派子代理 vs 角色预设（2026-11-06）
++
++> 目的：验证“给子代理预设角色/工具面”相对“传统直派子代理”，在**小任务**上到底提不提速。
++> 只做了 1 组对照，n=1；结论只能当方向，不是统计结论。
++
++---
++
++## 1. 实验设计
++
++- 同一份材料：B2 校准集的两个文件（`review/verify-coldread.mjs`、`review/check-calibration.mjs`）。
++- 同一个 prompt：只读，检查 3 项，只输出固定 JSON，5 分钟内收口。
++- A 组：普通子代理，**不带角色 label**，工具面全量。
++- B 组：`review:` 角色子代理，edit/write 被 `ROLE_HIDEABLE_CORE` 隐藏。
++- 两组同时启动，同一台机器、同一时段。
++
++## 2. 实测数据
++
++| 组 | 开始 | 结束 | 墙钟 | 结果 |
++|---|---|---|---|---|
++| A 直派 | 21:17:05 | 21:17:43 | **38 秒** | `{"defaultBehavior":true,"verdictIntact":true,"blocking":[],"verdict":"PASS"}` |
++| B `review:` 角色 | 21:17:05 | 21:18:06 被中断 | **>61 秒** | 无结论 |
++
++> B 组不是“做错了”，是**没在 1 分钟内收口**；我按“开放式子代理不陪跑”的规则中断了它。
++
++## 3. 能得出什么
++
++**测出来的：**
++- 这个 3 项检查的小任务，直派子代理 38 秒给出正确结论；
++- 角色预设组更慢，且没有产出；
++- 角色预设并没有让“小审阅”更快。
++
++**推出来的（不能当实测）：**
++- 角色预设的价值不在启动速度，而在**工具面收紧 + 交付物固定 + 可机读**；
++- 对“小、边界清楚、只读”的任务，直派更划算；
++- 对“多文件、要独立评审、要防止中途改代码”的任务，角色才可能回本。
++
++## 4. 限制
++
++1. n=1，模型有随机性；
++2. B 组可能只是这次“想多了”，不代表角色一定慢；
++3. 没有拿到 token 数，只比墙钟；
++4. 任务太小，放大了固定开销。
++
++## 5. 结论与规则
++
++- **角色预设不是加速器，是约束器。**
++- 小任务（单文件、3 项检查、只读）→ **直派更快**，不要套角色/模板。
++- 大任务（多文件、要独立评审、要防误改）→ 再用 `review:`/`build:`。
++- 下一次 A/B 要选一个**真实多文件票**，记墙钟 + token + 纠正轮次 + 返工次数；小任务不再重复测。
++
++---
++
++## 6. 下一步
++
++1. 角色标签只用于“值得派的子代理”，不再默认所有任务都套；
++2. 子代理 prompt 必须带截止条件（本轮的 5 分钟规则有效）；
++3. 真实票 A/B 之前，不再宣称“角色预设能提效”。
++
++---
++
++## 多文件 A/B（第二轮）
++
++> 同一份材料、同一个 prompt、同时启动；**这次等完，不中断**。
++
++- 材料 5 个文件：cordis.patch.yml、lib/index.js、SKILL.md、verify-coldread.mjs、check-calibration.mjs。
++- A 直派（全量工具）；B `review:` 角色（edit/write 隐藏）。
++- 开始：21:20:36。
++
++| 组 | 结束 | 墙钟 | 结论 | findings |
++|---|---|---|---|---|
++| A 直派 | 21:32:24 | **11 分 48 秒** | FAIL | 8 条，2 blocking |
++| B review | 21:31:05 | **10 分 29 秒** | FAIL | 10 条，1 blocking |
++
++### 两条思维路径的差别
++
++- **A 先跑运行时**：`lazy_tools_status`、子代理 `schedule_list`、`verdict.json` 前后 sha256；再用静态代码交叉验证。
++  - 抓到：research 引用未随包发布的 `search` 组；label 规则 `review: build ...` 会解析成 build（blocking）。
++- **B 先做静态守卫审计**：逐文件找“受管会话还能不能改全局状态”。
++  - 抓到：`lazy_tools_save_groups` 没有受管守卫（blocking）；另有 calibration 未校验 sidecar、冷读提示词过时、browser keep 不可用等 9 条。
++- **互补**：A 的运行时证据强，B 的静态覆盖广；两边都判 FAIL，但各漏了对方的一条。
++
++### 能得出什么
++
++- 多文件任务上，B 比 A **快约 1 分 19 秒**，且多找到 1 条 blocking；n=1，不能当普遍结论。
++- 角色预设没有让 B 漏看（edit/write 隐藏不影响读代码和跑脚本）。
++- 11 分钟仍然很慢；真正的瓶颈是“读 5 个文件 + 交叉核对”，不是角色。
++
++### 已修的 blocking
++
++1. `lazy_tools_save_groups` 加受管守卫（review 不能再写全局组）；
++2. `labelRoleCandidates`：显式 role 第一段优先；MyGO 旧标签仍第二段；
++3. `cordis.patch.yml` 自带 `web` 组，research 不再依赖未随包发布的 `search`；
++4. calibration 同时校验 `unverified.json` 不被覆盖；
++5. 冷读提示词改成 JSON verdict 块；
++6. calibration 进 `gate.mjs`，不再只靠手跑。
++
++---
++
++## 小任务复测（第三轮，2026-11-06 21:36:32 起）
++
++> 上一轮 B 组被我中断，没有数据；这次两组都等到自己结束，不中断。
++
++任务同前：只读两个文件，检查 `--out` 默认行为、校准是否覆盖 verdict、是否有 blocking，输出固定 JSON。
++
++| 组 | 结束 | 墙钟 | 结论 | 3 项检查 |
++|---|---|---|---|---|
++| A 直派 | 21:40:35 | **4 分 03 秒** | PASS | 全 true |
++| B `review:` 角色 | 21:39:32 | **3 分 00 秒** | PASS | 全 true |
++
++### 差别不在结论，在验证深度
++
++- **A 多做了实跑**：`check-calibration`、`gate-integrity`，跑前跑后比 `verdict.json` / `unverified.json` 的 SHA256、mtime、字节长度，并看 `git status`。
++- **B 主要做静态核对**：读代码，确认 `--out` 分支只写临时目录、默认路径不变；没有跑测试。
++- **两者都 PASS**，但 A 的证据更硬；A 多花的那一分钟，基本花在实跑和哈希对比上。
++
++### 结论
++
++- 小任务上，角色预设 B 略快（3m00 vs 4m03，n=1），但**没有更快地得出更可靠的结论**——它做得更少。
++- 不能把“B 快 63 秒”归因于角色；更像是 B 选择了更轻的验证路径。
++- 规则不变：小任务直派；要证据就要求实跑，时间会回来。
++
++---
++
++## 真实票 A/B：findings 接进 54
++
++> 同一张票、同一基线、两个隔离 worktree；A 直派单代理，B `build:` 角色单代理（不派生 review）。
++
++### 结果
++
++| 项 | A 直派 | B build 角色 |
++|---|---|---|
++| 改动 | 2 文件 / 42 行 | 4 文件 / 73 行 + 3 份文档 |
++| 验收 | check-54 15 项、smoke 128、语法、dry-run 4 例 | check-54 16 项、smoke 128、adversarial、process、encoding |
++| 关键差异 | 无环境变量钉死、无 gate-spec/PROCESS | 钉死 `LAZY_TOOLS_FINDINGS_FILE`，gate-spec 不可跳过，PROCESS 同步，运行时跳过测试 |
++| 收口 | **7 分 17 秒** | **6 分 54 秒**（B 快 23 秒） |
++
++### 判断
++
++- **B 更完整**：A 直接读 `LAZY_TOOLS_FINDINGS_FILE`，一个残留环境变量就能把门禁指去假台账（fail-open）；B 在调用前钉死路径并在 finally 复原，还加了 gate-spec/PROCESS/运行时测试。
++- **B 也有代价**：它把 `-Skip findings` 的断言写成只接受「不可跳过 findings」，合并到主仓后实际文案是「findings 不可跳过」，check-54 直接红；修了正则才过（`d28b1c6`）。A 没有这个运行时断言，反而不会卡这一下。
++- **B 只快 23 秒**（6:54 vs 7:17，约 5%，n=1），不是明显加速；
++- **23 秒没有抵消测试返工**：B 的 `check-54` 文案顺序断言在合并后红，修 `d28b1c6` 花的时间大于 23 秒；按净时间这轮 A 略赢，按质量 B 赢。
++
++### 决定
++
++- **合并 B**（`edb3ccd` + 修复 `d28b1c6`），因为它堵住了 A 的 fail-open；
++- A 分支保留作对照，不合并；
++- 结论：角色流程在**发版门禁**这种有明确安全边界的事情上值；在小任务上不值。
++
++---
++
++## B3 真实票：mutation score
++
++> 同票、同 worktree 隔离；A 直派单代理，B `build:` 单代理（不派生 review）。
++
++### 结果
++
++| 项 | A 直派 | B build 角色 |
++|---|---|---|
++| 改动 | 4 文件 / 268 行 | 4 文件 + 3 份文档 |
++| 测试 | **12/12** | 8/8 |
++| 共同验收 | smoke 128、gate --mutation-score PASS、`--run` 8/8 | 同左 |
++| 差异 | `--run` 检查 `mutate.mjs` 退出码；缺 `expectText` 也算 missing；`--file` 只给测试 | 文档更全，但 `runMutations` **不检查 mutate 退出码**，缺 `expectText` 不算 missing |
++
++### 判断
++
++- **A 的代码更稳**：B 的 `--run` 在 mutate.mjs 中途崩掉、但没打印 FAIL 行时，`survived=0` 可能假绿；A 明确检查 `run.status !== 0`。
++- **B 的文档更全**：三份票文档适合交接，但这次没换来更好的代码；反而少了两条硬检查。
++- **没有独立计时**：两边都在约 7–10 分钟量级；A 的最后文件时间更早，但不能当准确墙钟。
++
++### 决定
++
++- **合并 A**（`1a793ef`），B 分支留作对照；
++- 结论：角色流程不是稳定赢；同一张票，直派可能写出更严的实现。
++
++---
++
++## A7 全链路：research → build → review
++
++- research 结论：原票“顺序跑 baseline/对抗/变异”是 gate 子集，会假绿 → **改票为薄壳包 gate**；
++- build 交付 `review/audit.mjs`（138 行），PASS/FAIL 两条路径都实跑；
++- review 抓到 **1 blocking**：`--out review/VERDICT.JSON` 在 NTFS 大小写不敏感下可覆盖 `verdict.json`；
++- 修复 `a80e9fd`：realpath + 小写比较、已有文件拒绝覆盖、wx、目录预检、报告 BOM。
++- 结论：A7 链路的真正价值不是“三个角色都跑”，是 **research 先拦错票、review 再拦实现漏洞**。
 diff --git a/perf-/冷读-0.18.7.md b/perf-/冷读-0.18.7.md
 new file mode 100644
 index 0000000..e7faa3c
@@ -1511,20 +4970,789 @@ index 0000000..e7faa3c
 +未跑：真实 DSH 进程内端到端、真实 3 秒墙钟长跑、客户端/UI；这些标「未验证」，不算绿。
 +
 +## 结论：0 红
+diff --git a/perf-/冷读-0.18.8.md b/perf-/冷读-0.18.8.md
+new file mode 100644
+index 0000000..38611e0
+--- /dev/null
++++ b/perf-/冷读-0.18.8.md
+@@ -0,0 +1,17 @@
++﻿# 冷读 — 0.18.8（2026-11-06）
++
++基线 7 条全跑：smoke 126、adversarial 29、[105]、[107]、gate-integrity、config-readdir、54-skip，全部 PASS。
++
++A 轨（发布物）：新增测试 9 组逐条做了「删掉被保护代码」变异，全部变红；A=0。
++B 轨（门禁）：冷读 2 红（verdict 字段被 Number 强转、gate 未校验 baselineActual/A+B），已修；
++复读对 null/空串/false/字符串 42 个坏格全部 exit 1，正常块 exit 0；A+B 与 baseline 不符 gate exit 1。
++A1（清空角色后现存会话）已改为在 applyPolicyPatch 之前捕获 hadRoles，并传给 refreshManagedRoles。
++
++未验证：0；所有结论都有仓库外临时夹具或命令复现。
++基线：7 条全跑，新增 0
++未验证：0
++结论：0 红（A=0 B=0）
++
++```verdict
++{"baseline": 7, "unverified": 0, "red": 0, "A": 0, "B": 0}
++```
+diff --git a/perf-/官方插件盘点-20261106.md b/perf-/官方插件盘点-20261106.md
+new file mode 100644
+index 0000000..a2ae553
+--- /dev/null
++++ b/perf-/官方插件盘点-20261106.md
+@@ -0,0 +1,139 @@
++﻿# 本机官方插件盘点（2026-11-06）
++
++> 来源：本机 `C:\Program Files\DSH NEXT\resources\app.asar` 解包 + `plugin_manager`/`cordis_inspect` 实查。
++> 只列和“当前流程 / A1 / 冷读 / 定时任务”有关的，不列主题、皮肤、市场。
++
++---
++
++## 0. 结论
++
++| 插件 | 一句话 | 对我们 |
++|---|---|---|
++| `@deepseek-ai/dsh-tool-schedule` | **agent 可用的四个定时任务工具**（create/list/view/edit） | **最有用，但当前没挂载**；挂上只能 supervisor 用，子代理被它自己拒绝 |
++| `@deepseek-ai/dsh-experimental-auto-review` | 每次工具调用前的 **LLM 安全审查**，不是代码审查 | 可当“高风险动作闸”，不能当冷读 |
++| `@deepseek-ai/dsh-plan-mode` | `/plan` + `exit_plan_mode`，计划要用户批准 | 可给 build 用，但和自主 A1 冲突；opt-in |
++| `@deepseek-ai/dsh-tool-workflow` | JS 脚本扇出多个 subagent | 大型审计有用；1–2 个委派不需要 |
++| `@deepseek-ai/dsh-tool-goal` | 跨轮/重启的持久 goal | supervisor 长任务可用；子代理不能创建 |
++| `@deepseek-ai/dsh-tool-subagent` | 官方 subagent，支持 `agentPreset`/`allowedAgentPresets` | 和我们的 label→角色是两条路；别混用 |
++| `@deepseek-ai/dsh-experimental-agent-team-profile` | Agent Teams | A2，用户明确不要；跳过 |
++| `@deepseek-ai/dsh-experimental-ralph-bundle` | 重复工作用 fresh agent 跑 | 未来夜间审计可选；现在不引 |
++| `@deepseek-ai/dsh-experimental-session-search` | 搜历史会话 | supervisor 记忆可选；现在不引 |
++| `@deepseek-ai/dsh-experimental-tool-worktree` | 建/进 Git worktree | review 隔离可选；会加 git 复杂度 |
++| `@deepseek-ai/dsh-experimental-terminal-bundle` | 持久 shell | 跑长测试可选；现在不需要 |
++
++---
++
++## 1. 最有用的：`dsh-tool-schedule`
++
++### 事实
++
++- 服务 `@deepseek-ai/dsh-schedule`：**enabled/active**；
++- 工具包 `@deepseek-ai/dsh-tool-schedule`：**没有 Config entry**，所以 Agent Tool 列表里没有 `schedule_*`；
++- README 明确：Web 的 `standard`/`cordis`/`ptc` preset 应挂载它，`minimal` 不挂载；
++- 四个工具：`schedule_create(title,prompt,rrule,target)`、`schedule_list`、`schedule_view`、`schedule_edit`；
++- `target`：`this_session` / `new_once` / `new`；
++- **被委派的子代理调用会被拒绝**：`delegationDepth > 0` → `{ code: 'subagent_session' }`；
++- 系统提示要求：只有用户明确要求才创建/修改定时任务。
++
++### 对我们的意义
++
++- **之前我说“schedule 代理工具没有”不准确**：工具包在本机，只是没挂载。
++- A1 的定时任务可以走它，但**只能 supervisor 用**；`review:`/`build:`/`research:` 子代理会被拒绝——这反而符合权限设计。
++- 现在不挂也能用 UI 的“自动化任务”页（service 已 active），只是 agent 不能自己建。
++
++### 要开的话
++
++在 profile patch 加一行（需要重启）：
++
++```yaml
++- name: '@deepseek-ai/dsh-tool-schedule'
++```
++
++风险：所有会话都会多四个工具和一段固定提示；创建任务仍要求用户明确授权。可逆：删掉这行重启。
++
++---
++
++## 2. 不是代码审查：`dsh-experimental-auto-review`
++
++### 事实
++
++- 官方实验层，`plugin_manager` 里 `enabled: true`，但它是**权限模式**：选 Auto 后，每次工具调用前用当前模型评估 `risk`（low/medium/high）并 allow/deny；
++- 每次调用**额外一次模型请求**，不缓存；可能误放行、误拒绝；
++- **不提供文件沙箱**；PTC/`run_code` 内直接 Node 效果不在审查范围；
++- 它不是“读代码找 bug”，和我们的冷读/`review:` 角色完全不同。
++
++### 对我们的意义
++
++- 可以当“高风险动作的独立闸”（比如删文件、发布、写仓库），但不能替代冷读；
++- 代价是每个工具调用多一次模型请求，token 成本高；
++- 实验性，不能作为发版门禁的唯一依据。
++
++---
++
++## 3. `dsh-plan-mode`
++
++- 当前 `inactive`；
++- `/plan` 进入，agent 探索/设计后调 `exit_plan_mode`，用户在 UI 里 Approve / Keep planning；
++- **不限制工具**，只是提示词 + 退出工具；
++- 适合“build 前让用户批计划”；不适合“全自主 A1”；
++- 若启用，和我们的 `spec.md`/`plan.md` 有重叠，需要二选一。
++
++---
++
++## 4. `dsh-tool-workflow`
++
++- 当前 `inactive`；
++- 模型写 JS，扇出多个 subagent，返回最终 JSON；支持后台、phase/log；
++- 官方明确：只在用户明确要求工作流/大型多 agent 编排时用；1–2 个委派用普通 subagent；
++- 对我们：多角度审计（3 个 review 并行）可用，但现在不需要。
++
++---
++
++## 5. `dsh-tool-goal` / `dsh-goal`
++
++- 当前 active（工具在系统提示里）；
++- goal 跨轮、恢复、fork、重启持久；一个会话一个 goal；
++- `create_goal`/`edit`/`pause`/`resume` 要求顶层人类请求；**subagent 不能创建/编辑**；
++- 对我们：supervisor 可以把“一个票干到底”建成 goal，跨压缩不丢；子代理仍只执行票。
++
++---
++
++## 6. `dsh-tool-subagent`
++
++- 官方支持 `provider`、`toolName`、`agentPreset`、`allowedAgentPresets`、`maxDepth`、`modelSelection`；
++- 子代理可以带独立 preset（进程内 spawn）；
++- 对我们的影响：**A1 有两条路**：
++  1. 我们现在的 label → `managedRoles`（抽屉自己解析）；
++  2. 官方 `agentPreset` → preset 自带工具面。
++- 两条路**不要混用**：抽屉的 `resolveManagedRole` 对子会话先看 label，再看 `subagent` key，**不看 preset**（`roles.js:127-142` preset 分支只对非子会话）。若用官方 preset，抽屉要改；现在不改。
++
++---
++
++## 7. 其他官方实验包（看过，暂不引）
++
++| 包 | 用途 | 为什么暂不引 |
++|---|---|---|
++| `dsh-experimental-agent-team-profile` | Agent Teams 多会话协作 | 用户选 A1 单对话，不是 A2 |
++| `dsh-experimental-ralph-bundle` | 重复工作 fresh agent | 会烧 token，等定时审计有明确收益再说 |
++| `dsh-experimental-session-search` | 搜历史会话 | supervisor 记忆可用，但现在不是瓶颈 |
++| `dsh-experimental-tool-worktree` | Git worktree 隔离 | 会加合并/清理复杂度 |
++| `dsh-experimental-terminal-bundle` | 持久 shell | 当前 pwsh 够用 |
++| `dsh-experimental-liveshare` | 共享会话 | 不需要 |
++| `dsh-experimental-forge-bundle` | 变更请求面板 | 不需要 |
++
++---
++
++## 8. 建议顺序
++
++1. **先开 `dsh-tool-schedule`**（只给 supervisor；子代理会被拒），解决 A1 定时任务；
++2. `auto-review` 只作为高风险动作的可选闸，不碰冷读；
++3. `plan-mode` 等 build 流程稳定后再考虑，且只对“要用户批计划”的场景；
++4. `workflow` 等真的需要多角度并行审计再开；
++5. `agent-team` 不动（A2 不是方向）。
++
++---
++
++## 9. 一句话
++
++**官方最有趣的不是 auto-review，是 `dsh-tool-schedule`：它把“agent 自己建定时任务”做成了四个工具，而且明确禁止子代理用——正好是 A1 supervisor 该有的权限。**
++**auto-review 是权限闸，不是代码审查；别把两个“review”混成一个。**
 diff --git a/perf-/对外-20261103.md b/perf-/对外-20261103.md
-index 3d67e21..f969b5f 100644
+index 3d67e21..ee4f248 100644
 --- a/perf-/对外-20261103.md
 +++ b/perf-/对外-20261103.md
-@@ -22,6 +22,7 @@
+@@ -22,6 +22,8 @@
  
  | 10 | 发版 **0.18.5**（元宝第二轮 3 实锤：`*` 语义分裂 / DNS rebinding Host 回环 / seenErrors 假绿；自愈改「补开即放行」；一致性：Buffer 解码、坏 JSON 心跳 400、原子写+回读；冷读四轮 1+3 红全修） | [Release v0.18.5](https://github.com/kmyy350234-dz/dsh-tool-drawer/releases/tag/v0.18.5) | 已发（2026-11-05 03:52，Release 434377828，两个资产各 208753 字节，sha256 7b4757b2…） | 市场 latest 自动跟；下次发版前跑一次元宝「挑刺」 |
  | 11 | 发版 **0.18.6**（DSH 2.0.22 适配**诚实版**：`toolNames` 与 `visibleNames` 对齐（空视图回退 schemas，冒烟 `[107]`）；`stats.rebuilds` 可观测；冷读 3 红（空视图不变量 / 根因反证 / expect 契约）全修；**不宣称修复重建风暴**，6,242 线索未复现） | [Release v0.18.6](https://github.com/kmyy350234-dz/dsh-tool-drawer/releases/tag/v0.18.6) | 已发（2026-11-06 02:10，Release 435547120，资产 210078 字节，sha256 14ad2323…） | 下次先查 6,242 风暴根因；再排 0.19.0 角色标签 |
 +| 12 | 发版 **0.18.7**（3 秒重建链：`hideTools` 逐名字报告 denied/transient/permanent；`unhideable` 锁所有非 transient leftover（含 scope 别名壳）；外部按 `restrictableNames` 签名清全部闩锁；冷读三轮 2 红→0 红；冒烟 124） | [Release v0.18.7](https://github.com/kmyy350234-dz/dsh-tool-drawer/releases/tag/v0.18.7) | 已发（2026-11-06 04:55，Release 435642703，两个资产各 215674 字节） | 0.18.8：元宝 P0 队列（POST /policy、universal、managed mode、NaN、config） |
++| 13 | 发版 **0.18.8**（元宝 P0 + 冷读修复：POST /policy 追平 mtime/仅角色变化 refresh；清空角色刷新现存会话；万能匹配多探针；受管 mode 拒绝；config readdir 兜底；hotRatio 同源；门禁 JSON 裁决/严格类型/baselineActual/A+B；冒烟 126、基线 7 条、变异 8/8） | [Release v0.18.8](https://github.com/kmyy350234-dz/dsh-tool-drawer/releases/tag/v0.18.8) | 已发（2026-11-06 06:20，Release 435801681，两个资产各 218771 字节） | 0.19.0：角色标签产品化；known limitations：真机 UI、54 允许项跳过未端到端 |
  
  ## 记账要点（从这三次里学到的）
  
+diff --git a/perf-/开发流程-20261103.md b/perf-/开发流程-20261103.md
+index 0241200..32d262a 100644
+--- a/perf-/开发流程-20261103.md
++++ b/perf-/开发流程-20261103.md
+@@ -1,5 +1,7 @@
+ ﻿# 当前开发流程（草案，待用户判断是否成为规范）
+ 
++> **2026-11-06 起：流程以 `PROCESS.md` + `review/gate-spec.json` 为唯一权威。** 本文件 §3⑥、§4、§5、§6、§10、§11、§12、§13 已改为指针；与 PROCESS 冲突时以 PROCESS 为准，旧内容见 git 历史。
++
+ > 2026-11-03 21:55 定稿。来源：这一夜实际跑的流程（四轮冷读）+ 用户补的两条要求（发版必须全绿无恶性 bug；大项目要模块拆解分工）。
+ > **状态：已确认，成为规范。** 依据用户 2026-11-03 原话：「现在做法就行」「大项目暂时没接触不知道」。
+ 
+@@ -11,10 +13,10 @@
+ | 2 | 大项目是否强制「接口先行」 | **暂不强制**（用户：「暂时没接触大项目不知道」）。等真出现跨模块项目，由我在开工前提出并单独确认 |
+ | 3 | 并行上限 | **3 张**（我的工程判断：再多汇总会丢细节；用户不参与这个判断） |
+ 
+-## 0. 开工前必读（60 秒，硬门槛）
++## 0. 开工前建议（已降级：事后回填）
+ 
+-**动代码之前，先按「我要做的事」查 `翻车档案.md` 的「写前 60 秒」那张表**，看命中的那一族。
+-这条不是建议 —— 2026-10-30 写进档案的理由是：「**规则在库里，但我没查 —— 那等于没有规则**」。
++写代码前**建议**按「我要做的事」扫一眼 `翻车档案.md`；**不再作为派工硬门槛**。
++收工时用 `lessons.md` 的「现象→根因」反查档案，命中追加族标签、没命中提议开新族（PROCESS §6）。
+ 
+ | 我要做的事 | 先看哪一族 |
+ |---|---|
+@@ -35,7 +37,7 @@
+ | **你** | 定方向、拍板「要不要 / 值不值 / 可逆吗」 | 不看代码、不验收细节 |
+ | **我（主会话）** | 写票、派工、跑测试、汇总、发现异常时停下来问 | 不写大段实现（交给执行者）；不自己给自己做冷读 |
+ | **执行者**（子代理） | 按票做，交付四段 | 不扩范围、不提交 |
+-| **四个评论员**（子代理，无上下文） | 冷读 / 挑刺 / 一致性 / 可维护性 | 不改业务代码（挑刺可临时改，必须还原） |
++| **两个常设评论员**（子代理，无上下文） | 冷读 / 一致性；挑刺、可维护性按需并入 | 不改业务代码 |
+ 
+ ## 1. 一张票
+ 
+@@ -74,58 +76,25 @@
+ ```
+ ① 我写票
+ ② 派执行者（后台）→ 我同时做下一件事
+-③ 执行回来：我跑冒烟 + 对抗 + 一条变异检验（证明新用例能抓住回退）
+-④ 派冷读 + 挑刺（并行）（冷读报告必须带覆盖声明：读了什么、跑了什么、没读什么）
++③ 执行回来：我跑冒烟 + 对抗 + `review/gate-integrity.test.mjs` + 按 `review/mutations.json` 逐条变异（每条新增测试一条）
++④ 派冷读 + 一致性（各一个行为，可并行；冷读报告必须带覆盖声明）
+ ⑤ 有红 ⇒ 修 ⇒ 复读（只核这 N 条）
+-⑥ 0 红 ⇒ 四段摘要给你 ⇒ 你决定发不发
++⑥ 0 红 ⇒ 四段摘要给你 ⇒ 发版按 PROCESS 授权直接发；其他公开动作先过目
+ ```
+ 
+-**分工要点**：第 ③ 步我做（机器判据），第 ④ 步子代理做（人眼替代），第 ⑥ 步你做（方向判断）。
+-
+-## 4. 评论员（2026-11-04 精简为 2 个常设）
+-
+-| 评论员 | 问的问题 | 什么时候派 | 硬要求 |
+-|---|---|---|---|
+-| **冷读** | 这次改动有没有红线？ | 改行为之后、发版之前 | 最后一行只准写「结论：N 红」 |
+-
+-> **命名规则（2026-11-05）**：冷读提示词**不许点名具体问题**；点名了就只能叫「定向核对」。
+-> 报告文件名跟实际走：`perf-/冷读-<版本>.md` 只能来自无清单的冷读；
+-> 带清单的写 `perf-/定向核对-<版本>.md`。混用等于把“我告诉它查什么”当成了“它自己发现”。
+-| **挑刺** | 怎么证明它不成立？ | 与冷读并行 | 改文件必须还原，`git diff` 为空 |
+-| **一致性/整体性** | 文档说的和代码做的是不是一回事？ | 一个阶段结束 | 三栏：不一致 / 断点 / 建议（每条带代价） |
+-| **可维护性** | 接手的人敢不敢改？ | 同上 | 死代码、重复、命名、测试缺口，各给 文件:行 |
++**分工要点**：第 ③ 步我做（机器判据），第 ④ 步子代理做（人眼替代），第 ⑥ 步按 PROCESS 执行（发版免过目，其他公开动作过目）。
+ 
+-## 5. 发版门槛（你补的第一条）
++## 4. 评论员
+ 
+-**必须同时满足，缺一项都不发：**
++见 `PROCESS.md` 一、角色：常设 **2 个**（冷读 + 一致性）；挑刺、可维护性按需并入一致性。
+ 
+-1. **冒烟全过 + 对抗全过**，且**连跑两次**（防临时文件残留）；
+-2. **零恶性 bug**（定义见下；**由我逐条核对并勾选**，清单只在本地、不随包发布）；非恶性问题可以带进 release notes，但必须列出来；
+-3. **冷读结论 = 0 红**（最后一轮）；
+-4. 编码体检 0 问题（BOM / 行尾 / 孤立 CR）；
+-5. **一致性断言**（`perf-\59-一致性断言.ps1`：工具数=文档、无死文件、测试项数不写死）；
+-6. `git status` 干净，`origin/master...master = 0 0`；
+-6. 发完核对：Release 有两个资产 + 台账记一行；
+-7. **发版后做一次外部审阅**（第 12 节）：丢公开链接 + 版本号，结论写进 `perf-/外部审阅-<版本>.md`。
+-
+-**「恶性 bug」定义（我建议的四类）：**
+-
+-| 类型 | 例子 |
+-|---|---|
+-| **静默丢数据** | 保存设置把其它配置洗掉；读坏文件当成清空 |
+-| **把会话锁死** | 配置写错后，会话内无法自救（enable 被拒、自愈被禁） |
+-| **权限方向错** | 本该收紧却 fail-open（多给权限） |
+-| **启动级失败** | 插件加载失败、DSH 起不来、UI 全白 |
++## 5. 发版门槛
+ 
+-> 这四类**不要求「零 bug」，要求「零这些」**——普通 bug 可以修，这四类一个都不许带。
++见 `PROCESS.md` 二、发版门槛（7 项，缺一不发）；机器可读条件在 `review/gate-spec.json`。
+ 
+-## 6. 对外动作（发帖 / PR / 发版 / 给第三方提需求）
++## 6. 对外动作
+ 
+-1. **先给你过目**（“发吧”只对那一次有效）；
+-2. **一条帖子只有一个主语**（给 A 发帖不提 B）；
+-3. 发之前查 `has_issues` / `has_discussions` / 邮箱是否可达；
+-4. 文案三禁：禁「你们应该」、禁「唯一/首个」（除非穷举）、禁把内部账写进去；
+-5. **发完记账**：`perf-/对外-<日期>.md` 一行 + 状态（merged？有回音？）。
++公开动作（issue / PR / Discussion / 评论）先给用户过目；**发版按 PROCESS 授权直接发，不需要再过目**。其余（单主语、能到人、文案三禁、发完记账）见 `PROCESS.md` 三。
+ 
+ ## 7. 汇报给我的格式（给我的，不是给你的）
+ 
+@@ -154,158 +123,22 @@
+ 2. **可判性**：你只看第 ②④ 段能不能判对错（**最重要**）；
+ 3. **上下文增量**：一张票吃掉多少上下文（细节必须进文件，不许灌进对话）。
+ 
+-## 10. 三个已确认的判定
+-
+-见文首「已确认的判定」。**发版由我直接发，不设人工确认**；大项目接口先行暂不强制；并行上限 3。
+-
+-## 11. 跳过与豁免（2026-11-03 用户确认）
+-
+-**跳过权归用户。AI 不得自行跳过任何门槛。**
+-
+-| 类型 | 谁决定 | 例子 | 留痕 |
+-|---|---|---|---|
+-| **情况豁免**（规则内，不需要开绿灯） | 规则本身 | 只改文档/注释 ⇒ 免冷读、免连跑两次 | 票里写 `exempt: docs-only` |
+-| **单次跳过**（override） | **用户** | “这次跳过连跑两次，环境刚清过” | 发版脚本自动写 `perf-/跳过-<版本>.md`（含原因/时间） |
+-| **AI 自行跳过** | ❌ 禁止 | —— | —— |
+-
+-**发版脚本的用法**：
+-
+-```powershell
+-.\perf-\54-发版.ps1 -Apply -Skip "encoding,double-run" -Why "环境刚重装，BOM 体检脚本本身没跑通"
+-```
+-
+-- 用了 `-Skip` 却**没给 `-Why`** ⇒ 脚本直接报错退出；
+-- 每跳一项都写进 `perf-/跳过-<版本>.md`；
+-- **不可跳过**：版本号一致、冷读结论（只改文档时可以走“情况豁免”，那不算跳过）；
+-- 可跳过：`smoke`（连跑两次里的第二次）、`encoding`、`malignant`（恶性 bug 清单）。
+-
+-## 12. 外部审阅（发版后，每次）
+-
+-> 2026-11-04 加。起因：一份第三方 AI 审查抓到了我们**四轮冷读都没抓到**的几件事
+-> （`disable` 的 name 分支、`keep` 假承诺、守卫失败不记账、坏名字缓存永不失效等）。
+-> 它的优势不是更聪明，而是**没有作者视角**：只问「这行真会执行吗」。
+-
+-### 频率（防封号）
+-
+-- **只在发版前用**；同一个版本**最多一次**；
+-- 一天 5–6 次没问题（用户 2026-11-04）；再高没试过；
+-- 卡住就**刷新网页**；
+-- 它测出我们没测出的问题，先问「你是怎么测的」；
+-- 中途改提示词就先停，等下一次发版再跑。
+-
+-### 什么时候做
+-
+-- **每次发版后**一次（版本刚发，文档最容易漂）；
+-- 连续两次发版之间没有代码改动 ⇒ 跳过。
+-
+-### 给什么
+-
+-- **只给公开仓库链接** + 版本 tag / commit sha；
+-- **不给**：本地配置、日志、私有工作区、任何带凭据的东西。
+-
+-### 指令模板（2026-11-05 按用户实测口径改）
+-
+-**规则：不指定范围，只指定“做什么”。** 用户原话：
++## 10. 已确认的判定
+ 
+-> 「主要是你别指定，指定范围不行，但要指定他去读原始代码和他的行为（代码挑刺，bug 测试，推演等）当然按照实际来」
++见 `PROCESS.md` 三：发版按用户授权直接发；其他公开动作先过目。
+ 
+-```
+-给这个代码挑刺：<仓库 / tag 链接>
+-读原始代码，跑测试找 bug，必要时推演行为。
+-```
+-
+-| 要 | 不要 |
+-|---|---|
+-| 整仓 / tag 链接（给的是**对象**） | 点名文件、模块、函数（那是**范围**） |
+-| 说清动作：挑刺 / 测 bug / 推演 | 教格式、要求「文件:行」「中文回答」 |
+-| 让它自己看代码、跑测试 | 说「只审这一版」「只看 X」 |
+-
+-**为什么给 tag 链接但不算指定范围**：它锁定的是“同一份代码”，防止它读到 main 上的旧/新版本；
+-它仍然可以自由读整仓、跑测试、推演。
+-
+-**频率与产出**：发版前一次、同一版本最多一次；它的效率不稳定，**不把它当门禁**——
+-结论回来先复现，真问题才入票。
+-
+-### 行为清单（2026-11-05 定：对外 2 个 + 对内 1 个）
+-
+-> **一次一个行为**。行为是不同的“成功标准”，混在一份提示词里会被平均掉。
+-
+-| # | 行为 | 由谁做 | 提示词 | 成功标准 | 频率 |
+-|---|---|---|---|---|---|
+-| 1 | **Bug 对抗** | 元宝 | `给这个代码找 bug：<链接>。能跑的测试跑起来，给出复现` | 每条带可复现命令/脚本 | 每次发版前 |
+-| 2 | **挑刺** | 元宝 | `给这个代码挑刺：<链接>` | 指出不一致/假承诺，允许推断但要标「未验证」 | 每次发版前 |
+-| 3 | **可维护性** | **我们自己的脚本** | ——（`59-一致性断言` + dead-file 检查 + 编码体检） | 脚本判 0 失败 | 每次发版门禁 |
+-
+-**优先级（2026-11-05 用户提醒：元宝没有实机）**：
+-
+-- **挑刺 > bug 对抗**：它跑不了我们的真机环境，bug 复现能力不如我们自己的测试；
+-  我们的 bug 对抗 = 冒烟 + 对抗 + 变异检验（机器），元宝只作补充视角。
+-
+-### 行为总表（候选，按需启用；不是每次都全跑）
+-
+-| 行为 | 谁做 | 何时 | 状态 |
+-|---|---|---|---|
+-| 冷读（无清单红线） | 自家子代理 | 每次发版前 | ✅ 常设 |
+-| 定向核对（点名） | 自家子代理 | 高风险改动 | ✅ 常设 |
+-| 挑刺（口径/假承诺） | 元宝 | 每次发版前 | ✅ 常设 |
+-| bug 对抗（跑测试/复现） | 机器（冒烟/对抗/变异） | 每次提交 | ✅ 常设（元宝只补充） |
+-| 可维护性（死文件/结构） | 脚本（59 + 编码体检） | 每次门禁 | ✅ 常设 |
+-| 安全审查（注入/鉴权/密钥） | 子代理 | 动桥、鉴权、外部输入时 | 按需 |
+-| 契约/兼容审查（宿主版本、平台、EOL） | 子代理 | 用新宿主 API、改行尾/BOM 时 | 按需 |
+-| 测试质量审查（恒真断言/覆盖缺口） | 子代理 | 写/改测试时 | 按需 |
+-| 设计评审（方案权衡） | 子代理 + 我 | 新架构/新模块 | 按需 |
+-| 失败模式分析（哪坏了、爆炸半径） | 子代理 | 发版前或事故后 | 按需 |
+-| 事实核查（外部说法/数字） | 元宝 + 我复现 | 对外发文前 | 按需 |
+-| 文档/发布说明起草 | 我 | 每次发版 | ✅ 常设 |
++## 11. 跳过与豁免
+ 
+-**规则**：一次一个行为；每个行为必须写清「成功标准」和「谁做（机器优先）」；
+-**常设只保留 5 个**（冷读/定向核对/挑刺/bug对抗/可维护性），其余按需，避免注意力摊薄。
++见 `PROCESS.md` 二：可跳过 `smoke`（**只跳第二次**，第一次冒烟和对抗永远跑）、`encoding`；**不可跳过：版本号、冷读裁决、恶性清单、git 干净、对抗、一致性**。跳过权归用户，AI 不得自行跳过。
+ 
+-**为什么可维护性不给元宝**：
+-- 它的判断不可复现，而“死文件 / 未引用 / 契约数 / 测试项数”我们有机器判据；
+-- 它真正的价值在**能跑出失败**（bug 对抗）和**发现口径不一致**（挑刺），不在风格意见。
++## 12. 外部审阅
+ 
+-**并发**：1 和 2 可以同时派两个会话，但**不许写进同一段提示词**。
++**发版后做一次**，不是发版门槛；一次一个行为；结论先复现再入票；P0 入下版首票，票 id 回写台账。详见 `PROCESS.md` 八。
+ 
+-**预算**：发版前 2 次；一天总额 5–6 次以内。
+-
+-### 怎么处理结论
+-
+-1. **先复现，再入票**：复现不了的一律归「文档/清理问题」，不混进缺陷；
+-2. 已知它的两个毛病：**看旧快照**（把已删文件当还在）、**数字看旧的**（测试项数）；
+-3. 产出写进 `perf-/外部审阅-<版本>.md`：它说的 / 我复现的 / 判定（真/假/待定）；
+-4. 真问题按 P0/P1/P2 排序，P0 必须在本轮修完。
+-
+-### 不指望它做什么
+-
+-- 不替代 fuzz/chaos 测试（那是机器活）；
+-- 不替代冷读（冷读是内部视角，外部审阅是另一双眼）；
+-- 不当发版门禁（它读不到 release 资产）。
+-
+-## 13. 保留策略与脚本清单（2026-11-04）
+-
+-### 会话保留（防噪声，不靠自觉）
+-
+-| 对象 | 保留 |
+-|---|---|
+-| 主会话（>1MB） | **全留**（历史与证据） |
+-| 最近 3 个版本对应的冷读/复读会话 | 留（约等于 11-01 起） |
+-| 更早的子代理/自动检查会话 | 删（先打包备份） |
+-
+-执行：`perf-\58-会话清理.ps1`（默认只列清单；`-Apply` 才先备份再删）。
+-
+-### 脚本清单（机制化，不靠人读）
+-
+-| 脚本 | 什么时候跑 | 管什么 |
+-|---|---|---|
+-| `perf-\57-票体检.ps1` | **派工前** | 票必须有 id/goal/accept/rollback/status/checked；legacy 票跳过 |
+-| `perf-\59-一致性断言.ps1` | **发版门禁 6e** | 工具数=文档、lib 无死文件、测试项数不写死 |
+-| `perf-\43-编码体检.ps1` | 发版门禁 | BOM/行尾/孤立 CR |
+-| `perf-\54-发版.ps1` | 发版 | 11+1 项门禁 |
+-| `perf-\58-会话清理.ps1` | 每月/会话膨胀时 | 保留策略 |
++## 13. 脚本与保留
+ 
+-### 评论员精简（2026-11-04）
++> **同步记录（2026-11-06）**：冷读改双轨（A 发布物 / B 门禁）、末尾三行、`verify-coldread` 取末行；
++> 变异用唯一断言文本；`gate-integrity` 进 baseline；54 的 `-Skip smoke` 只跳第二次、对抗永远跑；
++> 工作流改动必须带负向测试。细节以 `PROCESS.md` 为准。
+ 
+-- **常设 2 个**：冷读（红线）、一致性（文档 vs 代码）；
+-- **并入一致性提示词**：挑刺的变异检验、可维护性三问（死代码/命名/测试缺口）；
+-- 理由：实测抓到大头的就是这两个；另两个与它们大量重叠。
++门禁脚本以 `PROCESS.md` 二与 `review/gate-spec.json` 为准；`review/gate.mjs` 跑基线/异常/verdict/变异，`review/verify-coldread.mjs` 生成冷读裁决，`review/gate-integrity.test.mjs` 是门禁自身的负向测试。保留策略不变。
+diff --git a/perf-/待办清单-20261106.md b/perf-/待办清单-20261106.md
+new file mode 100644
+index 0000000..b4809a5
+--- /dev/null
++++ b/perf-/待办清单-20261106.md
+@@ -0,0 +1,320 @@
++﻿# 待办总清单（2026-11-06）
++
++> 范围：当前流程改进 + 0.19.0 A1 单对话 SA + 工具/插件 + 验证发版。
++> 状态：`[x]` 已完成并有证据；`[ ]` 未做；`[~]` 已提交但未验证/未生效；`[-]` 明确不做。
++> 每条都写：**做什么 / 改哪里 / 怎么验收 / 依赖谁**。
++
++---
++
++## 执行记录（2026-11-06）
++
++- **P0-1 已做**：重启后 `lazy_tools_status` 出现 `review` 组，但 `matched: 0`；子代理实测 health 里 `managed.review` 来自 policy.json（旧 `allowGroups: []`），插件配置被 policy 覆盖。
++- **原因（实测+修正）**：`read/write/edit/glob/grep/pwsh/skill/todo_write` 都在 `CORE_TOOLS` 里，原实现所有 CORE 都不能藏。已加 `ROLE_HIDEABLE_CORE = {edit, write}`：受管 `review:`/`research:` 现在能藏 edit/write；`read/pwsh` 仍保留（review 不得用 pwsh 写仓库）。
++- **P0-4 已裁决**：删除死组 `review`；`managedRoles.review.allowGroups = [browser-heavy]`；research 用 `[search,browser-heavy]`；build 用 `*`。
++- **P0-5 已做**：smoke 加 `[61b]`/`[61c]`，覆盖 label 三角色解析 + edit/write 可藏 + 其余 CORE 保护；**128 项全过**。
++- **A1 已开始**：新增 `skills/single-conversation-sa/SKILL.md` 和 `templates/spec|plan|tasks|review-report|assessment.md`；skill 已安装到 `~/.dsh/skills/single-conversation-sa`。
++- **插件已重载**：通过 `plugin_manager` 禁用/启用 lazy-tools；health.policy 已是 `review=[browser-heavy] / build=[*] / research=[search,browser-heavy]`，`review` 组已删。`ROLE_HIDEABLE_CORE={edit,write}` 已加载。\n- **P0-1 已真机验证**：重启后 `review:` 子代理返回 `role=review / allowGroups=[browser-heavy] / source=label`；`edit`、`write` 不可见，`read`、`pwsh` 可见；`hiddenUngrouped` 含 edit。\n- **A6 已真机验证**：现成官方包 `@deepseek-ai/dsh-tool-schedule@0.2.2-rc.1` 已装进 profile；loader 用 `insert` 挂载（无 id 的非 insert patch 会被跳过）。顶层 `schedule_list` 可用（total=0）；`lazy_tools_enable group:"tasks"` 后 `schedule_create/view/edit` 也出现；`build:` 子代理调用返回 `{ code: "subagent_session" }`；`review:` 子代理被 tasks 组隐藏。**未写新工具。**
++- **A6 懒人无感**：新增 `schedule` 组（`defaultOn: true`，match 四个 schedule 工具）；顶层 4 个工具默认可见，**不需要手动 enable**；review/research 隐藏；build 子代理会被官方包拒绝。
++
++---
++- **B2 已完成**：`review/verify-coldread.mjs` 加 `--out`（默认行为不变）；`review/calibration/` 四份已知报告；`review/check-calibration.mjs` 4/4 PASS（不覆盖 `review/verdict.json`）。build 子代理交付，smoke 128 / gate PASS。
++- **A7 现状**：`research:`/`build:`/`review:` 三个角色分别真机验证过；build 子代理已实际交付 B2；review 子代理跑太久被中断，**没有拿到它的独立评审结论**，所以不算完整端到端。
++
++## 0. 已完成（先核对，别重复做）
++
++- **A7 已完成**：research 拦掉重复审计设计 → build 写 `review/audit.mjs` 薄壳 → review 抓到 1 red（大小写可覆盖 verdict）→ 修复 `a80e9fd`；gate `--findings` 无台账 SKIP `338e19e`。
++
++- **B4/B6/B7 已落地**：bug-assess/bug-test-report 模板 + PROCESS 三态；review 分级；小 CL/一票一行为。**B5** 54 已有远端 digest 校验 + Release 证据；**B8** 只有 audit-report 模板，未接 schedule。
++
++- **B3 已完成**：`review/mutation-score.mjs` 元数据 + `--run` 击杀率；`mutation-score.test.mjs` 12/12；`gate --mutation-score`；合并直派版 `1a793ef`（角色版留对照）。`n`n- **B1 已完成（核心）**：`review/findings.mjs` 台账 + 收敛判定；`review/findings.test.mjs` 6/6；`gate --findings` 可选接入；**未接 54 默认门禁**。
++
++- **多文件 A/B 已做**：A 直派 11m48s / 8 findings / 2 blocking；B review 10m29s / 10 findings / 1 blocking；两边都 FAIL，B 略快但 n=1。A 抓到 label 升级，B 抓到 save_groups 无守卫；已修 6 条。
++
++- [x] **0.18.8 已发布**：Release `v0.18.8`（id `435801681`），两个资产各 218,771 字节；账本第 13 行。
++- [x] **CI 修复**：发布仓补 `review/`；`gate.mjs` 在 CI 跳过发版 verdict；`check-54` 无 `perf-` 时 SKIP；新 CI run `42201177039` success。
++- [x] **54 加 CI 门禁**：建 Release 前轮询发布仓 CI，未绿不建 Release（commit `441133a`）。
++- [x] **流程门槛**：`PROCESS.md` 加触发条件门槛（正常路径/承诺/可复现/回归才拦）。
++- [x] **review 组 + 三个角色配置**：`cordis.patch.yml` 加 `review` 组；`managedRoles.review/build/research`（commit `0f28fe3`）。
++- [x] **DEFAULT_GROUPS 加 review 组**：冒烟 126 项全过（commit `0f28fe3`）。
++- [x] **方法论文档**：`perf-/方法论对比-20261106.md`、`perf-/流程改进-20261106.md`、`perf-/0.19.0-路线-20261106.md`、`perf-/官方插件盘点-20261106.md`。
++
++---
++
++## 1. P0：立即做（不做后面全卡）
++
++### [ ] P0-1 重启并验证 review 组/角色真的加载
++
++- **做什么**：重启 DSH（或重载 profile），确认新配置生效。
++- **改哪里**：无（只重启）。
++- **验收**：
++  - `lazy_tools_status` 的 groups 里出现 `review`；
++  - `lazy_tools_health` 无组/角色报错；
++  - 新建一个带 `review:测试` label 的子会话，`lazy_tools_status` 显示受管角色 `review`，且 `edit/write` 不可见。
++- **依赖**：无。
++
++### [ ] P0-2 内置角色默认值（不依赖 cordis 配置也能用）
++
++- **做什么**：把 `review/build/research` 做成**代码默认值**，不是只写在 `cordis.patch.yml`。
++- **改哪里**：`lib/roles.js`（`DEFAULT_MANAGED_ROLES`）/ `lib/index.js` 初始化；用户显式配置优先；显式清空 `{}` 仍能清空。
++- **验收**：
++  - 临时删掉/不写 `managedRoles`，`review:` label 仍受管；
++  - 写 `managedRoles:{}` 后 label 不再受管（显式清空不回退默认）；
++  - `node test/smoke.mjs` 全过。
++- **依赖**：P0-1（先确认现状）。
++
++### [ ] P0-3 角色审计必须可见
++
++- **做什么**：内置角色引用的组 id 不存在时，不能静默丢角色；要进 health/notes。
++- **改哪里**：`auditManagedRoles` 调用处 / `health`。
++- **验收**：
++  - 故意写 `allowGroups:['no-such-group']`，health 出现错误记录，角色被停用而不是锁死；
++  - 组补上后角色恢复（现有 `roleSource` 机制）。
++- **依赖**：P0-2。
++
++### [ ] P0-4 决定 `research` 是否单独成组
++
++- **做什么**：现在 `research` 复用 `review` 组，会顺带拿到 `pwsh`；**要么接受，要么建独立 `research` 组**。
++- **改哪里**：`cordis.patch.yml` / `DEFAULT_GROUPS` / `managedRoles.research.allowGroups`。
++- **验收**：
++  - 若独立：`research:` 会话看不到 `pwsh`，仍能 `read/grep/glob` + 搜索；
++  - 若接受：在文档写明“research 有 pwsh，靠 skill 约束只读”。
++- **依赖**：P0-1。
++
++### [ ] P0-5 label 契约与兼容测试
++
++- **做什么**：写死并测试：`review:`/`build:`/`research:` 第一段生效；`dsh-my-go:role:` 旧标签仍可解析；中文任务摘要不误判。
++- **改哪里**：`test/smoke.mjs` / `roles.js` 测试。
++- **验收**：
++  - `review:任务` → review；`dsh-my-go:hermes: 帮我改` → hermes（旧规则）；
++  - `build: review this` → build（第一段优先）；
++  - 未知 label → fail-open，不锁死。
++- **依赖**：P0-2。
++
++---
++
++## 2. P1：0.19.0 A1 最小闭环
++
++### [ ] A1 supervisor skill
++
++- **做什么**：写 `skills/single-conversation-sa/SKILL.md`，规定：
++  - 何时派生 `research`/`build`/`review`；
++  - 每个角色必须产出什么；
++  - review 红/黄/绿怎么处置；
++  - **supervisor 不自审**；
++  - 冷读是独立子代理、不读 spec；
++  - 定时任务只能 supervisor 建。
++- **改哪里**：新 skill 文件（放 `_tools/lazy-tools/skills/`，安装到 `~/.dsh/skills/` 或随包）。
++- **验收**：新开会话只给 skill，能按 label 走完一轮 `research → build → review`。
++- **依赖**：P0-5。
++
++### [ ] A2 build 三件套模板
++
++- **做什么**：`spec.md`（目标/用户故事/验收/不做）、`plan.md`（改哪些文件/依赖/回滚/复杂度例外）、`tasks.md`（任务/依赖/测试）。
++- **改哪里**：`_tools/lazy-tools/templates/`。
++- **验收**：build 子代理必须先生成三份再改代码；缺一份 review 标黄。
++- **依赖**：A1。
++
++### [ ] A3 review 契约（规格 conform，不是冷读）
++
++- **做什么**：review 报告固定字段：`scope`、`spec`、`findings[]`（id/gapType/severity/status/evidence）、`blocking/suggestion/nit`、`goodThings`、`verdict`。
++- **改哪里**：`templates/review-report.md` + review skill。
++- **验收**：
++  - review 报告能对上 spec 的每条验收；
++  - **不出现**“冷读”“无 spec”等字样；
++  - 冷读报告与 review 报告分开存放。
++- **依赖**：A1/A2。
++
++### [ ] A4 research 评估模板
++
++- **做什么**：`intake → research → define → shape → decide`；结论只能是 `go / clarify / kill`，且**只是建议**，用户拍板。
++- **改哪里**：`templates/assessment.md` + research skill。
++- **验收**：
++  - 证据不足时只能 `clarify`，不能 `go`；
++  - kill 必须写“为什么不做”，不替用户决定。
++- **依赖**：A1。
++
++### [ ] A5 health 五个字段
++
++- **做什么**：health 增加 `role`、`roleSource`（label/subagent/preset）、`allowGroups`、`lastVerdict`、`findingsOpen`。
++- **改哪里**：`lib/index.js` health 输出 + smoke。
++- **验收**：`lazy_tools_health` 能看到当前会话角色/来源；无角色时 `role:null`。
++- **依赖**：P0-2。
++
++### [ ] A6 挂载 `dsh-tool-schedule`（只给 supervisor）
++
++- **做什么**：profile patch 加 `@deepseek-ai/dsh-tool-schedule`；重启验证。
++- **验收**：
++  - 顶层 agent 有 `schedule_create/list/view/edit`；
++  - 子代理调用返回 `{ code: 'subagent_session' }`；
++  - 用户没明确要求时，提示词约束不主动创建；
++  - 不挂时 UI 的自动化任务页仍可用。
++- **依赖**：P0-1；**这是全局工具面，需用户点头**。
++
++### [~] A7 端到端演练（角色已分别验证，链路未一次跑完）
++
++- **做什么**：用一个真实小票跑：
++  `research: 值不值得做 → go → build: 做 → review: 评 → 红/绿 → 收敛`。
++- **改哪里**：`perf-/演练记录-0.19.0.md`（新）。
++- **验收**：每一步都有实际输出；review 红时能回 build；supervisor 不自己改代码。
++- **依赖**：A1–A6。
++
++### [ ] A8 MyGO / 旧标签回归
++
++- **做什么**：确认新角色不影响 `dsh-my-go:role:`、`subagent` 兜底、preset 主会话。
++- **验收**：旧标签测试全过；`resolveManagedRole` 顺序不变；子会话 preset 分支仍不生效（文档写明）。
++- **依赖**：P0-5。
++
++---
++
++## 3. P2：当前流程硬化（不依赖 A1）
++
++### [x] B1 findings 台账 + 收敛判定（核心；54 接入待做）
++
++- **做什么**：`review/findings.json`：`id/source/gapType/severity/status/evidence/commit/round`；门禁要求 `open=0` 或 `deferred` 有理由。
++- **收敛**：连续两轮 `new=0 && open=0`；最多 3 轮，剩余 deferred。
++- **改哪里**：`review/findings.mjs`、`gate.mjs`、`coldread-prompt.md`。
++- **验收**：
++  - 造 missing/partial，修一条后状态变 fixed；
++  - open>0 时 gate FAIL；
++  - 连续两轮无新增才 PASS。
++- **依赖**：A3（报告格式先稳）。
++
++### [x] B2 冷读裁判校准集
++
++- **做什么**：`review/calibration/` 放 `good.md`（0 红）、`bad-red.md`（3 红）、`bad-unverified.md`、`bad-missing-block.md`；改 `verify-coldread` 必跑。
++- **改哪里**：`review/calibration/`、`verify-coldread.mjs`、`gate-integrity.test.mjs`。
++- **验收**：把坏报告改成“看似 0 红” → 校准 FAIL；改 verify 后不跑校准 → CI 红。
++- **依赖**：无。
++
++### [ ] B3 mutation score（新增/改动测试）
++
++- **做什么**：`mutations.json` 加 `protectedBy`；`review/mutation-score.mjs` 算 killed/total；新增测试 100% 有变异，改动行 ≥80%（先量基线再定）。
++- **改哪里**：`review/mutations.json`、`mutation-score.mjs`、`mutate.mjs`。
++- **验收**：
++  - 删一条变异 → 分数降 → gate FAIL；
++  - 新增测试没有变异 → FAIL。
++- **依赖**：B1（findings 可关联）。
++
++### [x] B4 bug assess/test 三态
++
++- **做什么**：bug 票必须有 `assess.md`（现象/根因/复现/风险）和 `test-report.md`（命令/结果/证据）；verdict `verified/partial/failed`。
++- **改哪里**：票模板、`PROCESS.md`、release notes 生成。
++- **验收**：缺 assess 的票体检 FAIL；partial 不进 release notes。
++- **依赖**：A1（build skill）。
++
++### [x] B5 发版制品 hash
++
++- **做什么**：54 记录 `tgz sha256`；CI 只测该 commit；Release 两资产 hash 必须等于打包 hash；台账记 hash。
++- **改哪里**：`perf-/54-发版.ps1`。
++- **验收**：手动改一个资产字节 → 54 FAIL；重新 pack 两次 hash 不同 → 停止。
++- **依赖**：先查 54 是否 pack 两次。
++
++### [x] B6 review 分级 blocking/suggestion/nit
++
++- **做什么**：review 每条加 `class`；红只给 blocking；suggestion 黄；nit 不挡发版。
++- **改哪里**：A3 模板 + gate。
++- **验收**：造一条 nit → 不 FAIL；造一条 blocking → FAIL。
++- **依赖**：A3。
++
++### [x] B7 小 CL / 一票一行为
++
++- **做什么**：一个票 ≤1 个行为；冷读范围=该票 commit；流程文档单独审。
++- **改哪里**：票模板、`PROCESS.md`、冷读 prompt。
++- **验收**：冷读报告写 `scope:<commit>`；跨票/超大变更标黄。
++- **依赖**：B1。
++
++### [x] B8 定时审计（audit 薄壳 + audit-report 模板；schedule 自动化未接）
++
++- **做什么**：schedule 夜间只跑 baseline/mutate/CI，输出 `audit-report.md`，**不写 `verdict.json`**。
++- **改哪里**：skill/配方、`verify-coldread` 只认发版报告。
++- **验收**：夜间审计跑完，54 的 cold verdict 仍是发版那份；审计失败不挡发版，但进 health。
++- **依赖**：A6/A7。
++
++---
++
++## 4. P3：验证与发版
++
++### [ ] D1 文档与 CHANGELOG
++
++- 更新 `PROCESS.md`：0.19 角色契约、冷读/review 分离、findings 收敛、schedule 仅 supervisor、candidate 门槛。
++- 更新 `README`/`CHANGELOG`：内置角色、模板、health、schedule。
++- 更新 `perf-/0.19.0-路线-20261106.md` 状态列。
++- **验收**：`node review/check-process.mjs` 全过；文档无矛盾。
++
++### [ ] D2 全量测试
++
++- `node test/smoke.mjs`（目标 ≥126 且新增用例）
++- `node test/adversarial.mjs`（RED 0）
++- `node review/check-baseline.mjs`（7 条 FAIL 0）
++- `node review/mutate.mjs`（8 条未抓住 0）
++- `node review/gate.mjs`（PASS）
++- `node review/check-54-skip.mjs`（PASS）
++- **验收**：全绿；失败项不进发版。
++
++### [ ] D3 冷读 0 红
++
++- 派独立冷读（不读 spec、不给背景），按 `coldread-prompt.md` 输出 JSON verdict。
++- **验收**：`verify-coldread` PASS；A+B=red；baseline 7/7；unverified 0。
++
++### [ ] D4 54 dry-run → Apply
++
++- 先 dry-run：14 项全过、CI 绿、冷读 PASS、变异 8/8。
++- 再 `-Apply`：tag、Release、两资产、链接 200。
++- **验收**：Release 两个资产 hash 与打包一致；CI green；账本/恶性清单更新。
++
++### [ ] D5 发版后
++
++- 重启 GUI 加载 0.19.0；`lazy_tools_health` 正常；
++- 市场 latest 跟随；
++- 恶性清单复位 `[ ]`；
++- 对外账本加一行（版本/Release/资产/限制）。
++
++---
++
++## 5. 明确不做（写下来，防止反复讨论）
++
++- [-] **智能体团队 / Agent Teams**：A2 多会话团队，不是 A1 单对话 SA。
++- [-] **`dsh-plan-mode` 现在不接**：要用户批准计划，和全自主 A1 冲突；等需要“批计划”的场景再说。
++- [-] **`dsh-tool-workflow` 现在不接**：1–2 个委派用普通 subagent；大型审计再评估。
++- [-] **`auto-review` 不当代码审查**：它是工具调用安全闸；最多做高风险动作的可选闸。
++- [-] **Spec Kit CLI / extension / hooks**：我们是 DSH 插件，不装宿主。
++- [-] **Stryker 全量**：只借 mutation score 概念。
++- [-] **MLflow 平台/kappa**：只借校准集；没有第二个人类评审。
++- [-] **LiveShare / 语音 / 插件索引 / Forge**：不是当前方向。
++- [-] **多级审批 / 发布经理**：一个人 + AI，空转。
++
++---
++
++## 6. 依赖顺序（一张图）
++
++```
++P0-1 重启验证
++  → P0-2 代码默认角色 → P0-3 审计可见 → P0-4 research 组决定 → P0-5 label 测试
++  → A1 supervisor skill
++  → A2 build 模板 → A3 review 契约 → A4 research 模板
++  → A5 health
++  → A6 schedule 挂载（需用户点头）
++  → A7 端到端演练 → A8 MyGO 回归
++  → B1 findings/收敛 → B2 校准集 → B3 mutation score → B4 bug 三态
++  → B5 制品 hash → B6 review 分级 → B7 小 CL → B8 定时审计
++  → D1 文档 → D2 测试 → D3 冷读 → D4 54 → D5 发版后
++```
++
++---
++
++## 7. 里程碑
++
++| 里程碑 | 包含 | 判定 |
++|---|---|---|
++| M0 立即可用 | P0-1..P0-5 | 重启后 review 组可见；label 能收敛工具面 |
++| M1 A1 最小闭环 | A1..A5 | `research → build → review` 能跑一轮 |
++| M2 定时与验证 | A6..A8 | 顶层能建定时任务，子代理被拒；端到端有记录 |
++| M3 流程硬化 | B1..B8 | findings 收敛、校准集、mutation score、hash 全接 |
++| M4 发版 | D1..D5 | 0.19.0 Release + 账本 |
++
++---
++
++## 8. 一句话
++
++**P0 是“让已写的配置真的生效”；P1 是“让三个角色真的能跑”；P2 是“让流程真的能收敛”；P3 才是发版。**
++**别跳 P0 直接写 skill——现在 label 解析要求 `managedRoles` 有 key，没 key 的角色等于不存在。**
 diff --git a/perf-/恶性bug清单.md b/perf-/恶性bug清单.md
-index ec9314e..2f14742 100644
+index ec9314e..858d5b7 100644
 --- a/perf-/恶性bug清单.md
 +++ b/perf-/恶性bug清单.md
 @@ -6,7 +6,7 @@
@@ -1535,10 +5763,1666 @@ index ec9314e..2f14742 100644
 -- [ ] **把会话锁死**：`expect` 保持 warning（整组 0/N 仍是 healthy:false，不许静默变绿）；工具面/隐藏逻辑未动
 -- [ ] **权限方向错**：`toolNames` 只用于“看”，不参与 hide/allow；空视图/抛错都回退 schemas 复核
 -- [ ] **启动级失败**：view 抛错有 try/catch + 记账（[106]）、空视图回退（[107]）；冒烟 113、对抗 29 RED 0、编码 224 干净
++- [ ] **静默丢数据**：0.18.8 只改「角色补丁/隐藏/重建」路径，不写用户配置或账本；清空角色会真正解锁，不回写旧值
++- [ ] **把会话锁死**：清空角色会遍历现存会话解锁；transient 失败会重试、permanent 会锁、别名壳不再每次事件重建
++- [ ] **权限方向错**：受管 mode 明确拒绝；清空角色后现存会话也放行；没有新增 fail-open 路径
++- [ ] **启动级失败**：config readdir 兜底有子进程测试；冒烟 126、对抗 29 RED 0、编码 251 项、基线 7 条全过
+diff --git a/perf-/方法论对比-20261106.md b/perf-/方法论对比-20261106.md
+new file mode 100644
+index 0000000..7984c52
+--- /dev/null
++++ b/perf-/方法论对比-20261106.md
+@@ -0,0 +1,227 @@
++﻿# 方法论对比：外部流程 vs 我们现有流程 vs A1 计划（2026-11-06）
++
++> 源码已浅克隆到 `_work/methods/`：
++> `spec-kit`（github/spec-kit）、`eng-practices`（google/eng-practices）、
++> `stryker-js`（stryker-mutator/stryker-js）、`ms-playbook`（microsoft/code-with-engineering-playbook）。
++> MLflow 的 LLM judge 校准是文章，正文已抓。
++> 本文只做三件事：**逐条列方法 → 对到我们现有流程/A1 角色 → 判断能不能跑通、哪里会自己打架。**
++
++---
++
++## 0. 结论先行
++
++1. **Spec Kit 的骨架最值得抄**：constitution → specify → plan → tasks → implement → converge；bug 模式 assess → fix → test；想法评估 intake → research → define → shape → decide。
++2. **Google 的小 CL + 审测试**正好治我们“一次审 13 个提交、连流程文档一起审”的毛病。
++3. **Stryker 的 mutation score / threshold** 比我们“一条变异”硬，但不需要接整套工具。
++4. **MS CD 的“同一制品过门禁才晋级”**我们已经用了一半（54 poll CI），还差“制品哈希绑定”。
++5. **MLflow 的 judge 校准**提醒我们：冷读裁判本身要校准，不能拿一个 prompt 直接信。
++6. **A1 现在纸面能跑，端到端跑不通**：内置 `review/build/research` 角色没配、supervisor skill 没写、cold read 与 `review:` 角色会互相打架、schedule/health 没接。
++7. **最硬的自我冲突有 4 个**：冷读 vs 规格评审、converge append-only vs 我们的修复环、subagent 的 preset 分支不可达、想法评估的 kill 权与“决定权归用户”冲突。
++
++---
++
++## 1. Spec Kit（源码：`_work/methods/spec-kit`）
++
++| # | 方法/条目 | 源码位置 | 具体做法 | 我们现状 | A1 角色 | 能用/优化 | 冲突风险 |
++|---|---|---|---|---|---|---|---|
++| S1 | Constitution（项目宪法） | `.specify/memory/constitution.md:34-212` | 5 条 MUST 原则；plan 里做 Constitution Check；违反 MUST 不合并；修宪要版本号 + 同步模板 | `PROCESS.md` + 用户规则；无“宪法检查”步骤 | supervisor 读 | **能用**：把 PROCESS 当 constitution，plan 阶段加“是否违反 PROCESS”检查 | 与现有“用户当前指令优先”冲突时谁赢？需写优先级 |
++| S2 | Specify（规格） | `templates/spec-template.md:11-131` | 用户故事按 P1/P2/P3；每条可独立测试；Given/When/Then 验收；FR/SC 编号；Assumptions；`[NEEDS CLARIFICATION]` | 票里只有 goal/accept/rollback；没有用户故事/SC | `build:` 先写 `spec.md` | **能用**：轻量版只保留“用户故事 + 验收 + 不做 + SC” | 票已有 accept，双份容易漂 |
++| S3 | Plan（技术方案） | `templates/plan-template.md:9-113` | 技术上下文、Constitution Check、目录结构、复杂度追踪 | 票里 scope；无独立 plan | `build:` 写 `plan.md` | **能用**：只保留“改哪些文件/依赖/怎么撤/复杂度例外” | 与票的 scope 重复 |
++| S4 | Tasks（任务） | `templates/tasks-template.md:16-196` | `[ID][P][Story]`；按用户故事分阶段；测试可选；依赖顺序；checkpoint | 子代理按票做，无任务表 | `build:` 写 `tasks.md` | **能用**：任务表让 supervisor 能看进度 | 任务表与票双轨，需指定“票是入口、tasks 是展开” |
++| S5 | Converge（收敛） | `templates/commands/converge.md:57-232` | 只读 spec/plan/tasks 当“意图”；gap 分 missing/partial/contradicts/unrequested；按严重度追加任务；已满足则**不改文件** | 我们的“修红→复读”；没有 gap 分类 | `review:` 做 converge | **能用**：gap 分类直接当 review 报告结构 | **append-only 与我们的“直接修”冲突**：converge 只追加任务，谁执行？ |
++| S6 | Bug assess | `.github/workflows/bug-assess.md:107-248` | 复现、定位、valid/likely/invalid、severity、建议测试；只评论不改码 | 我们的冷读/复读；没有“先评估再修” | `build:` bug 模式 | **能用**：bug 票先 assess，避免直接改 | 我们已有冷读，可能重复 |
++| S7 | Bug fix | `.github/workflows/bug-fix.md`（同目录） | 产出补丁 + 测试 + 说明 | 直接改 + 测试 | `build:` bug 模式 | 能用 | 无 |
++| S8 | Bug test | `.github/workflows/bug-test.md:172-337` | 先定位 fix artifact（PR/分支/当前 checkout）；检测测试栈；超时；pass/fail/inconclusive；和历史修复对比 | 我们跑 smoke/adversarial；没有“fix artifact 来源”和 inconclusive | `review:` bug 验证 | **能用**：inconclusive 比假绿好 | 与冷读 verdict 的 0 红口径要统一 |
++| S9 | Feature assess | `.github/workflows/feature-assess.md:209-290` | intake → research → define → shape → decide；go/clarify/kill；证据不足只能 clarify | 没有想法评估；research 角色未建 | `research:` | **能用**：research 的输出从“资料”变“决策” | **kill 权与“决定权归用户”冲突**：角色只能建议，用户拍板 |
++| S10 | Extension hooks | `converge.md:19-55,242-277` | before/after converge 钩子；mandatory/optional | 无 | 不需要 | **不用**：我们不需要扩展市场 | 引进来会多一层配置 |
++| S11 | 模板/命令分离 | `templates/commands/*.md` | 命令定义与模板分离，agent 可读 | 我们 skill 里混着流程 | 可借鉴 | 优化：模板放 `templates/`，skill 只做路由 | 文档双份漂移 |
++| S12 | 治理版本化 | `constitution.md:196-212` | 宪法 SemVer；修宪要同步模板 | PROCESS 无版本号 | supervisor | **能用**：PROCESS 加版本号，改流程要 bump | 无 |
++
++---
++
++## 2. Google eng-practices（源码：`_work/methods/eng-practices`）
++
++| # | 方法/条目 | 源码位置 | 具体做法 | 我们现状 | A1 角色 | 能用/优化 | 冲突风险 |
++|---|---|---|---|---|---|---|---|
++| G1 | 设计优先 | `review/reviewer/looking-for.md:9-14` | 先看整体设计是否合理、是否该进这个仓库 | 冷读常直接钻实现 | `review:` | **能用**：review 报告第一节写“设计判断” | 与“只找红线”口径冲突 |
++| G2 | 功能/并发/UI | `looking-for.md:16-44` | 想用户、边界、并发、UI 要真跑 | 我们假宿主多、真机少 | `review:` | 优化：UI/并发变更必须真机或 demo | 没有真机环境时只能标未验证 |
++| G3 | 复杂度/过度设计 | `looking-for.md:46-61` | 太复杂 = 读不懂/易改错；警惕 over-engineering | 无 | `review:` | **能用**：review 加“过度设计”候选 | 主观，易变挑刺 |
++| G4 | 测试有效性 | `looking-for.md:63-80` | 测试会不会在代码坏时真的红？测试也是代码 | 我们已有变异，但只 8 条 | `review:` | **能用**：每条新测试必须变异 | 与 Stryker 重复 |
++| G5 | 命名/注释 | `looking-for.md:82-106` | 名字说清楚；注释解释 why | 无 | `review:` | 低优先 | 容易变风格争论 |
++| G6 | 风格/Nit | `looking-for.md:107-123` | 风格问题标 Nit，不阻塞 | 无 | `review:` | **能用**：输出分“阻塞/建议/Nit” | 与“只报红”冲突 |
++| G7 | 一致性/文档 | `looking-for.md:125-151` | 遵循规范；行为变要更新文档 | 我们有 check-process/一致性 | `review:` + 脚本 | **能用**：文档不一致算黄，不阻塞 | 与“文档不评”的冷读范围冲突 |
++| G8 | 每一行/上下文 | `looking-for.md:153-208` | 逐行读；看整个文件/系统；不许降低代码健康 | 冷读常只读 diff 段 | `review:` | 优化：review 必须读完整文件上下文 | 大仓成本高 |
++| G9 | 夸好的 | `looking-for.md:210-216` | 指出做得好的地方 | 我们只记失败 | `review:` | **能用**：报告加“做得对”一节 | 与“只报红”冲突 |
++| G10 | 小 CL | `review/developer/small-cls.md:42-75` | 一个 CL 一件事；~100 行；测试同 CL；重构单独 | 我们一次 13 个提交、连流程一起 | supervisor 拆票 | **能用**：一个 label 一件事 | 与“发版前一次审完”冲突 |
++| G11 | 测试同 CL/重构分开 | `small-cls.md:175-213` | 行为变更带测试；重构单独 CL | 我们经常修 bug 顺手重构 | `build:` | **能用**：票里禁止顺手重构 | 与“顺手发现写建议”兼容 |
++| G12 | 不破构建 | `small-cls.md:215-221` | 多个依赖 CL 要保证每步可构建 | 我们 CI 现在能跑 | supervisor/CI | 已部分做到 | 无 |
++
++---
++
++## 3. Stryker（源码：`_work/methods/stryker-js`）
++
++| # | 方法/条目 | 源码位置 | 具体做法 | 我们现状 | A1 角色 | 能用/优化 | 冲突风险 |
++|---|---|---|---|---|---|---|---|
++| M1 | Mutation score | `docs/configuration.md:564-577` | 分数 = 被杀变异 / 总变异；high/low/**break**；低于 break 构建失败 | 只统计“8 条变异是否抓住”，没有分数/阈值 | `review:` | **能用**：报告加 mutationScore；新测试 100% 可设 break | 全量变异成本高；只对新增测试算 |
++| M2 | perTest 覆盖 | `configuration.md:147-167` | 只跑覆盖该变异的测试，区分 Survived/NoCoverage | 我们每条变异跑全量 smoke | `review:` | 优化：按测试文件/用例缩小 | 我们的 smoke 是单文件，难按测试切 |
++| M3 | testFiles 子集 | `configuration.md:531-537` | 只跑指定测试文件，验证模块自己的测试能杀死变异 | 无 | `review:` | **能用**：新增测试对应的文件单独跑 | 需要测试可独立运行 |
++| M4 | disableBail | `configuration.md:196-214` | 不因第一个失败就停，拿到完整结果 | 我们 assert 失败即停 | `review:` | 可选：需要完整报告时 | 时间成本 |
++| M5 | dry run 超时 | `configuration.md:236-250` | 初始测试跑有超时 | 我们测试有超时但非统一 | `review:` | 优化：所有 review 命令带 timeout | 无 |
++| M6 | incremental | `docs/incremental.md` | 缓存上次结果，只跑新增 | 无 | `review:` | 可选，单文件插件收益低 | 缓存失效会假绿 |
++| M7 | 排除静态变异 | `configuration.md:334-354` | static mutant 只加载时执行，代价高 | 无 | `review:` | **不用**：规模太小 | 无 |
++
++---
++
++## 4. Microsoft CD playbook（源码：`_work/methods/ms-playbook`）
++
++| # | 方法/条目 | 源码位置 | 具体做法 | 我们现状 | A1 角色 | 能用/优化 | 冲突风险 |
++|---|---|---|---|---|---|---|---|
++| C1 | 发布策略 | `docs/CI-CD/continuous-delivery.md:20-38` | 谁部署/谁发布、环境、配置、回滚、灾难恢复 | `PROCESS` 有发版门槛，无回滚演练 | supervisor | **能用**：发布前写“回滚一行命令” | 与票的 rollback 重复 |
++| C2 | 制品晋级 | `continuous-delivery.md:40-58` | 同一构建产物从测试环境晋级，不重打 | 我们 54 重新 pack，CI 与 Release 资产未绑哈希 | 54 | **能用**：记录 tgz sha256，Release 用同一文件 | 当前 54 打包两次？需查 |
++| C3 | 流水线阶段 | `continuous-delivery.md:72-86` | 选择版本 → 部署 → 配置 → 数据迁移 → smoke → 验收 → 批准 | 54 有检查/打包/发布；CI 有测试 | 54+CI | **能用**：把 CI 绿作为晋级 gate（已做） | CI 与 54 重复，需单一来源 |
++| C4 | 回滚 | `continuous-delivery.md:94-102` | 无数据变更可重发旧版；有数据变更要备份/版本化 | 54 只打印回滚命令，未演练 | supervisor | 优化：发版后跑一次“回滚到上一版”的 dry-run | 真回滚会撤 Release，不可逆 |
++| C5 | Canary/rings | `continuous-delivery.md:126-136` | 小流量先发，再全量 | 插件市场没有灰度能力 | 不用 | **不用**：没有部署环境 | 无 |
++| C6 | 环境一致性 | `continuous-delivery.md:52-58` | UAT 与生产同 OS/软件/配置 | 本机测试 ≠ 用户环境 | `review:` | 优化：至少记录 DSH 版本/Node 版本 | 无法完全复刻 |
++
++---
++
++## 5. MLflow LLM judge 校准（文章）
++
++| # | 方法/条目 | 具体做法 | 我们现状 | A1 角色 | 能用/优化 | 冲突风险 |
++|---|---|---|---|---|---|---|
++| J1 | 代表性校准集 | 从真实流量/难例采样；调参集与 holdout 分开 | 只有 gate-integrity 的 8 个合成负例 | `review:` | **能用**：把 0.18.7/0.18.8 已知红报告固化成校准集 | 用同一批报告调 prompt 会过拟合 |
++| J2 | 一致性指标 | Cohen/Fleiss kappa；先测人-人一致 | 无人类标注；只有“红/绿”二元 | 不适用 | **不用**：没有第二个人类评审 | 无 |
++| J3 | 偏差测试 | position/verbosity/fluency/leniency | 无 | `review:` | **能用**：测试“把红报告放前面/后面”是否改变裁决 | 报告顺序攻击，触发条件偏苛刻 |
++| J4 | 统计校正 | 用敏感度/特异度校正分数；报告置信区间 | 无 | 不适用 | **不用**：我们只要 gate，不要科研指标 | 无 |
++| J5 | 版本化/重校准 | judge 模型/prompt/任务变了就重跑校准 | 改 verify 脚本后跑 gate-integrity | `review:` | **能用**：把“改裁判必须跑校准集”写进 PROCESS | 无 |
++| J6 | 裁判也是软件 | 版本、测试集、变更记录 | 已有 verdict JSON + 负向测试 | `review:` | **能用**：校准集进 baseline | 增加维护量 |
++
++---
++
++## 6. 我们现有流程 vs A1 计划
++
++| # | 现有/计划 | 位置 | 现状 | A1 角色 | 判断 |
++|---|---|---|---|---|---|
++| O1 | 七个发版门槛 | `PROCESS.md §二` | 已实现：版本、冒烟×2、冷读 verdict、编码、一致性、恶性清单、git | supervisor/54 | 能用，但冷读与 review 角色未分 |
++| O2 | 冷读双轨 + JSON verdict | `review/coldread-prompt.md`、`verify-coldread.mjs` | 已实现；A=发布物、B=门禁；JSON 块 | 无角色，独立子代理 | 能用；**不能给 `review:` 角色用**（会读 spec 变 anchored） |
++| O3 | baseline 7 条 | `review/baseline.json` | smoke/adversarial/[105]/[107]/gate-integrity/config/54 | `review:` | 能用；其中 2 条仍是 smoke 标题 |
++| O4 | 变异 8 条 | `review/mutations.json`、`mutate.mjs` | 每条唯一断言文本 + 对照组 | `review:` | 能用；覆盖率不是分数 |
++| O5 | gate/verdict/CI | `gate.mjs`、`54` CI poll | CI 绿才建 Release（新加） | supervisor | 能用；本轮才修好 |
++| O6 | 流程一致性 | `check-process.mjs` | 文档冲突静态检查 | supervisor | 能用；只查关键词 |
++| O7 | 角色解析 | `lib/roles.js:59-143` | label 第一段/第二段候选；**要求 managedRoles 里有该 key**；子会话先 label 再 `subagent`；**preset 分支只对非子会话** | supervisor | **A1 的硬前提**：必须内置 `review/build/research` 三个 key |
++| O8 | 工具面 | `groups` + `managedRoles.allowGroups` | 组由配置决定；默认只有 cua 两组 | 三个角色 | **没有内置 review/build/research 组** → 零配置跑不通 |
++| O9 | supervisor skill | 未写 | 没有“何时派生、看什么 verdict、何时停” | supervisor | **缺失** |
++| O10 | health | `health` 已有 managed/unhideable/rebuilds | 没有 role/source/verdict/schedule 字段 | `review:` | 需补 |
++| O11 | 定时任务 | 未接 | 没有“夜间 review / 每周 research”配方 | supervisor | 需补 |
++| O12 | 冷读 vs 规格评审 | 计划中 | 同一个 `review:` 若读 spec，就不是冷读 | `review:` | **硬冲突**，见 §8-C1 |
++
++---
++
++## 7. 流程能不能跑通：按真实代码走一遍
++
++### 7.1 理想链路
++
++```
++用户：research: 这个想法值不值得做
++  → supervisor 派生 research 子代理（label=research:...）
++  → roles.js 取 label 第一段 "research" → managedRoles.research
++  → 抽屉 restrict 到 research allowGroups（搜索/读）
++  → research 产出 go / clarify / kill
++  → go：用户说 build: 做X
++  → supervisor 派生 build 子代理（label=build:...）
++  → build 写 spec.md / plan.md / tasks.md → 实现 → 冒烟/对抗
++  → supervisor 派生 review 子代理（label=review:...）
++  → review 按 spec 做 conform/ance + 变异 → verdict
++  → 红：supervisor 回 build；绿：用户决定发不发
++  → 发版：54 → CI 绿 → Release
++  → 夜间：schedule 派生 review 审计（只读，不发布）
++```
++
++### 7.2 用当前代码实际走
++
++| 步 | 会发生什么 | 卡点 |
++|---|---|---|
++| 1. supervisor 决定派生 | 没有 supervisor skill，靠模型自由发挥 | **没有路由规则**，可能不派生或自己干 |
++| 2. 子代理带 `research:` label | `labelOfSession` 能读到投影 label（`roles.js:86-105`） | 依赖宿主投影；无 label 时返回 null |
++| 3. `resolveManagedRole` | 子会话分支：label 候选必须在 `managedRoles` 里有 key（`:119-124`） | **没有内置 research key** → 返回 null → 不受管，工具面全开（fail-open） |
++| 4. 工具面 | 没有 `research` 组；`allowGroups` 未配 | 零配置下“角色工具面”不存在 |
++| 5. research 产出 | 没有 skill/模板，模型可能只写“资料汇总” | 没有 go/clarify/kill 契约 |
++| 6. build 派生 | 同上，无 build key/组 | 可能拿到全工具；写 spec 无模板 |
++| 7. review 派生 | 同上，无 review key/组 | 没有“读 spec 的 conform 评审”和“无 spec 的冷读”之分 |
++| 8. verdict/gate | 冷读脚本可用，但 review 角色若读 spec，报告会被判 directed | **C1 冲突** |
++| 9. schedule | 没有配方 | 夜间审计不存在 |
++
++**判定：当前代码只能跑“手动派生 + 手动配 managedRoles”的半成品；零配置 A1 跑不通。**
++不是设计错，是 **0.19.0 还没实现内置角色/组/skill**。
++
++---
++
++## 8. 自己和自己打架：逐条列
++
++| # | 冲突 | 谁和谁 | 具体表现 | 严重度 | 建议裁决 |
++|---|---|---|---|---|---|
++| C1 | 冷读 vs 规格评审 | `review/coldread-prompt.md` vs Spec Kit S2/S5 | 冷读要求“无 spec、无摘要、只评发布物”；`review:` 角色按 spec/plan 做 conform，必然 anchored；同一角色不能既当冷读又当规格评审 | **高** | `review:` 只做规格 conform；**冷读保持独立、不读 spec 的子代理**；两个 verdict 分开 |
++| C2 | review 只读 vs 跑测试要写 | review 工具面 vs 测试产生 coverage/temp | 不给 write 跑不了测试；给 write 又可能改仓库，gate 要求 git clean | 中 | 明确“只写系统临时目录”；后置 `git status` 检查；工具面不追求绝对 |
++| C3 | converge append-only vs 我们的修红环 | Spec Kit S5 vs PROCESS | converge 只追加任务、不改代码；我们的流程是红→直接修→复读 | 中 | converge 产出“待办任务”，build 执行；review 再判；不要混成“review 直接改” |
++| C4 | spec/plan 权威 vs PROCESS/CHANGELOG | Spec Kit S1/S2 vs PROCESS | spec 说 A，PROCESS 说 B，谁赢？ | 中 | 写死优先级：用户当前指令 > PROCESS > spec/plan > 旧文档 |
++| C5 | 定时审计 vs 发版冷读 | schedule vs verdict | 夜间 review 没有新 diff，跑“冷读 commit 区间”没有意义；若写 0 红可能被 54 当发版 verdict | **高** | 审计用 `audit` 模式/独立报告，不生成发版 `verdict.json`；54 只认发版报告 |
++| C6 | label 要求 managedRoles key vs 零配置 | `roles.js:119-124` vs A1 | 没有内置 `review/build/research` key，label 解析返回 null，工具面不收敛 | **高** | 0.19.0 内置三个角色；未知 label 继续 fail-open 但记 health |
++| C7 | 子会话 preset 分支不可达 | `roles.js:127-142` | preset 只在非子会话分支；A1 子代理若靠 preset 配角色永远不生效 | **高** | 内置角色用 label/`subagent` key；文档写明“preset 只对主会话” |
++| C8 | supervisor 自审 | supervisor 工具面 | supervisor 若保留 review 工具，可能自己审自己，不是独立评审 | 中 | supervisor 默认不挂 review 工具，或 skill 强制派生 |
++| C9 | CI gate vs 54 gate | `gate.mjs`/CI vs 54 | CI 跳过 verdict；54 读 verdict；两套门禁输入不同 | 低 | 54 是唯一发版门禁；CI 只做代码质量，不叫“发版门禁” |
++| C10 | mutation score vs 一条变异 | Stryker M1 vs PROCESS | 我们要求“每新增测试一条”，没有全局分数；Stryker 要阈值 | 低 | 只对新增测试算 100%，不引入全量分数 |
++| C11 | 外部评审 vs 冷读 | 元宝 vs 冷读 | 两个 judge，结论冲突时谁算 | 中 | 外部评审只当候选；冷读 verdict 是门禁；冲突写“未决” |
++| C12 | review 写临时文件 vs git clean | review 工具面 vs 54 | 测试/临时脚本放仓库内会脏，54 直接 FAIL | 中 | 临时目录必须在 `%TEMP%`；review skill 写死 |
++| C13 | research 的 kill 权 vs 用户决定权 | Spec Kit S9 vs 用户规则 | 角色若直接 kill，违背“决定权归用户” | **高** | research 只给 `go/clarify/kill` **建议**；用户拍板；skill 明确 |
++| C14 | build 写 spec/plan vs 票 scope | Spec Kit S2-S4 vs 票 | 票说改 A，build 写 spec 又扩大 | 中 | 票是入口；spec 只能写票内范围；扩大要新票 |
++| C15 | schedule 的 review 无 diff | C5 延伸 | 夜间全仓审计可能产生大量“未验证” | 中 | 审计只跑 baseline/mutate/CI，不生成 release verdict |
++| C16 | 角色中文任务摘要 | `labelRoleCandidates` | `review:任务` 的第二段中文不是合法 key，只用第一段；但如果 label 写成 `审查:xxx` 就认不出 | 低 | 文档要求第一段用英文角色键 |
++| C17 | 工具面缺测试命令 | groups 配置 | 如果 review 组没给 `pwsh`，跑不了测试；给了又可能写 | 中 | review 组必须含 `pwsh`，但 skill 限制只读/临时 |
++
++---
++
++## 9. 能用 / 优化 / 不用
++
++### 直接能用（0.19.0 就上）
++- Spec Kit S2/S3/S4/S5 的模板骨架（轻量版）；
++- Spec Kit S6/S8 的 bug assess/test 两段；
++- Google G4/G10/G11（测试有效性、小 CL、测试同 CL）；
++- Stryker M1 的“新增测试变异 100%”；
++- MS CD C1/C2/C3（发布策略、制品晋级、CI 绿 gate）；
++- MLflow J1/J5（校准集、改裁判必跑校准）。
++
++### 优化后能用
++- Spec Kit S5 converge 的 gap 分类 → 我们的 review 报告结构；
++- Stryker M2/M3（按测试文件缩小）→ 单文件插件按测试组跑；
++- MS CD C4 回滚 → 54 发版后跑一次回滚 dry-run；
++- Google G7 文档一致性 → check-process 加字段断言；
++- MLflow J3 偏差测试 → 只做“红报告放前/后”两个 case，不做全套统计。
++
++### 不用
++- Spec Kit 的 CLI/extension/catalog/workflow hooks（我们是 DSH 插件，不装宿主）；
++- 多级审批/发布经理/人工 sign-off（你一个人 + AI，空转）；
++- Stryker 全量接入/静态变异/incremental（收益低）；
++- MS CD 的 canary/blue-green/rings（没有部署环境）；
++- MLflow 的 kappa/统计校正/置信区间（没有第二个人类评审，收益低）；
++- Google 的“每个 CL 都要多 reviewer”（没有多人）。
++
++---
++
++## 10. 要让 A1 真跑通，0.19.0 的最小清单
++
++1. **内置三个角色**：`managedRoles` 默认含 `review` / `build` / `research`，各带 `allowGroups`；
++2. **三个组**：`review`（read/grep/glob/pwsh + 只写 temp）、`build`（全工具）、`research`（search/read/browser）；
++3. **supervisor skill**：label 契约、派生规则、verdict 读取、红/绿处置、何时停；
++4. **模板**：`spec.md` / `plan.md` / `tasks.md`（轻量）、`review` 的 verdict JSON；
++5. **冷读与 review 分离**：冷读独立子代理、不读 spec；`review:` 只做规格 conform；
++6. **health**：role、role source、last verdict、schedule 状态；
++7. **schedule 配方**：夜间 `review` 只跑 baseline/mutate/CI，不生成 release verdict；
++8. **一次端到端演练**：`research → build → review → 红/绿 → 发版`，记录每一步实际输出；
++9. **冲突裁决写进 PROCESS**：C1/C4/C5/C6/C7/C13 的优先级。
++
++---
++
++## 11. 一句话
++
++**外部方法论给的是“每个角色的交付物长什么样”；我们缺的不是更多流程，而是把 `review/build/research` 三个角色的模板、工具面、verdict 和 supervisor 路由接起来。**
++**在接起来之前，A1 只是纸面能跑；接起来之后，C1（冷读 vs 规格评审）和 C5（审计 vs 发版）必须先裁决，否则一定自己和自己打架。**
+diff --git a/perf-/流程与错题-给元宝-20261106.md b/perf-/流程与错题-给元宝-20261106.md
+new file mode 100644
+index 0000000..ec0f4d7
+--- /dev/null
++++ b/perf-/流程与错题-给元宝-20261106.md
+@@ -0,0 +1,922 @@
++﻿# 本机全套：流程 + 错题（2026-11-06）
++
++> 给外部评审：这份不是代码，是「我们怎么判断、怎么翻车、怎么发版」的原始材料。
++
++> 请只评流程本身：哪些规则是自嗨 / 互相矛盾 / 不可执行；哪些缺口最致命；只改三处改哪三处。
++
++> 不要评具体代码 bug（另有一份 review bundle）。
++
++
++## FILE: 开发流程-20261103.md
++
++路径：`C:/deepsleep脚本工程/perf-/开发流程-20261103.md`
++
++```md
++﻿# 当前开发流程（草案，待用户判断是否成为规范）
++
++> 2026-11-03 21:55 定稿。来源：这一夜实际跑的流程（四轮冷读）+ 用户补的两条要求（发版必须全绿无恶性 bug；大项目要模块拆解分工）。
++> **状态：已确认，成为规范。** 依据用户 2026-11-03 原话：「现在做法就行」「大项目暂时没接触不知道」。
++
++## 已确认的判定（2026-11-03）
++
++| # | 问题 | 判定 |
++|---|---|---|
++| 1 | 发版要不要加「人看一眼再发」 | **不加**：我跑完门槛直接发（用户：「反正我看不懂」） |
++| 2 | 大项目是否强制「接口先行」 | **暂不强制**（用户：「暂时没接触大项目不知道」）。等真出现跨模块项目，由我在开工前提出并单独确认 |
++| 3 | 并行上限 | **3 张**（我的工程判断：再多汇总会丢细节；用户不参与这个判断） |
++
++## 0. 开工前必读（60 秒，硬门槛）
++
++**动代码之前，先按「我要做的事」查 `翻车档案.md` 的「写前 60 秒」那张表**，看命中的那一族。
++这条不是建议 —— 2026-10-30 写进档案的理由是：「**规则在库里，但我没查 —— 那等于没有规则**」。
++
++| 我要做的事 | 先看哪一族 |
++|---|---|
++| 新建文件 / 新工具 / 新目录 | A 名字撞了 |
++| 改状态、改配置、写文件 | B 我写了≠它生效了 |
++| 用 edit/write 改文件 | C 改文件本身会毁文件（BOM/CRLF/编码） |
++| 写测试 / 造 fixture / 做测量 | **D 结论错在方法**（假宿主缺真实行为） |
++| 跨程序传参（git/curl/tar） | E 字节习惯 |
++| 报数字 / 报性能 | F 代价先量 |
++| 看输出 / 截图判断 | G 终端是显示设备 |
++
++**票里必须写一行**：`checked: [A] [D]`（这次查了哪几族）。没写这一行，票不允许派工。
++
++## 0.1 角色与边界
++
++| 谁 | 只做 | 不做 |
++|---|---|---|
++| **你** | 定方向、拍板「要不要 / 值不值 / 可逆吗」 | 不看代码、不验收细节 |
++| **我（主会话）** | 写票、派工、跑测试、汇总、发现异常时停下来问 | 不写大段实现（交给执行者）；不自己给自己做冷读 |
++| **执行者**（子代理） | 按票做，交付四段 | 不扩范围、不提交 |
++| **四个评论员**（子代理，无上下文） | 冷读 / 挑刺 / 一致性 / 可维护性 | 不改业务代码（挑刺可临时改，必须还原） |
++
++## 1. 一张票
++
++```json
++{
++  "id": "…",
++  "goal": "一句话",
++  "why": "为什么现在做",
++  "scope": ["允许改哪些文件/模块"],
++  "accept": ["必须可证伪：一条命令或一个断言"],
++  "rollback": "一行能执行的命令",
++  "risk": "可逆 / 不可逆（不可逆必须标出来）",
++  "status": "open"
++}
++```
++
++规矩：
++- `accept` 写不成可证伪的句子 ⇒ 票还不能开；
++- **一张票一件事**；顺手发现的写进「建议」，不动手；
++- 一张票最多问你 **2 次**；超过就默认走最小可逆版本，下次再议。
++
++## 2. 大型项目：模块拆解与分工
++
++**原则：按接口拆，不按文件拆。**
++
++1. **先出接口表**（谁提供什么、谁依赖谁），这张表本身是一张票，你只需点头；
++2. **每个模块一张票**，票里写清：输入、输出、依赖的接口、自己的契约测试；
++3. 模块之间的依赖**先用 mock 顶着**，各自能独立跑绿；
++4. 最后一张 **集成票**：接线 + 端到端回归 + 更新文档；
++5. 并行上限：**同时最多 3 张**（再多，我的汇总会开始丢细节）。
++
++**判定标准**：如果两张票改同一批文件，就不许并行（会互相覆盖）。
++
++## 3. 内环（一次开发循环）
++
++```
++① 我写票
++② 派执行者（后台）→ 我同时做下一件事
++③ 执行回来：我跑冒烟 + 对抗 + 一条变异检验（证明新用例能抓住回退）
++④ 派冷读 + 挑刺（并行）（冷读报告必须带覆盖声明：读了什么、跑了什么、没读什么）
++⑤ 有红 ⇒ 修 ⇒ 复读（只核这 N 条）
++⑥ 0 红 ⇒ 四段摘要给你 ⇒ 你决定发不发
++```
++
++**分工要点**：第 ③ 步我做（机器判据），第 ④ 步子代理做（人眼替代），第 ⑥ 步你做（方向判断）。
++
++## 4. 评论员（2026-11-04 精简为 2 个常设）
++
++| 评论员 | 问的问题 | 什么时候派 | 硬要求 |
++|---|---|---|---|
++| **冷读** | 这次改动有没有红线？ | 改行为之后、发版之前 | 最后一行只准写「结论：N 红」 |
++
++> **命名规则（2026-11-05）**：冷读提示词**不许点名具体问题**；点名了就只能叫「定向核对」。
++> 报告文件名跟实际走：`perf-/冷读-<版本>.md` 只能来自无清单的冷读；
++> 带清单的写 `perf-/定向核对-<版本>.md`。混用等于把“我告诉它查什么”当成了“它自己发现”。
++| **挑刺** | 怎么证明它不成立？ | 与冷读并行 | 改文件必须还原，`git diff` 为空 |
++| **一致性/整体性** | 文档说的和代码做的是不是一回事？ | 一个阶段结束 | 三栏：不一致 / 断点 / 建议（每条带代价） |
++| **可维护性** | 接手的人敢不敢改？ | 同上 | 死代码、重复、命名、测试缺口，各给 文件:行 |
++
++## 5. 发版门槛（你补的第一条）
++
++**必须同时满足，缺一项都不发：**
++
++1. **冒烟全过 + 对抗全过**，且**连跑两次**（防临时文件残留）；
++2. **零恶性 bug**（定义见下；**由我逐条核对并勾选**，清单只在本地、不随包发布）；非恶性问题可以带进 release notes，但必须列出来；
++3. **冷读结论 = 0 红**（最后一轮）；
++4. 编码体检 0 问题（BOM / 行尾 / 孤立 CR）；
++5. **一致性断言**（`perf-\59-一致性断言.ps1`：工具数=文档、无死文件、测试项数不写死）；
++6. `git status` 干净，`origin/master...master = 0 0`；
++6. 发完核对：Release 有两个资产 + 台账记一行；
++7. **发版后做一次外部审阅**（第 12 节）：丢公开链接 + 版本号，结论写进 `perf-/外部审阅-<版本>.md`。
++
++**「恶性 bug」定义（我建议的四类）：**
++
++| 类型 | 例子 |
++|---|---|
++| **静默丢数据** | 保存设置把其它配置洗掉；读坏文件当成清空 |
++| **把会话锁死** | 配置写错后，会话内无法自救（enable 被拒、自愈被禁） |
++| **权限方向错** | 本该收紧却 fail-open（多给权限） |
++| **启动级失败** | 插件加载失败、DSH 起不来、UI 全白 |
++
++> 这四类**不要求「零 bug」，要求「零这些」**——普通 bug 可以修，这四类一个都不许带。
++
++## 6. 对外动作（发帖 / PR / 发版 / 给第三方提需求）
++
++1. **先给你过目**（“发吧”只对那一次有效）；
++2. **一条帖子只有一个主语**（给 A 发帖不提 B）；
++3. 发之前查 `has_issues` / `has_discussions` / 邮箱是否可达；
++4. 文案三禁：禁「你们应该」、禁「唯一/首个」（除非穷举）、禁把内部账写进去；
++5. **发完记账**：`perf-/对外-<日期>.md` 一行 + 状态（merged？有回音？）。
++
++## 7. 汇报给我的格式（给我的，不是给你的）
++
++每次交付固定四段，**不写代码细节**：
++
++1. 做了什么（一句）
++2. 为什么这么做（排除了什么方案）
++3. 证据（能重跑的命令 + 真实输出 + 冷读结论）
++4. 怎么撤（一行命令）
++
++**给你的汇报另加一行在最前面**：「这件事要不要你拍板？不需要就跳过」。
++
++## 8. 状态与交接
++
++| 文件 | 作用 |
++|---|---|
++| `_work/tickets/*.json` | 票（可随时删） |
++| `_work/tickets/lessons.md` | 教训（现象 → 根因 → 下次怎么防） |
++| `perf-/冷读-<版本>.md` | 冷读报告（发版门禁读它） |
++| `perf-/对外-<日期>.md` | 对外动作台账 |
++| `perf-/交接-<版本>.md` | 换会话时的状态与下一手 |
++
++## 9. 判据（流程成不成立，看三个数）
++
++1. **回合数**：一张票你被问了几次（越少越好，上限 2）；
++2. **可判性**：你只看第 ②④ 段能不能判对错（**最重要**）；
++3. **上下文增量**：一张票吃掉多少上下文（细节必须进文件，不许灌进对话）。
++
++## 10. 三个已确认的判定
++
++见文首「已确认的判定」。**发版由我直接发，不设人工确认**；大项目接口先行暂不强制；并行上限 3。
++
++## 11. 跳过与豁免（2026-11-03 用户确认）
++
++**跳过权归用户。AI 不得自行跳过任何门槛。**
++
++| 类型 | 谁决定 | 例子 | 留痕 |
++|---|---|---|---|
++| **情况豁免**（规则内，不需要开绿灯） | 规则本身 | 只改文档/注释 ⇒ 免冷读、免连跑两次 | 票里写 `exempt: docs-only` |
++| **单次跳过**（override） | **用户** | “这次跳过连跑两次，环境刚清过” | 发版脚本自动写 `perf-/跳过-<版本>.md`（含原因/时间） |
++| **AI 自行跳过** | ❌ 禁止 | —— | —— |
++
++**发版脚本的用法**：
++
++```powershell
++.\perf-\54-发版.ps1 -Apply -Skip "encoding,double-run" -Why "环境刚重装，BOM 体检脚本本身没跑通"
++```
++
++- 用了 `-Skip` 却**没给 `-Why`** ⇒ 脚本直接报错退出；
++- 每跳一项都写进 `perf-/跳过-<版本>.md`；
++- **不可跳过**：版本号一致、冷读结论（只改文档时可以走“情况豁免”，那不算跳过）；
++- 可跳过：`smoke`（连跑两次里的第二次）、`encoding`、`malignant`（恶性 bug 清单）。
++
++## 12. 外部审阅（发版后，每次）
++
++> 2026-11-04 加。起因：一份第三方 AI 审查抓到了我们**四轮冷读都没抓到**的几件事
++> （`disable` 的 name 分支、`keep` 假承诺、守卫失败不记账、坏名字缓存永不失效等）。
++> 它的优势不是更聪明，而是**没有作者视角**：只问「这行真会执行吗」。
++
++### 频率（防封号）
++
++- **只在发版前用**；同一个版本**最多一次**；
++- 一天 5–6 次没问题（用户 2026-11-04）；再高没试过；
++- 卡住就**刷新网页**；
++- 它测出我们没测出的问题，先问「你是怎么测的」；
++- 中途改提示词就先停，等下一次发版再跑。
++
++### 什么时候做
++
++- **每次发版后**一次（版本刚发，文档最容易漂）；
++- 连续两次发版之间没有代码改动 ⇒ 跳过。
++
++### 给什么
++
++- **只给公开仓库链接** + 版本 tag / commit sha；
++- **不给**：本地配置、日志、私有工作区、任何带凭据的东西。
++
++### 指令模板（2026-11-05 按用户实测口径改）
++
++**规则：不指定范围，只指定“做什么”。** 用户原话：
++
++> 「主要是你别指定，指定范围不行，但要指定他去读原始代码和他的行为（代码挑刺，bug 测试，推演等）当然按照实际来」
++
++```
++给这个代码挑刺：<仓库 / tag 链接>
++读原始代码，跑测试找 bug，必要时推演行为。
++```
++
++| 要 | 不要 |
++|---|---|
++| 整仓 / tag 链接（给的是**对象**） | 点名文件、模块、函数（那是**范围**） |
++| 说清动作：挑刺 / 测 bug / 推演 | 教格式、要求「文件:行」「中文回答」 |
++| 让它自己看代码、跑测试 | 说「只审这一版」「只看 X」 |
++
++**为什么给 tag 链接但不算指定范围**：它锁定的是“同一份代码”，防止它读到 main 上的旧/新版本；
++它仍然可以自由读整仓、跑测试、推演。
++
++**频率与产出**：发版前一次、同一版本最多一次；它的效率不稳定，**不把它当门禁**——
++结论回来先复现，真问题才入票。
++
++### 行为清单（2026-11-05 定：对外 2 个 + 对内 1 个）
++
++> **一次一个行为**。行为是不同的“成功标准”，混在一份提示词里会被平均掉。
++
++| # | 行为 | 由谁做 | 提示词 | 成功标准 | 频率 |
++|---|---|---|---|---|---|
++| 1 | **Bug 对抗** | 元宝 | `给这个代码找 bug：<链接>。能跑的测试跑起来，给出复现` | 每条带可复现命令/脚本 | 每次发版前 |
++| 2 | **挑刺** | 元宝 | `给这个代码挑刺：<链接>` | 指出不一致/假承诺，允许推断但要标「未验证」 | 每次发版前 |
++| 3 | **可维护性** | **我们自己的脚本** | ——（`59-一致性断言` + dead-file 检查 + 编码体检） | 脚本判 0 失败 | 每次发版门禁 |
++
++**优先级（2026-11-05 用户提醒：元宝没有实机）**：
++
++- **挑刺 > bug 对抗**：它跑不了我们的真机环境，bug 复现能力不如我们自己的测试；
++  我们的 bug 对抗 = 冒烟 + 对抗 + 变异检验（机器），元宝只作补充视角。
++
++### 行为总表（候选，按需启用；不是每次都全跑）
++
++| 行为 | 谁做 | 何时 | 状态 |
++|---|---|---|---|
++| 冷读（无清单红线） | 自家子代理 | 每次发版前 | ✅ 常设 |
++| 定向核对（点名） | 自家子代理 | 高风险改动 | ✅ 常设 |
++| 挑刺（口径/假承诺） | 元宝 | 每次发版前 | ✅ 常设 |
++| bug 对抗（跑测试/复现） | 机器（冒烟/对抗/变异） | 每次提交 | ✅ 常设（元宝只补充） |
++| 可维护性（死文件/结构） | 脚本（59 + 编码体检） | 每次门禁 | ✅ 常设 |
++| 安全审查（注入/鉴权/密钥） | 子代理 | 动桥、鉴权、外部输入时 | 按需 |
++| 契约/兼容审查（宿主版本、平台、EOL） | 子代理 | 用新宿主 API、改行尾/BOM 时 | 按需 |
++| 测试质量审查（恒真断言/覆盖缺口） | 子代理 | 写/改测试时 | 按需 |
++| 设计评审（方案权衡） | 子代理 + 我 | 新架构/新模块 | 按需 |
++| 失败模式分析（哪坏了、爆炸半径） | 子代理 | 发版前或事故后 | 按需 |
++| 事实核查（外部说法/数字） | 元宝 + 我复现 | 对外发文前 | 按需 |
++| 文档/发布说明起草 | 我 | 每次发版 | ✅ 常设 |
++
++**规则**：一次一个行为；每个行为必须写清「成功标准」和「谁做（机器优先）」；
++**常设只保留 5 个**（冷读/定向核对/挑刺/bug对抗/可维护性），其余按需，避免注意力摊薄。
++
++**为什么可维护性不给元宝**：
++- 它的判断不可复现，而“死文件 / 未引用 / 契约数 / 测试项数”我们有机器判据；
++- 它真正的价值在**能跑出失败**（bug 对抗）和**发现口径不一致**（挑刺），不在风格意见。
++
++**并发**：1 和 2 可以同时派两个会话，但**不许写进同一段提示词**。
++
++**预算**：发版前 2 次；一天总额 5–6 次以内。
++
++### 怎么处理结论
++
++1. **先复现，再入票**：复现不了的一律归「文档/清理问题」，不混进缺陷；
++2. 已知它的两个毛病：**看旧快照**（把已删文件当还在）、**数字看旧的**（测试项数）；
++3. 产出写进 `perf-/外部审阅-<版本>.md`：它说的 / 我复现的 / 判定（真/假/待定）；
++4. 真问题按 P0/P1/P2 排序，P0 必须在本轮修完。
++
++### 不指望它做什么
++
++- 不替代 fuzz/chaos 测试（那是机器活）；
++- 不替代冷读（冷读是内部视角，外部审阅是另一双眼）；
++- 不当发版门禁（它读不到 release 资产）。
++
++## 13. 保留策略与脚本清单（2026-11-04）
++
++### 会话保留（防噪声，不靠自觉）
++
++| 对象 | 保留 |
++|---|---|
++| 主会话（>1MB） | **全留**（历史与证据） |
++| 最近 3 个版本对应的冷读/复读会话 | 留（约等于 11-01 起） |
++| 更早的子代理/自动检查会话 | 删（先打包备份） |
++
++执行：`perf-\58-会话清理.ps1`（默认只列清单；`-Apply` 才先备份再删）。
++
++### 脚本清单（机制化，不靠人读）
++
++| 脚本 | 什么时候跑 | 管什么 |
++|---|---|---|
++| `perf-\57-票体检.ps1` | **派工前** | 票必须有 id/goal/accept/rollback/status/checked；legacy 票跳过 |
++| `perf-\59-一致性断言.ps1` | **发版门禁 6e** | 工具数=文档、lib 无死文件、测试项数不写死 |
++| `perf-\43-编码体检.ps1` | 发版门禁 | BOM/行尾/孤立 CR |
++| `perf-\54-发版.ps1` | 发版 | 11+1 项门禁 |
++| `perf-\58-会话清理.ps1` | 每月/会话膨胀时 | 保留策略 |
++
++### 评论员精简（2026-11-04）
++
++- **常设 2 个**：冷读（红线）、一致性（文档 vs 代码）；
++- **并入一致性提示词**：挑刺的变异检验、可维护性三问（死代码/命名/测试缺口）；
++- 理由：实测抓到大头的就是这两个；另两个与它们大量重叠。
++
++```
++
++
++## FILE: dev-ticket-loop/SKILL.md
++
++路径：`C:\Users\14092/.dsh/skills/dev-ticket-loop/SKILL.md`
++
++```md
++﻿---
++name: dev-ticket-loop
++description: 本仓库的开发与对外流程：把活拆成「票」派子代理执行，发版前必须过独立冷读（0 红门槛），对外发帖/PR/发版有单独的规矩（单主语、先问、能到人、发完记账）。要开工、派子代理、验收、发版、发帖时读。
++whenToUse: 接到需要改代码/改文档的活、准备派子代理、准备发版，或准备在 GitHub 上发 issue/PR/讨论之前。
++---
++
++# 开发流程：票 → 执行 → 挑刺 → 人审
++
++> 2026-11-03 定稿。用户原话：「重点是**人会主导大体方向和思路**，而不是许愿不管」；
++> 「你如果不给别人看，永远不知道函数有多少问题」。
++> 读者模型：不懂代码的人。**他审的是「为什么」和「怎么撤」，不是代码。**
++
++## 零、开工前 60 秒（硬门槛）
++
++**没读翻车档案就写代码 = 没有规则。** 动代码前先按「要做什么」查 `翻车档案.md` 的「写前 60 秒」映射表，
++看命中那一族的表格行（30 秒够）。写测试/造 fixture 的，**D 族是重灾区**，必须先问三句：
++① 这个状态真实流程写不写得出来？② 假宿主缺了哪些真实行为（同步/重入/冷却）？③ 如果结论相反，测试会返回什么？
++
++**票里必须写 `checked: [A] [D]` 这样的行**；没有这一行不许派工。
++
++## 一、三层，谁能写什么
++
++| 谁 | 能写 | 要不要人审 |
++|---|---|---|
++| 执行 / 挑刺子代理 | `_work/tickets/<id>.json`、`_work/tickets/lessons.md` | 不用（随时可删） |
++| 我（主会话） | 提议改本 SKILL.md（给 diff） | **要用户点头** |
++| 用户 | 拍板 | — |
++
++理由：技能是方法论，不是日志。日志可以乱，方法论乱了所有人一起走偏。
++
++## 二、一张票长什么样
++
++`_work/tickets/<id>.json`：
++
++```json
++{
++  "id": "bench-standalone",
++  "goal": "让 bench 脱离 health，单独可读",
++  "why": "不装抽屉的人也需要这份数据",
++  "accept": ["不新增工具", "冒烟仍全过", "改回旧实现时新用例变红"],
++  "rollback": "git revert <commit>",
++  "status": "open",
++  "evidence": []
++}
++```
++
++规矩：
++
++- `accept` **必须可证伪**（能写成命令或断言），写不出就是还没想清楚；
++- `rollback` 必须是一行能执行的命令；
++- 一张票一件事。想顺手做的，写进「建议」，不动手。
++
++## 三、四个提示词（原样贴，别改写）
++
++### 1) 执行者
++
++```
++你是执行者，只做这张票：
++<票的 JSON>
++
++规矩：
++- 不扩范围。做到票里 accept 全部满足就停。
++- 任何「顺带该做的」，写进「建议」，不要动手。
++- 不许 git commit / push。
++- 交付四段，缺一段算没交：
++  ① 做了什么（一句）
++  ② 为什么这么做（排除了什么方案，为什么）
++  ③ 证据（能复现的命令 + 真实输出；或「改回旧实现就红」）
++  ④ 怎么撤（命令）
++```
++
++### 2) 挑刺
++
++```
++你是挑刺的，没有上下文，只信证据。目标：证明上面的改动不成立。
++- 可以改文件做变异测试，但必须恢复原状，最后 `git diff` 为空；
++- 只报可证伪的：每条给「删掉这行就红」的证据或复现命令；
++- 分 红 / 黄 / 绿；最后一句只准写：能不能提交。
++```
++
++### 3) 整体性
++
++```
++只看仓库，不看改动说明。三栏，缺一栏算没交：
++ ① 不一致：文档/注释/代码互相矛盾（附 文件:行）
++ ② 断点：照 README 从零走一遍，哪一步需要问人、哪一步没出口
++ ③ 建议：允许提，但每条必须写「代价」和「是否碰红线」
++不许只给「我觉得可以更好」这种不可执行的建议。
++```
++
++## 四、主会话（我）的规矩
++
++1. **不信子代理的自我评价**，只信它给的证据；证据重跑一遍再看。
++2. 收工前必做：冒烟 + 对抗 + **一条变异检验**（证明新用例能抓住回退）。
++3. 交付给人的汇报固定四段：做了什么 / 为什么 / 证据 / 怎么撤。**不写代码细节**。
++4. 不可逆、或代价落在用户身上的事：**停下来问**（这条压过其它规矩）。
++
++## 五、什么情况下不许开工
++
++- 票的 `accept` 写不成可证伪的句子 ⇒ 先想清楚，别派工；
++- 一张票要动三个以上互不相关的文件 ⇒ 拆票；
++- 需要人拍板取舍（改行为、改默认、动用户数据）⇒ 先问，再派工。
++
++## 六、教训怎么长大
++
++每张票跑完，执行者往 `_work/tickets/lessons.md` 追加一行：**现象 → 根因 → 下次怎么防**。
++用户定期扫，值得的由我提议提升进本文件或 `翻车档案.md`（我出 diff，用户点头，我改）。
++
++## 七、判据（流程成不成立，看这三个数）
++
++1. **回合数**：一张票从派工到收工，用户被问了几次（越少越好）；
++2. **可判性**：用户只看第 ②④ 段，能不能判对错 —— **这条最重要**；
++3. **上下文增量**：一张票吃掉多少上下文（细节必须进文件，不许灌进对话）。
++
++## 八、冷读评审（发版前必过，不许用「测试全绿」代替）
++
++> 2026-11-03 定：这一夜的每个真 bug 都不是测试抓到的，是**没有上下文的冷读**抓到的
++> （`restrict` 整批失败、`hiddenUngrouped` 假绿灯、`[role:]` 被覆盖、连跑第二次必红）。
++
++**做法**：派一个**没有上下文**的子代理，只给它代码与改动范围，让它找红线。
++**门槛**：它给的最后一行必须是「结论：0 红」才算过；不是 0 红就修，修完**必须复读**。
++
++**命名规则（2026-11-05 起，写死）**：
++
++- **冷读** = 提示词里**不点名任何具体问题**，只给范围、证据格式、结论行；
++- **定向核对** = 提示词里点名要查什么（例如「查一下 guard 是否进契约」）；
++- 报告标题必须和实际一致：带点名清单的只能写「定向核对」，不许写「冷读」。
++- **禁止给背景摘要**（2026-11-06 用户指出）：只给仓库路径、commit 范围、只读要求；
++  **不许给「这次改了什么/为什么改/已知风险」** —— 那等于把红线框架塞给它，冷读就废了。
++  项目目的让它自己读 README/DESIGN。
++
++冷读提示词（原样贴，**不许加清单，也不许加改动摘要**）：
++
++```
++你是独立冷读评审，没有任何上下文。只读，不改文件。
++范围：<仓库路径> 的 <commit 范围>。
++任务：找出这次改动里的红线问题（你自己定义什么算红线，并说明理由）。
++要求：每条结论必须带 文件:行 + 一个能重跑的验证方式；不能复现的写「未验证」。
++覆盖声明（必写）：读了哪些文件、跑了什么、**没读/没跑什么**。
++  局部覆盖不能证明「不存在」——没覆盖的部分只能写「未验证」，不许算绿。
++输出：最后一行只写「结论：N 红」。
++```
++
++定向核对提示词（**只在已经知道要查什么时用**）：
++
++```
++你是独立评审，只读不改。范围：<commit 范围>。
++逐条核对：
++ ① 方向：藏错是少给还是多给权限
++ ② 静默失败：读不到/写错/认不出时能不能查
++ ③ 锁死：配置全错时还有没有出路
++ ④ 测试覆盖：有没有恒真断言
++ ⑤ 回滚：几步、要不要重启
++每条给 文件:行 + 复现；不能复现写「未验证」。最后一行：「结论：N 红」。
++```
++
++**复读规则**：上一轮是 N 红，就再派一个，**只核实这 N 条是否真修 + 修出来的新洞**。
++
++## 八·二 审查基础设施（review/，2026-11-06 起）
++
++> 元宝 AI-to-AI 的原话：**「你真正的瓶颈不是读不了那么多文件，是每轮判据和证据都没落盘。」**
++> 于是把「环」落成脚本，都在 `_tools/lazy-tools/review/`：
++
++| 脚本 | 干什么 | 什么时候跑 |
++|---|---|---|
++| `node review/gate.mjs` | 基线 + 异常 + unverified 一次跑完 | 每次发版前、每个修复后 |
++| `review/baseline.json` | 版本化红线；每条 PASS / FAIL / **UNVERIFIED**（未验证不算绿） | 冷读 0 红必须写「基线 N 条全跑、新增 0」 |
++| `review/anomalies.mjs` | 测试输出全文落盘 + 扫 NaN/undefined/截断标题 | 每次跑完测试 |
++| `review/callers.mjs` | 判据符号的调用点表（grep 级，不是引用图） | 改共享判据时 |
++| `review/poc.template.mjs` | 20 行起跑，任何怀疑复制即用 | 怀疑 → POC |
++| `review/unverified.json` | 显式记录「没验证」的条目；**非 0 门禁红** | 冷读结束时 |
++
++**喂外部 AI 的规矩（元宝给的模板）**：给尺子，不给意图。
++必给：源码快照/文件清单、diff（复读才给）、宿主契约、基线版本、测试输出全文、异常清单、上一轮红条 id（不给全文）、未覆盖清单 + unverified 计数。
++不给：改动摘要、设计理由、「这里是有意的」、上一轮结论全文。
++
++复读同样以「结论：0 红」为准；**报告要落盘**（`perf-/冷读-<版本>.md`），发版脚本会检查它。
++
++## 九、对外沟通（发帖 / PR / 发版 / 给第三方提需求）
++
++> 2026-11-03 定。代价落在外面的动作，比改代码更容易出事，而且**删不干净**（commit 评论、PR、Discussion 都会留痕）。
++
++### 1. 先问，再发
++
++- 任何**公开动作**（issue、Discussion、PR、commit 评论、发版）→ **先把正文给用户过目**；
++- 用户明确说过「发吧」的那一次，只对**那一条**有效，不推广到下一条。
++
++### 2. 一条帖子只有一个主语
++
++- 给 A 项目发帖，**通篇不提 B 项目**（哪怕 B 也是个例子）；
++- 「三种方案对比」这种内容，发在**我们自己的仓库**或中立社区（如 awesome 列表的 Discussions），
++  不发到某一家项目的仓库里。
++
++### 3. 先确认能到人
++
++发之前查三件事：`has_issues` / `has_discussions` / 作者邮箱是否可用。
++**仓库关了 Issues 就别硬发**——改到中立场地 + `@` 提及，或直接不发。
++
++### 4. 文案三禁
++
++| 禁 | 为什么 |
++|---|---|
++| 禁「你们应该……」 | 我们没资格给别人定规范 |
++| 禁「我们是唯一/首个」 | 除非有穷举证据；否则写「目前我搜到的范围内」 |
++| 禁把内部账写进去（「代价 1 行」「0 星」） | 那是我们的判断，不是给对方的筹码 |
++
++**推荐的骨架**：我看到你在做什么（只引对方的代码）→ 我做的事（一句话）→ 已能对上的部分 + 实测 → 想请教的一处 → 「方向不对请直说」。
++
++### 5. 发完要记账
++
++每次对外动作，追加一行到 `perf-/对外-<日期>.md`：`动作 / 链接 / 状态 / 下次该看什么`。
++**「发出去了」不算完成，要跟踪状态**（merged？有回复没？）。
++
++## 十、发版清单（缺一项都不许发）
++
++> 2026-11-04：第 5 步「一致性断言」已脚本化（`perf-\59-一致性断言.ps1`），门禁自动跑。
++
++1. `package.json` 版本 + `CHANGELOG` 有该版本段；
++2. 冒烟全过 + 对抗全过（**连跑两次**，防临时文件残留）；
++3. `perf-/冷读-<版本>.md` 最后一轮是 **「结论：0 红」**；
++4. `perf-/43-编码体检.ps1` 0 问题（BOM / 行尾 / 孤立 CR）；
++5. `git status` 干净，`origin/master...master = 0 0`；
++6. 发完核对：Release 有两个资产；然后往 `perf-/对外-<日期>.md` 记一行。
++
++## 十一、模块拆解（大项目）与恶性 bug 定义
++
++### 模块拆解：按接口拆，不按文件拆
++
++1. **先出接口表**（谁提供什么、谁依赖谁）——这张表本身是一张票；
++2. **每个模块一张票**：输入、输出、依赖的接口、自己的契约测试；
++3. 模块间依赖**先用 mock 顶着**，各自能独立跑绿；
++4. 最后一张**集成票**：接线 + 端到端回归 + 更新文档；
++5. **并行上限 3 张**；两张票改同一批文件 ⇒ 不许并行。
++
++### 发版必须「零恶性 bug」（清单由我核对并勾，只在本地）
++
++普通 bug 可以修、可以带进 release notes；**下面四类一个都不许带**：
++
++| 类型 | 例子 |
++|---|---|
++| 静默丢数据 | 保存设置把其它配置洗掉；读坏文件当清空 |
++| 把会话锁死 | 配置写错后会话内无法自救（enable 被拒、自愈被禁） |
++| 权限方向错 | 本该收紧却 fail-open（多给权限） |
++| 启动级失败 | 插件加载失败、DSH 起不来、UI 全白 |
++
++### 已确认的三个判定（2026-11-03 用户拍板）
++
++| # | 问题 | 判定 |
++|---|---|---|
++| 1 | 发版要不要人看一眼 | **不加**：跑完门槛直接发（用户：「反正我看不懂」） |
++| 2 | 大项目是否强制接口先行 | **暂不强制**（用户：「暂时没接触大项目不知道」）；真出现跨模块项目时，开工前单独确认 |
++| 3 | 并行上限 | **3 张**（工程判断；用户不参与这一判断） |
++
++## 十二、跳过与豁免
++
++**跳过权归用户，AI 不得自行跳过。** 发版脚本用 `-Skip "encoding,double-run" -Why "原因"`；
++没给 `-Why` 直接报错；每次跳过写 `perf-/跳过-<版本>.md`。不可跳过：版本号、冷读结论。
++
++## 十三、外部审阅（第三方 AI / 人）可复用的六条方法
++
++> 2026-11-04 从一份第三方审查报告里提炼（它抓到了我们四轮冷读漏掉的东西）。
++> 核心不是提示词，是**位置**：审阅者没有“作者视角”，只问“这行真会执行吗”。
++> **流程位置：每次发版后做一次**（流程文档第 12 节）；结论先复现，再入票。
++
++| # | 方法 | 怎么用 |
++|---|---|---|
++| 1 | **文档当待证伪清单** | 「已删 X」→ find 文件 + grep import；「N 个工具」→ 数注册；「N 项测试」→ 实跑。差值即线索 |
++| 2 | **每条疑点最小复现** | 能复现才算缺陷；不能复现的归「文档/清理问题」，不混进缺陷 |
++| 3 | **先怀疑自己的测试** | 首轮 FAIL 先核自己的期望（返回形状/字段名），再报缺陷 |
++| 4 | **交叉对账** | README ↔ DESIGN ↔ CHANGELOG ↔ MAINTAINING ↔ 打包清单 ↔ CI，六处口径互相对 |
++| 5 | **换位置读** | 先假设「这段永远不会执行」，再去找「它什么时候会执行」的证据 |
++| 6 | **不复用作者的假宿主** | 直接 import 导出函数喂畸形值；残缺 ctx 跑 apply()。只测作者预设的世界 = 假绿 |
++
++### 给外部审阅者的最小指令（防编造）
++
++```
++审 <公开仓库 URL> 的 <分支/版本>。只审这一版，先声明你读到的版本。
++每条结论必须带 文件:行 + 能复现的命令或最小脚本。
++读不到的东西（release 资产、真机运行）明说「未验证」，不许写成结论。
++区分：运行时缺陷 / 文档不一致 / 工程盲区。
++最后给三条最该先修的。
++```
++
++### 发布门禁可加的四条断言（防漂移）
++
++1. 注册工具数 == 文档表格里的工具数；
++2. `lib/` 下每个 `.js` 至少被一处引用（专抓删除残留）；
++3. 测试项数不写死（以输出为准），或由脚本生成；
++4. Release 两个资产字节一致（已有 sha256 校验，可再加两文件对比）。
++
++```
++
++
++## FILE: incident-archive/SKILL.md
++
++路径：`C:\Users\14092/.dsh/skills/incident-archive/SKILL.md`
++
++```md
++﻿---
++name: incident-archive
++description: 翻车档案索引 + 「写前 60 秒」检查表：写或改任何代码/测试/fixture/mock、遇到报错、或怀疑第二次踩同一个坑之前先读。7 个家族（名字撞了 / 我写了不等于生效 / 改文件本身会毁文件 / 结论错在方法 / 跨程序字节习惯 / 代价先量 / 终端是显示设备）。
++whenToUse: 准备写或改代码时；准备写测试、造 fixture 或 mock 时；看到报错或被实测顶回来时；同一类问题第二次出现时。
++---
++
++# 翻车档案：写代码前先查（不是故事书）
++
++这是**证据库**。规则在 `代码规范.md`，证据在 `翻车档案.md`。
++**一条不被读取的规则等于不存在** —— 本技能存在的意义就是被**加载**，不是被记住。
++
++## 第一步：写前 60 秒（动代码之前，30 秒扫一眼）
++
++按「我要做的事」查对应那一族，只读那一族的表格行：
++
++| 我要做的事 | 先看 | 典型雷 |
++|---|---|---|
++| 新建文件 / 工具 / 目录 / 插件 | **A 名字撞了** | 名字被别的插件/进程占着（`click` 这种裸名会被第三方包占） |
++| 改状态、改配置、写文件 | **B 我写了≠它生效了** | 改了但没重载；被别处覆盖；`edit` 抹 BOM |
++| 用 `edit`/`write`/编码处理文件 | **C 改文件本身会毁文件** | BOM、NUL、CRLF、UTF-16 |
++| **写测试 / 造 fixture / 做测量** | **D 结论错在方法** ⚠️ 重灾区 | **假宿主缺真实行为；fixture 造不可达状态** |
++| 跨程序传参（git / ffmpeg / curl…） | **E 字节习惯** | 引号、路径、stdout/stderr、退出码 |
++| 报数字 / 报性能 / 报收益 | **F 代价先量** | 没量就报、用旧数、报总账不报边际 |
++| 看输出 / 打印 / 截图判断 | **G 终端是显示设备** | 用肉眼读字符流、一次打几千行 |
++
++## D 族三问（凡「我造了个环境来证明我对」，先问）
++
++1. 这个 fixture 是不是真实流程**写不出来**的状态？
++   （实例 #38：手工搓 `{groups:{}, tools:{}}` —— 而 `recordUsage` 必然同时写 groups）
++2. 我的假宿主/替身**缺了哪些真实行为**：同步还是异步？会不会重入？有没有冷却丢事件？
++   （实例 #54：替身不在撤销限制时同步发 `tools/change`，重入路径永远走不到）
++3. 如果结论**相反**，这个测试会返回什么？返回不了 → 它不是测试。
++
++## 七个家族（定位用）
++
++| 族 | 讲什么 | 典型症状 |
++|---|---|---|
++| A. 名字撞了 | 标识符/别名冲突 | PowerShell 变量大小写不敏感；`Rd` 被别名抢 |
++| B. 「我写了」≠「它生效了」 | 配置/文件改动没被读取 | `.gitignore` 的 `#` 只有行首是注释；`edit` 抹掉 BOM |
++| C. 改文件本身会毁文件 | 编码/行尾 | BOM 丢失 → PS 5.1 按 GBK 读 → 整行消失 |
++| D. 结论错在方法 | 测量方法有偏 | 本地通过、用户现场不通；fixture 不可达 |
++| E. 跨程序边界的字节习惯 | UTF-16/二进制 | UTF-16 文件被当二进制跳过，密钥扫不到 |
++| F. 代价得先量再报 | 空间/时间估算 | 删还原点省 15GB，回滚没了 |
++| G. 终端是显示设备 | 输出量 | 一次打 7,523 行，会话差点撑死 |
++
++## 怎么查（别通读）
++
++```
++# 按症状词搜，只读命中行
++grep -n "BOM\|GBK\|别名\|UTF-16\|还原点\|fixture\|mock" C:\deepsleep脚本工程\翻车档案.md
++```
++
++- 家族索引在 `翻车档案.md` 的 `## 家族索引` 一节；正文按 A–G 排列。
++- **读到了就按它改**；没打算改就别引用它。
++- 新增翻车：先写进 `翻车档案.md`（日期 / 现象 / 错误原文 / 根因），再回填索引。
++
++## 文件
++
++- 证据：`C:\deepsleep脚本工程\翻车档案.md`（**77 条**，7 族 + 不成族单条；2026-10-31 新增 #77（探针监听 waterfall 不调 next，把 plan-mode 干崩））
++- 规则：`C:\deepsleep脚本工程\代码规范.md`（§3 现场规则、§6B 检查的准入、以及「写前 60 秒」的前置步）
++
++```
++
++
++## FILE: 翻车档案.md
++
++（读不到：ENOENT: no such file or directory, open 'C:\deepsleep脚本工程\perf-\翻车档案.md'）
++
++
++## FILE: 恶性bug清单.md
++
++路径：`C:/deepsleep脚本工程/perf-/恶性bug清单.md`
++
++```md
++﻿# 恶性 bug 清单（发版前逐条勾）
++
++> 规矩（用户 2026-11-03）：「发版前必须全绿，至少没恶性 bug」。
++> 四类**一个都不许带**；普通 bug 可以修、可以写进 release notes。
++> 发版脚本 `54-发版.ps1` 会检查这份文件里**四个 `[ ]`**；没勾满 = 不许发。
++> 用法：**由我（开发执行者）逐条核对并勾选**，不是你的事；勾满才能发版，发完改回 `[ ]`。
++> **这份文件只在本地开发过程用，不随包发布、不进发布仓。**
++
 +- [ ] **静默丢数据**：0.18.7 只改「隐藏/回读/重建」路径，不写配置或账本；[108]-[118] 全是只读断言
 +- [ ] **把会话锁死**：修复方向是「该藏的藏、藏不掉的不无限重试」；transient 失败会重试、permanent 会锁、别名壳不再每次事件重建
 +- [ ] **权限方向错**：没有新增放行；漏藏会被锁住并写进 `health.unhideable`，不会静默变成「以为藏了」
 +- [ ] **启动级失败**：所有失败路径有记账；冒烟 124、对抗 29 RED 0、编码干净；暴力 1000/200/500/100 次事件均无增长
++
++```
++
++
++## FILE: 冷读-0.18.7.md
++
++路径：`C:/deepsleep脚本工程/perf-/冷读-0.18.7.md`
++
++```md
++﻿# 冷读 — 0.18.7（2026-11-06）
++
++> 发版前独立冷读（无清单、无背景）。**两轮 2 红 → 修 → 复读 0 红；复读又抓 1 黄 → 修。**
++> 对象：DSH 2.0.22 下「3 秒重建链」的根因修复。
++
++## 范围
++
++`0b0fbfb..HEAD`（0.18.7：unhideable / 逐名字报告 / 外部签名清锁 + 测试）。
++
++## 第一轮（干净版）— 2 红
++
++| # | 红 | 复现 |
++|---|---|---|
++| 1 | `unhideable` 只写不清：晚注册/别名退场后，名字已可 restrict，却永远被当漏网、不再重试 | 冷读临时 fixture：scoped 同名遮蔽 → 全局注册 → 5 次事件仍 visible |
++| 2 | `applied` 是整批布尔：部分 systemic 失败被永久锁；reserved PTC 全失败每次事件都重建（500 事件 501 次重建） | 假宿主 reserved PTC：500 事件 501 rebuilds |
++
++## 修复（第一轮）
++
++1. `hideTools` 返回**逐名字**报告（denied / transient / permanent）；`unhideable` 只锁真藏不掉的；
++2. 外部变化按 `restrictableNames` **签名**判断，签名变了才清非永久闩锁；
++3. 新增 `[114]`（真实部分失败）/ `[115]`（PTC 200 事件 ≤3）。
++
++## 复读（第二轮）— 2 红（1 条恢复性回归 + 1 个新洞）
++
++| # | 红 | 修法 |
++|---|---|---|
++| 1 | permanent/badname 闩锁永不清：badname → 后来可 restrict 仍不重试 | 签名变化时清**全部**闩锁；`[116]` |
++| 2 | per-name 公式漏掉**别名壳**（scope 注册、被组匹配、不在 restrictableNames）→ 每次 tools/change 重建（100 事件 +100） | 锁「所有非 transient 的 leftover」；`[117]` |
++
++## 复读（第三轮）— 0 红 + 1 黄
++
++黄：`hidden` 为空时会沿用**上一轮**的 transient 报告 → 上轮 systemic、本轮退成别名壳的名字永远不锁（100 事件 +100）。
++修：hidden 为空时 transient 视为空；新增 `[118]`；删死代码 `selfChangeUntil` / `isBadName` / `nonRestrictableNames`。
++
++## 测试与变异
++
++| 变异 | 结果 |
++|---|---|
++| 去掉 `unhideable` 公式（置空） | `[108]` 红（14≠10） |
++| 恢复旧整批判据 | `[115]` 红（permanent 没锁） |
++| 每次沿用旧 transient | `[118]` 红（+100） |
++| 内层备注 | 复读另跑的 shadow / partial / PTC / late 探针均 PASS |
++
++## 覆盖声明
++
++冷读读了 `lib/`、`test/smoke.mjs` 相关段、`CHANGELOG`、`review/*`，解包宿主 asar 核对 restrict/view 语义；跑了 smoke/adversarial、多组变异、自建探针。
++未跑：真实 DSH 进程内端到端、真实 3 秒墙钟长跑、客户端/UI；这些标「未验证」，不算绿。
++
++## 结论：0 红
++
++```
++
++
++## FILE: 对外账本（发版记录）.md
++
++路径：`C:/deepsleep脚本工程/perf-/对外-20261103.md`
++
++```md
++﻿# 对外动作台账 — 2026-11-03
++
++> 规矩见技能 `dev-ticket-loop` 第 9 节：**发出去不算完成，要跟踪状态**。
++
++| # | 动作 | 链接 | 状态（2026-11-03 21:10 查） | 下次该看什么 |
++|---|---|---|---|---|
++| 1 | 给 MyGO 作者的 RFC（说明我们没有 Issues 关着的替代通道，走 @ 提及） | [issue #1](https://github.com/kmyy350234-dz/dsh-tool-drawer/issues/1) | open，**0 评论** | 有没有回；回了先看 Q2 之外还有没有别的原因 |
++| 2 | 市场（awesome-dsh-plugin）文案更新：补「按会话/按角色」 | [PR #11490](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/pull/11490) | ✅ **merged** | 确认市场页描述已更新 |
++| 3 | 中立讨论：工具面裁剪的三种单位（全局 / preset / 会话） | [Discussion #11491](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/discussions/11491) | open，**0 评论，1 赞** | 有没有编排器作者回应；有没有人指出我们写错的地方 |
++
++| 4 | 回复 deepseek-harness discussion #11765（cuihuan）：配对成立 + v0 契约三字段 + extensions 不解释 | [comment](https://github.com/deepseek-ai/deepseek-harness/discussions/11765#discussioncomment-19377361) | 已发（2026-11-03 23:40） | 他是否接受「组 vs 逐条名字」的取舍；授权侧是否拆后续 |
++
++| 5 | 跟进 #11765：诚实定位（主线是省上下文、按角色是扩展、不碰授权）+ 组vs名字的建议 + 公开仓库链接 | [comment](https://github.com/deepseek-ai/deepseek-harness/discussions/11765#discussioncomment-19377528) | 已发（23:50） | 他选「组」还是「逐条名字」；选组则 v0 不需要 allowTools |
++
++| 6 | **更正** #11765 第一条评论（原话夸大「policy 能把 profile 层工具放回来」）——已就地改写为「只会减、不能放回、`allowTools` 未实现」，中英双语 | [comment（已编辑）](https://github.com/deepseek-ai/deepseek-harness/discussions/11765#discussioncomment-19377361) | 已改（2026-11-04 02:40，`updateDiscussionComment`） | 不再跟进；若他再问才答 |
++
++| 7 | **道歉 + 能力分析**（承认 AI 幻觉：原称「策略可把 profile 层工具放回来」，实际只会减）并说明对对方唯一有用之处 | [comment](https://github.com/deepseek-ai/deepseek-harness/discussions/11765#discussioncomment-19381219) | 已发（2026-11-04 02:52） | 不跟进；若对方要 draft 链接再给 |
++
++| 8 | 发版 **0.18.3**（第三方报告 A1/A2/B1/B2 修复：null 原型 + label 确定性 + roleHint 同源；CI/门禁跑对抗） | [Release](https://github.com/kmyy350234-dz/dsh-tool-drawer/releases/tag/v0.18.3) | 已发（2026-11-04 03:40，Release 433136429，sha256 e2f12d83…） | 市场 latest 自动跟；等第三方复测 |
++
++| 9 | 发版 **0.18.4**（冷读第一轮 5 红全修：门禁 6e 真跑/票体检 accept/桥鉴权行为测试/POLICY/会话清理引用保留；+ P0：超长正则崩加载、发布同步带死文件、disable 变开、守卫静默、errors 不可清、缓存不失效、目录写死、桥 POST 鉴权；新增 `allowGroups: []`） | [Release v0.18.4](https://github.com/kmyy350234-dz/dsh-tool-drawer/releases/tag/v0.18.4) | 已发（2026-11-05 03:05，Release 434315783，两个资产各 205327 字节，sha256 b2bc5d13…） | 市场 latest 自动跟；下次发版前跑一次元宝「挑刺」 |
++
++| 10 | 发版 **0.18.5**（元宝第二轮 3 实锤：`*` 语义分裂 / DNS rebinding Host 回环 / seenErrors 假绿；自愈改「补开即放行」；一致性：Buffer 解码、坏 JSON 心跳 400、原子写+回读；冷读四轮 1+3 红全修） | [Release v0.18.5](https://github.com/kmyy350234-dz/dsh-tool-drawer/releases/tag/v0.18.5) | 已发（2026-11-05 03:52，Release 434377828，两个资产各 208753 字节，sha256 7b4757b2…） | 市场 latest 自动跟；下次发版前跑一次元宝「挑刺」 |
++| 11 | 发版 **0.18.6**（DSH 2.0.22 适配**诚实版**：`toolNames` 与 `visibleNames` 对齐（空视图回退 schemas，冒烟 `[107]`）；`stats.rebuilds` 可观测；冷读 3 红（空视图不变量 / 根因反证 / expect 契约）全修；**不宣称修复重建风暴**，6,242 线索未复现） | [Release v0.18.6](https://github.com/kmyy350234-dz/dsh-tool-drawer/releases/tag/v0.18.6) | 已发（2026-11-06 02:10，Release 435547120，资产 210078 字节，sha256 14ad2323…） | 下次先查 6,242 风暴根因；再排 0.19.0 角色标签 |
++| 12 | 发版 **0.18.7**（3 秒重建链：`hideTools` 逐名字报告 denied/transient/permanent；`unhideable` 锁所有非 transient leftover（含 scope 别名壳）；外部按 `restrictableNames` 签名清全部闩锁；冷读三轮 2 红→0 红；冒烟 124） | [Release v0.18.7](https://github.com/kmyy350234-dz/dsh-tool-drawer/releases/tag/v0.18.7) | 已发（2026-11-06 04:55，Release 435642703，两个资产各 215674 字节） | 0.18.8：元宝 P0 队列（POST /policy、universal、managed mode、NaN、config） |
++
++## 记账要点（从这三次里学到的）
++
++1. **发之前先查能不能到人**：MyGO 的 fork 关了 Issues/Discussions（`has_issues:false`），只能改在
++   我们自己仓库发 + `@` 提及；`awesome-dsh-plugin` 开着 Discussions，用它最适合中立讨论。
++2. **分支别从旧 fork 上开**：直接 fork 出来的 `main` 落后上游 894 个提交，PR 会被判 `dirty`；
++   正确做法是**基于上游 HEAD 建新分支**再提交（`ahead 1 / behind 0` 才干净）。
++3. **PR 的 head 分支不能改**：脏了就关掉重开，别想办法 PATCH。
++4. **shell 会吃反引号**：写 PR/Discussion 正文时，正文必须**先落文件**再用 API 发，
++   不要塞进 `node -e "…"` 或 `curl -d "…"`（第一次的 PR body 就是这么被吃掉的，后来用 PATCH 才修好）。
++
++## 对方画像（2026-11-04 补）
++
++- **cuihuan / Hans**：Runix Lab（runixcloud.io），方向是 AI infra + 出海；12 个公开仓库、29 followers。
++  最热的是 `awesome-ai-gateway`（146★，11-03 还在更新）、自研网关 `litellm-synthorai`（Rust core）、
++  `llm-gateway-bench`、`modelprobe`。
++- **不是 DSH 插件作者**，而是把官方 superagent 原型当作「飞书 supervisor 编排底座」的下游使用者；
++  他的痛点是 `workOnly` 挡掉 profile 层专用工具 + 需要 Ticket 级身份/授权。
++- **与我们方向相反**：他要「放行 + 授权」，我们做「收敛可见性」；`authorAssociation=NONE`，社区用户，不是官方。
++- 结论：不是合作对象、也不是我们的用户；按「生态观察样本」记档，不再主动跟进。
++
++```
++
++
++## FILE: review/README 说明（脚本内注释）
++
++路径：`C:/deepsleep脚本工程/_tools/lazy-tools/review/gate.mjs`
++
++```md
++// 门禁：基线 + 异常 + 未验证计数；任一不绿即 fail。
++// 用法：node review/gate.mjs
++import { spawnSync } from 'node:child_process'
++import { readFileSync } from 'node:fs'
++import { dirname, join } from 'node:path'
++import { fileURLToPath } from 'node:url'
++
++const here = dirname(fileURLToPath(import.meta.url))
++const run = (args) => spawnSync(process.execPath, args, {
++  cwd: dirname(here),
++  encoding: 'utf8',
++  timeout: 300000,
++  maxBuffer: 32 * 1024 * 1024,
++})
++
++let bad = 0
++const base = run(['review/check-baseline.mjs'])
++process.stdout.write(base.stdout || '')
++process.stderr.write(base.stderr || '')
++if (base.status !== 0) bad += 1
++
++const anomalies = run(['review/anomalies.mjs'])
++process.stdout.write(anomalies.stdout || '')
++process.stderr.write(anomalies.stderr || '')
++if (anomalies.status !== 0) bad += 1
++
++let unverified = { count: 0, items: [] }
++try {
++  unverified = JSON.parse(readFileSync(join(here, 'unverified.json'), 'utf8'))
++} catch {
++  console.log('UNVERIFIED review/unverified.json 缺失')
++  bad += 1
++}
++
++if (unverified.count > 0) {
++  console.log(`\nUNVERIFIED ${unverified.count} 条：`)
++  for (const item of unverified.items || []) console.log(`  - ${item}`)
++  bad += 1
++}
++
++console.log(`\n门禁：${bad === 0 ? 'PASS' : 'FAIL'}（unverified=${unverified.count || 0}）`)
++if (bad > 0) process.exitCode = 1
++
++```
++
++
++## FILE: review/baseline.json
++
++路径：`C:/deepsleep脚本工程/_tools/lazy-tools/review/baseline.json`
++
++```md
++[
++  {
++    "id": "smoke",
++    "desc": "冒烟全过",
++    "cmd": ["test/smoke.mjs"],
++    "expectExit": 0,
++    "expectRegex": "smoke: \\d+ 项全过"
++  },
++  {
++    "id": "adversarial",
++    "desc": "对抗全过且 RED 0",
++    "cmd": ["test/adversarial.mjs"],
++    "expectExit": 0,
++    "expectRegex": "RED 0"
++  },
++  {
++    "id": "tool-names-view",
++    "desc": "toolNames 优先 view（[105] 在冒烟里）",
++    "cmd": ["test/smoke.mjs"],
++    "expectExit": 0,
++    "expectRegex": "\\[105\\] toolNames 优先 view"
++  },
++  {
++    "id": "empty-view",
++    "desc": "空视图回退 schemas（[107]）",
++    "cmd": ["test/smoke.mjs"],
++    "expectExit": 0,
++    "expectRegex": "\\[107\\] 空视图必须回退 schemas"
++  }
++]
++
++```
+diff --git a/perf-/流程改进-20261106.md b/perf-/流程改进-20261106.md
+new file mode 100644
+index 0000000..0eab8e9
+--- /dev/null
++++ b/perf-/流程改进-20261106.md
+@@ -0,0 +1,114 @@
++﻿# 当前流程改进（不涉及 A1 产品化）— 2026-11-06
++
++> 对象：**今天已经在跑的流程**——票 → 子代理 → 冷读/复读 → baseline/变异 → 54 门禁 → Release。
++> 不讨论 review/build/research 角色产品化，不讨论 Spec Kit CLI。
++> 每条都写：外部方法 → 我们现在的缺口 → 具体改法 → 怎么验证 → 会不会和现有机制打架。
++
++---
++
++## 0. 结论
++
++当前流程有 5 个真实缺口：
++
++1. **没有“收敛”状态**：冷读给 N 红，修完复读又出新的，永远没有“已收敛”的判定；
++2. **审阅单位太大**：一次冷读 13 个提交，代码+流程文档混在一起；
++3. **测试有“条数”没有“分数”**：8 条变异全绿，不等于改动被覆盖；
++4. **bug 修复没有“验证态”**：修完只说“修了”，没有 verified/partial/failed；
++5. **裁判本身没有冻结校准集**：每修一次 verify-coldread，就可能放出新的解析变体。
++
++对应 8 条改动，按投入从低到高排。
++
++---
++
++## 1. 改哪 8 条（全表）
++
++| # | 外部方法（源码位置） | 我们现在的缺口 | 具体改法（文件/步骤） | 怎么验证有效 | 与现有机制冲突 |
++|---|---|---|---|---|---|
++| P1 | Spec Kit converge 的 **gap 分类 + append-only + converged**（`converge.md:156-232`） | 冷读只给“N 红”，没有每条 finding 的 id/类型/状态；修完复读可能又出新的，没有“收敛”定义 | 新增 `review/findings.json`：`{id, source, gapType(missing/partial/contradicts/unrequested), severity, status(open/fixed/deferred), evidence, commit}`；冷读/复读/recheck 都往里写；54 门禁要求 `open=0` 或 `deferred` 有理由 | 造一条 missing、一条 partial，冷读后 findings 各一条；修一条后状态变 fixed；再跑门禁，open>0 必须 FAIL | 与 `verdict.json` 双份；需定“verdict 是摘要、findings 是明细” |
++| P2 | Google **小 CL**（`small-cls.md:42-75`） | 冷读范围 `60f1f17..HEAD` 13 个提交，代码+PROCESS+review 一起审 | 票/提交约束：一个票 ≤1 个行为；冷读范围=`该票的 commit`，只审改动文件+受影响测试；流程文档单独审 | 冷读报告必须写 `scope: <commit> / files`；超过 1 个行为或 >N 文件时脚本标黄 | 与“发版前一次审完”冲突；需要按票分批 |
++| P3 | Stryker **mutation score / threshold**（`configuration.md:564-577`） | 只有 8 条固定变异；没有“改动覆盖率/分数”；新增测试可能没被变异覆盖 | `review/mutations.json` 增加 `protectedBy`（测试名/断言）；新增 `review/mutation-score.mjs` 计算 `killed/total`；门槛：新增测试 100% 有变异，改动行 ≥80% 有变异（先量基线再定） | 新增一条测试但删掉其变异 → 分数下降、门禁 FAIL；故意留一条 surviving → FAIL | 与“每条新测试一条”重复但兼容：一条是下限，分数是上限 |
++| P4 | Spec Kit bugfix 的 **assess → fix → test + verdict**（`bug-assess.md:107-141`、`bug-test.md:282-337`） | 修 bug 直接改；release notes 只说“修了”；没有 verified/partial/failed | 票增加 `assess.md`（现象/根因/复现/风险）和 `test-report.md`（命令/结果/证据）；verdict 三选一；只有 verified 进 release notes | 拿一个已修 bug 回填：没有 assess 的票，体检 FAIL；test-report 写 partial 的，release notes 标 partial | 与现有“四段交付”重复；需要合并成票模板 |
++| P5 | MLflow **judge 校准集 + 改裁判必重跑**（文章 Step 1/6） | 只有 gate-integrity 的即时负例；没有冻结的已知红/绿报告；改 verify 后可能回归 | 新增 `review/calibration/`：`good.md`（0 红）、`bad-red.md`（3 红）、`bad-unverified.md`（2 未验证）、`bad-missing-block.md`；`verify-coldread` 每次改动先跑校准集，全过才算改完 | 把一条坏报告改成“看似 0 红” → 校准集必须 FAIL；改 verify 后漏跑校准集 → CI 红 | 与真实冷读报告区分；校准集不能含答案泄漏 |
++| P6 | MS CD **同一制品晋级 + 哈希**（`continuous-delivery.md:40-58`） | 54 建 Release 前 poll CI，但没有把 CI 的 commit/制品哈希和 Release 资产绑定；重新 pack 可能不是同一份 | 54 记录 `tgz sha256`；CI 只测该 commit；Release 前校验两个资产 hash 相同且等于打包 hash；台账记 hash | 手动改一个资产字节 → 54 必须 FAIL；重新 pack 两次 hash 不同 → 停止 | 与“两个资产同名不同名”兼容；需查 54 是否只 pack 一次 |
++| P7 | Google **review 分类：blocking / nit / good things**（`looking-for.md:107-123,210-216`） | 冷读只有红/黄/绿；所有问题一个颜色，容易把“风格”当红 | 报告每条加 `class: blocking|suggestion|nit`；加一节“做得对”；红只给 blocking；黄=suggestion；nit 不挡发版 | 造一条 nit → 报告出现 nit 且门禁不 FAIL；造一条 blocking → FAIL | 与“红=0”冲突：需明确只有 blocking 计数 |
++| P8 | Spec Kit **converged 判定**（`converge.md:228-232`） | 没有“本轮无新增 + 全部关闭”的停止条件；修完又冒新的，可能无限 | `review/findings.json` 增加 `round`；收敛条件：连续两轮 `new=0 && open=0`；否则最多 3 轮，剩余 deferred 写理由 | 连续两轮无新增 → PASS；连续两轮都有新 finding → 标黄并记录 | 与“必须 0 红”冲突：deferred 要允许发版，但必须列 release notes |
++
++---
++
++## 2. 改完后的流程长什么样（逐段）
++
++```
++① 票（一个行为）
++   ├─ assess.md（bug 才有）
++   ├─ spec/accept（可证伪）
++   └─ rollback
++
++② build 子代理
++   └─ 只改票内文件；测试同票
++
++③ 冷读（范围=本票 commit，只审改动文件+测试）
++   ├─ 输出 findings.json（id/gapType/severity/status）
++   ├─ 输出 verdict.json（摘要：red/unverified/baseline）
++   └─ 校准集先跑（verify 脚本改动时）
++
++④ 修 → 复读
++   ├─ 只核 findings 的 open 项
++   └─ 新 finding 进 round+1
++
++⑤ 收敛
++   ├─ 条件：连续两轮 new=0 且 open=0
++   └─ 否则最多 3 轮；deferred 写理由 + release notes
++
++⑥ 54 门禁
++   ├─ baseline / 变异分数 / findings.open=0 或 deferred
++   ├─ CI 绿（poll）
++   ├─ 制品 sha256 一致
++   └─ 恶性清单 4/4
++
++⑦ Release + 台账（含 hash、deferred、rounds）
++
++⑧ 发版后审计（不生成 release verdict）
++```
++
++---
++
++## 3. 会不会自己和自己打架
++
++| # | 冲突 | 严重度 | 裁决 |
++|---|---|---|---|
++| X1 | `verdict.json` 与 `findings.json` 双份 | 中 | verdict 只做摘要，findings 做明细；门禁读 findings.open，verdict 只做展示 |
++| X2 | 小 CL vs 一次发版审完 | 中 | 按票分批冷读；发版只跑 baseline/变异/CI，不重审全部历史 |
++| X3 | mutation score vs 固定 8 条 | 低 | 8 条是下限；分数只对“本票新增/改动”算，不追求全仓 |
++| X4 | bug verdict 三态 vs 现有“修好了” | 低 | 只有 verified 进 release notes；partial/failed 留票 |
++| X5 | deferred 允许发版 vs “0 红” | 高 | deferred 必须：有 reason、有 owner、写进 release notes、下一版首票；否则门禁 FAIL |
++| X6 | 校准集 vs 真实报告 | 中 | 校准集只用于“裁判回归”，不参与真实 verdict；不能把答案写进真实报告 |
++| X7 | 54 的 hash 校验 vs pnpm pack | 中 | 如果 54 现在 pack 两次，先改成 pack 一次、复制两份；否则 hash 必然不同 |
++| X8 | findings 由冷读写 vs 冷读只读 | 中 | 冷读只输出文本，主会话/脚本写入 findings；不给冷读仓库写权限 |
++
++---
++
++## 4. 最小落地顺序（只做当前流程，不碰 A1）
++
++| 顺序 | 改动 | 工作量 | 先决条件 |
++|---|---|---|---|
++| 1 | P4 bug assess/test 票模板（先人工） | 小 | 无 |
++| 2 | P5 校准集 + verify 改动必跑 | 小 | 无 |
++| 3 | P1 findings.json + P8 收敛条件 | 中 | 冷读报告格式稳定 |
++| 4 | P2 冷读范围按票 | 小（流程约束） | 票粒度先变小 |
++| 5 | P3 mutation score | 中 | mutations 有 protectedBy |
++| 6 | P6 制品 hash | 小 | 查 54 pack 次数 |
++| 7 | P7 review 分类（blocking/nit） | 小 | 报告格式 |
++| 8 | 发版后审计记录 | 小 | 无 |
++
++---
++
++## 5. 一句话
++
++**当前流程缺的不是“更多检查”，是“收敛”和“分级”：**
++- 用 findings 表把“N 红”变成可关闭的条目；
++- 用 gap 类型/blocking/nit 把“红黄绿”变成可执行的分类；
++- 用 mutation score 把“8 条变异”变成“改动被覆盖”；
++- 用 bug verdict 把“修了”变成“verified/partial/failed”；
++- 用校准集把“裁判”也纳入回归。
++
++**这五条不依赖 A1，今天就能加。**
+diff --git a/perf-/票-findings-54/plan.md b/perf-/票-findings-54/plan.md
+new file mode 100644
+index 0000000..e3b674b
+--- /dev/null
++++ b/perf-/票-findings-54/plan.md
+@@ -0,0 +1,73 @@
++﻿# Plan：把 findings 收敛接进 54 发版
++
++- 对应 spec：`perf-/票-findings-54/spec.md`
++- 票号：findings-54
++
++## 改哪些文件
++
++| 文件 | 改什么 | 为什么 |
++|---|---|---|
++| `perf-\54-发版.ps1` | 「4d」之后新加「4e. findings 收敛」：无台账 → `Step '6h/7' ... $true '无台账…'`；有台账 → 钉死 `LAZY_TOOLS_FINDINGS_FILE` 后跑 `findings.mjs status`，退出 0 PASS / 非 0 FAIL | 票的核心。门禁必须和发版在同一份证据上，不能靠人记得跑 `gate.mjs --findings` |
++| `_tools\lazy-tools\review\check-54-skip.mjs` | 新增 6 条静态断言（步骤存在 / 在 6g 之后 / 无台账 PASS / 调 `findings.mjs status` / 台账路径来自 `$SrcRepo` / gate-spec 列不可跳过）+ 1 条运行时断言（`-Skip findings` 被拒） | 票要求「防以后被删」。删掉 54 里那段而不改测试，等于门禁消失但绿灯 |
++| `_tools\lazy-tools\review\gate-spec.json` | `notSkippable` 追加 `findings`；`releaseConditions` 追加一条「findings converge（有台账时）」 | gate-spec 是「发版条件唯一来源」；不可跳过必须有机器可读依据，不能只写在注释里 |
++| `_tools\lazy-tools\PROCESS.md` | §二加一段「附加条件门禁」；§二「不可跳过」那行补 `findings（有台账时）` | PROCESS 是唯一权威（§十）。加了门禁却不更新它，文档和实现立刻矛盾 |
++| `perf-\票-findings-54\spec.md / plan.md / tasks.md` | 本票三份文档 | A1 流程 |
++
++**不改**：`review/findings.mjs`、`review/gate.mjs`、`test/smoke.mjs`、54 的其它段落。
++
++## 依赖
++
++- 新增依赖：无。用的是已有的 `$gateNode` 和 `review/findings.mjs`（B1 已落地）。
++- 宿主版本：无要求。54 在 Windows PowerShell 5.1 下跑（`check-54-skip.mjs` 用的就是 `powershell`），
++  所以只用 PS 5.1 语法：没有 `??`、没有 `-notin` 缺省（仓库已有用法）、`[Environment]::SetEnvironmentVariable` 可用。
++- 配置：`review/gate-spec.json` 必须在源仓里（54 第 70 行已经强制）。
++
++## 关键决策
++
++1. **台账路径用 `$SrcRepo`，不用 `$PSScriptRoot`。**
++   54 里所有 review 产物（`gate-spec.json`、`verdict.json`、`smoke.mjs`）都从 `$SrcRepo` 取；findings 若用脚本自身目录，
++   就会出现「门禁读 A 仓、冒烟跑 B 仓」的分裂。一致性优先。
++2. **环境变量钉死再复原，不直接信 `LAZY_TOOLS_FINDINGS_FILE`。**
++   `findings.mjs` 第 88 行 `process.env.LAZY_TOOLS_FINDINGS_FILE || join(here,'findings.json')`。
++   门禁如果跟着环境变量走，残留变量可以把检查指向任何一份写好的「收敛」台账 —— 那正是「权限方向错 / 假绿」那一族。
++   钉死成刚判断过存在的那份，跑完把旧值（可能是 `$null`）写回去。
++3. **无台账时也禁止 `-Skip findings`（比票面更严）。**
++   票面只要求「有台账时不可跳过」。但无台账时这一步本来就自动 PASS，给它一个跳过开关只会多一种绕法；
++   直接进 `notSkippable` 更简单，且不会造成任何假绿。
++4. **detail 行给数字，不只给退出码。**
++   `findings.mjs status` 成功时打的是 pretty JSON；直接贴末行只会看到 `}`。所以从输出里抓
++   `round` / `open` / `converged` 三个值拼一行；抓不到（例如台账非法、走的是错误文本）就退回末行原文。
++
++## 风险
++
++| 风险 | 触发条件 | 缓解 |
++|---|---|---|
++| 把老发版卡死 | 无台账分支写错（比如先跑 node 再判断存在） | 分支顺序「先看文件在不在」；无台账**不调用 node**；真跑一遍无台账路径 |
++| 假绿：门禁被环境变量指走 | 机器上有残留 `LAZY_TOOLS_FINDINGS_FILE` | 钉死路径 + 复原；真跑时故意设一个指向假台账的环境变量验证 |
++| 假绿：步骤被删测试还绿 | 以后有人删掉 4e 段 | check-54-skip 新增断言；并且**验收时手动删一次验证会红** |
++| `$LASTEXITCODE` 被 `finally` 里的 .NET 调用抹掉 | PS 5.1 某些场景 | 在 try 内紧跟调用就捕获 `$LASTEXITCODE`，不在 finally 之后读 |
++| 中文/编码把 .ps1 弄坏 | `edit` 抹 BOM | 改完按字节复验 BOM（`EF BB BF`），并跑 43-编码体检 |
++
++## 已知相邻缺陷（本票**不修**，只记录）
++
++`perf-\54-发版.ps1` 第 68 行把 `$SrcRepo` 写死成 `C:\deepsleep脚本工程\_tools\lazy-tools`。
++在 git worktree（`C:\deepsleep-ab\roles`）里跑这个脚本，它检查的仍是主检出。
++本票因此**用「复制一份 + 只替换这一行路径」的临时沙箱**来验有台账/无台账两条路径，不动主检出。
++修它要改发版语义（到底发哪个仓），超出本票范围 —— 建议单开票。
++
++## 测试计划
++
++- 单测：无新增单测文件；`review/findings.test.mjs`（6/6）保持不动、重跑确认没被带坏。
++- 冒烟：`node test/smoke.mjs` → 128 项全过。
++- 对抗：`node test/adversarial.mjs`（本票没动产品代码，跑一次确认没误伤）。
++- 变异：删掉 54 的 findings 段 → `check-54-skip` 必红（手动做一次，做完恢复）。
++- 真机/UI：不涉及 UI。
++- 真跑：54 dry-run 的沙箱版（只改 `$SrcRepo` 一行）跑三种台账状态：无 / 未收敛 / 收敛；
++  外加 `-Skip findings` 必须被拒。
++
++## 回滚
++
++- 一行回滚（未提交，工作区）：
++  `git checkout -- "perf-/54-发版.ps1" _tools/lazy-tools/review/check-54-skip.mjs _tools/lazy-tools/review/gate-spec.json _tools/lazy-tools/PROCESS.md`
++  `rm -r "perf-/票-findings-54"`
++- 不可逆部分：无。本票只改文本、只读运行；不写台账、不写 Release、不动主检出。
+diff --git a/perf-/票-findings-54/spec.md b/perf-/票-findings-54/spec.md
+new file mode 100644
+index 0000000..b7c54c3
+--- /dev/null
++++ b/perf-/票-findings-54/spec.md
+@@ -0,0 +1,83 @@
++﻿# Spec：把 findings 收敛接进 54 发版
++
++- 票号：findings-54
++- 版本：本票不发版（不占 0.18.x / 0.19.0 版本号）
++- 状态：ready
++
++## 目标（一句话）
++
++`perf-\54-发版.ps1` 在发版检查里接入 findings 收敛判定：**有台账就必须收敛，没台账保持旧行为**。
++
++## 用户故事（每条可独立验收）
++
++### P1 有台账：不收敛就不许发
++
++- 为什么是 P1：这是本票唯一改变发版行为的点。没有它，`review/findings.json` 只是「记录」，不是「门禁」——
++  B1 已经把台账和判定做出来了（`node review/findings.mjs status` 退出 0 = 收敛），但 54 一眼都不看它。
++- 独立验收：造一份未收敛的台账 → 54 的 findings 步骤 FAIL、脚本退出非 0；把同一份台账改成收敛 → 同一步 PASS。
++- Given：`review/findings.json` 存在，`findings.mjs status` 退出 1（未收敛）
++- When：跑 54（dry-run 也跑同一段检查）
++- Then：输出里出现 `FAIL` 的 findings 行，末尾「结论: 没通过」，退出码 1
++
++### P2 无台账：不能把老发版卡死
++
++- 为什么是 P1：0.18.8 及以前没有台账，本仓库现在也没有。这条接错，所有老发版会当场变红。
++- 独立验收：没有 `review/findings.json` 时，该步骤 PASS 且输出写明「无台账」；54 其它步骤的行为一字不变。
++- Given：`review/findings.json` 不存在
++- When：跑 54 dry-run
++- Then：该行 `OK`，detail 含「无台账」，不因为这一条产生任何 FAIL
++
++### P3 步骤可见、编号接在门禁步骤之后
++
++- 为什么：发版失败时人只读输出。步骤必须是**具名编号行**，不能藏在一个大 if 里、也不能挤进别的步骤。
++- 独立验收：dry-run 输出里能搜到该步骤；编号排在现有最后一个 6x 门禁步骤（`6g/7` 变异）之后。
++- Given：任意一次 54 运行
++- When：看检查段输出
++- Then：出现 `[6h/7] findings 收敛`（或 FAIL 同格式）
++
++### P4 防删：check-54-skip 守它
++
++- 为什么：门禁被删掉时，测试还绿——那是假绿（本仓库 2026-11-05 冷读红 1 就是「步骤被放进永远不跑的分支」）。
++- 独立验收：把 54 里的 findings 段落删掉，`node review/check-54-skip.mjs` 必红；恢复后必绿。
++- Given：`review/check-54-skip.mjs`
++- When：跑它
++- Then：新增断言覆盖「步骤存在 / 顺序 / 无台账 PASS / 有台账不可跳过」
++
++## 功能要求
++
++- **FR-1** 台账路径固定为 `<源仓>/review/findings.json`（与 `gate-spec.json` / `verdict.json` 同一口径，都用 `$SrcRepo`）。
++- **FR-2** 存在台账时跑 `node review/findings.mjs status`：退出 0 → PASS；非 0 → FAIL（并因此阻止发版，54 已有的 `$fail` 汇总负责）。
++- **FR-3** 台账不存在时**不调用 node**，直接 PASS，detail 写「无台账（review/findings.json 不存在），跳过」。
++- **FR-4** 该步骤在有台账时不可跳过：`gate-spec.notSkippable` 加 `findings`（54 的参数校验已经按这份清单拦 `-Skip`）。
++- **FR-5** 判定不许被环境变量带偏：`findings.mjs` 认 `LAZY_TOOLS_FINDINGS_FILE`，54 里把它钉死成上面那一份，跑完复原
++  （否则一个残留环境变量就能把门禁指去一份「收敛了」的假台账 = fail-open）。
++- **FR-6** 步骤编号 `6h/7`，物理位置放在「4d. 流程一致性 + 变异」之后、「5. GitHub 凭据」之前。
++- **FR-7** `review/check-54-skip.mjs` 增加静态断言：步骤存在、排在 6g 之后、无台账 PASS、调用 `findings.mjs status`、台账路径来自 `$SrcRepo`、gate-spec 列它不可跳过。
++
++## 成功标准（可测）
++
++- **SC-1** `node review/check-54-skip.mjs`（cwd=`_tools/lazy-tools`）→ 末行 `54 skip：PASS`，`exit 0`。
++- **SC-2** `node test/smoke.mjs`（cwd=`_tools/lazy-tools`）→ `smoke: 128 项全过`，`exit 0`。
++- **SC-3** `[scriptblock]::Create((Get-Content -Raw perf-/54-发版.ps1))` 不抛异常。
++- **SC-4** `git diff --stat` 只包含本票改的 4 个文件（见 plan）。
++- **SC-5** 两条路径**真跑**（不是只读代码）：无台账 PASS、有台账且未收敛 FAIL、有台账且收敛 PASS，三条都要有真实输出。
++- **SC-6** `-Skip findings -Why ...` 必须被拒（退出非 0），不能被跳过。
++
++## 不做
++
++- 不改 `review/findings.mjs`、`review/gate.mjs` 的判定逻辑；
++- 不改 54 的其它步骤、其它编号、退出码语义；
++- 不改 54 里 `$SrcRepo` 的硬编码（那是相邻缺陷，见 plan「已知相邻缺陷」，本票只记录不修）；
++- 不自动生成/写回台账（B1 已做，本票只读）；
++- 不提交、不推送、不建 Release，不跑 `54 -Apply`。
++
++## 回滚
++
++- 代码回滚（本票未提交，工作区直接还原）：
++  `git checkout -- "perf-/54-发版.ps1" _tools/lazy-tools/review/check-54-skip.mjs _tools/lazy-tools/review/gate-spec.json _tools/lazy-tools/PROCESS.md`
++  并删掉本目录（`perf-/票-findings-54/`）。
++- 数据/配置回滚：无。本票不写入任何运行期数据；54 的 findings 步骤是只读（只跑 `findings.mjs status`）。
++
++## 待确认
++
++- 无 [NEEDS CLARIFICATION]。唯一的取舍（无台账时也禁止 `-Skip findings`）写在 plan「决策」第 3 条，理由：更严不会造成假绿。
+diff --git a/perf-/票-findings-54/tasks.md b/perf-/票-findings-54/tasks.md
+new file mode 100644
+index 0000000..6effc35
+--- /dev/null
++++ b/perf-/票-findings-54/tasks.md
+@@ -0,0 +1,51 @@
++﻿# Tasks：把 findings 收敛接进 54 发版
++
++- 对应 plan：`perf-/票-findings-54/plan.md`
++- 票号：findings-54
++- 结果：全部完成（2026-11-06 22:1x）—— **未提交、未推送、未跑 `-Apply`**（票的边界）
++
++## 阶段 1：准备
++
++- [x] T1 读完 `perf-\54-发版.ps1` 现状：门禁编号到 `6g/7`（变异），`$fail` 汇总在「5. 凭据」之前 ⇒ 新步骤号取 `6h/7`
++- [x] T2 确认 `findings.mjs status` 三条退出语义：0=收敛 / 1=未收敛 / 2=没台账或台账非法（`review/findings.mjs:88-111`）
++- [x] T3 确认 `gate-spec.skippable` 被 `check-54-skip` 精确断言成 `["smoke","encoding"]` ⇒ findings 只能进 `notSkippable`，不能进 `skippable`
++
++## 阶段 2：实现
++
++- [x] T4 `perf-\54-发版.ps1`：新增「4e. findings 收敛」`6h/7`（+44 行）。无台账：不调 node、直接 PASS；有台账：钉死 `LAZY_TOOLS_FINDINGS_FILE` 后跑 `findings.mjs status`，退出 0 PASS / 非 0 FAIL
++- [x] T5 `review/gate-spec.json`：`notSkippable` 加 `findings`；`releaseConditions` 加 `findings converge (when ledger exists)`
++- [x] T6 `review/check-54-skip.mjs`：+6 条静态断言、+1 条运行时断言（`-Skip findings` 必须退出非 0）
++- [x] T7 `PROCESS.md` §二：加「附加条件门禁」一段；「不可跳过」那行补 `findings（有台账时）`
++- [x] T8 BOM 复验：`perf-\54-发版.ps1`、`PROCESS.md`、三份新文档全是 `EF BB BF`；`43-编码体检` exit 0（0 问题）
++
++## 阶段 3：测试
++
++- [x] T9 `node review/check-54-skip.mjs` → `54 skip：PASS`，16 条 PASS（原 9 + 新 7）
++- [x] T10 `node test/smoke.mjs` → `smoke: 128 项全过`（exit 0）
++- [x] T11 `node review/findings.test.mjs` → `findings：PASS 6/6`
++- [x] T12 变异：把 54 的「4e」整段删掉（在副本上做，真文件没动）→ 5 条 FAIL ＋ `54 skip：FAIL`（exit 1）；真文件复跑 PASS
++- [x] T13 真跑三种台账状态（沙箱版 54，只替换 `$SrcRepo` / `$PubRepo` 两行路径）：
++      无台账 → `OK 无台账…`；未收敛 → `FAIL round=1 open=1 converged=false（退出码 1）`；收敛 → `OK round=3 open=0 converged=true（退出码 0）`
++- [x] T14 环境变量投毒：台账未收敛 + `LAZY_TOOLS_FINDINGS_FILE` 指向一份收敛的假台账 → 仍 `FAIL`（钉死生效，没被带偏）
++- [x] T15 语法：PS 5.1 与 pwsh 7 下 `[scriptblock]::Create((Get-Content -Raw perf-/54-发版.ps1))` 均不抛；
++      `git diff --stat` = 4 个文件 +73/−2，`git status` 只有这 4 个 M + 新文档目录
++
++## 阶段 4：交付
++
++- [x] T16 交付四段（做了什么 / 为什么 / 证据 / 怎么撤）发给主会话
++- [x] T17 未提交、未推送、未建 Release、未跑 `54 -Apply`
++
++## 依赖
++
++- T4 依赖 T2、T3
++- T5 / T6 依赖 T4（断言要匹配真实写出来的代码行）
++- T9–T15 依赖 T4–T8
++
++## 验收
++
++- [x] SC-1 `node review/check-54-skip.mjs` → PASS
++- [x] SC-2 `node test/smoke.mjs` → 128 项全过
++- [x] SC-3 PowerShell 语法不抛
++- [x] SC-4 `git diff --stat` 只含本票 4 个文件
++- [x] SC-5 三条真跑路径都有输出（不是只读代码）
++- [x] SC-6 `-Skip findings` 退出非 0
+diff --git a/perf-/角色与直派-分工-20261106.md b/perf-/角色与直派-分工-20261106.md
+new file mode 100644
+index 0000000..73e252f
+--- /dev/null
++++ b/perf-/角色与直派-分工-20261106.md
+@@ -0,0 +1,61 @@
++﻿# 角色 vs 直派：分工与优劣势（2026-11-06 实测汇总）
++
++> 数据来源：4 组真实对照。n 很小，结论是“方向”，不是统计显著。
++
++## 1. 四组结果
++
++| 实验 | A 直派 | B 角色 | 赢家 |
++|---|---|---|---|
++| 小任务（B2 审阅）复测 | 4m03 PASS，实跑+哈希 | 3m00 PASS，静态核对 | 速度 B，证据 A |
++| 多文件审计（5 文件） | 11m48，8 findings，2 blocking | 10m29，10 findings，1 blocking（save_groups） | B（多抓一条 blocking） |
++| findings 接 54 | 7m17，2 文件，无 env 钉死 | 6m54，4 文件+3 文档，env 钉死 | 净时间 A，质量 B |
++| B3 mutation score | 4 文件，12/12 测试，查 mutate 退出码 | 4 文件+3 文档，8/8 测试，不查退出码 | A（代码更严） |
++
++## 2. 分工
++
++### 直派更合适
++
++- 单文件 / 小范围实现；
++- 写工具、测试、脚本；
++- 代码正确性优先、契约不复杂的票；
++- 需要“少一层文档、直接看 diff”的任务。
++
++**证据：** B3 直派 12 项测试、检查 mutate 退出码；角色版 8 项且漏了退出码。
++
++### 角色更合适
++
++- 独立 review / 多文件审计；
++- 发版门禁、安全边界（“漏了会出事”）；
++- 需要固定交付物/可交接的票；
++- 需要独立视角，防止主代理锚定。
++
++**证据：** findings 接 54，角色版钉死 env、加 gate-spec/PROCESS/运行时测试；多文件审计角色版多抓到 save_groups 无守卫。
++
++## 3. 速度
++
++- 角色不是稳定更快，也不是稳定更慢；
++- 观察到的差距都在 1 分钟内（6:54 vs 7:17、10:29 vs 11:48），n=1，不能当承诺；
++- 真正决定时间的是“验证深度”和“任务边界”，不是角色本身。
++
++## 4. 质量
++
++- 角色会提高**覆盖/流程完整度**，但不保证**代码更严**；
++- 角色自己也会制造测试 bug（findings 54 的文案顺序断言）；
++- 直派也能写出更严的代码（B3 的 mutate 退出码检查）。
++
++## 5. 路由规则（写进 skill）
++
++| 任务 | 路由 |
++|---|---|
++| 小改 / 单文件 / 工具脚本 | **直派**，不套 spec/plan/tasks |
++| 多文件实现 + 明确验收 | `build:`，但必须 review |
++| 审计 / 冷读 / 发版边界 | `review:` 或独立冷读 |
++| 想法评估 | `research:`，只给建议 |
++| 发版门禁 | `review:` + 独立冷读，不用 build |
++
++**默认**：先直派；只有“独立评审/发版边界/多文件契约”才升级到角色。
++
++## 6. 一句话
++
++**直派买“快和代码直接”，角色买“独立和覆盖”；两者不是替代关系，是按任务边界切换。**
++**没有数据支持“角色普遍提效”；数据支持“角色在发版/审计边界上更不容易漏”。**
+diff --git a/perf-/验证记录-20261106.md b/perf-/验证记录-20261106.md
+new file mode 100644
+index 0000000..3e4199d
+--- /dev/null
++++ b/perf-/验证记录-20261106.md
+@@ -0,0 +1,77 @@
++﻿# 验证记录（2026-11-06 晚）
++
++> 只记“跑过什么、输出什么、结论是什么”；不把没跑过的写成绿。
++
++## 1. B1 findings 集成
++
++临时台账 + `LAZY_TOOLS_FINDINGS_FILE`，不碰仓库：
++
++| 用例 | 期望 | 实际 |
++|---|---|---|
++| open blocking（round1） | exit 1，`blockingOpen=1`，`converged=false` | PASS |
++| fixed（round3 / lastNewRound1 / open0） | exit 0，`converged=true` | PASS |
++| deferred 无 reason | exit 2，报 `deferred 必须写 reason` | PASS |
++| 台账缺失 | exit 2，报 `没有台账` | PASS |
++
++```
++findings 集成：PASS 4/4
++```
++
++## 2. gate --findings
++
++| 用例 | 期望 | 实际 |
++|---|---|---|
++| 未收敛台账 | gate exit 1，`[gate] findings 收敛: FAIL` | PASS |
++| 已收敛台账 | gate exit 0，`[gate] findings 收敛: PASS` + `门禁：PASS` | PASS |
++| 台账缺失 | gate exit 1，findings 步 FAIL | PASS |
++
++```
++gate findings 集成：PASS 3/3
++```
++
++## 3. 角色 label 真机（reload 后）
++
++- 第一次（reload 前）：`description: "review: build the plugin"` → `role=build`，edit/write=true。**这是旧代码，未热加载**。
++- 禁用/启用 lazy-tools 后再测：同 label → `role=review`、`allowGroups=[browser-heavy]`、`source=label`、`edit=false`、`write=false`。
++
++**结论：label 首段优先的修复在真机生效；但代码改动必须 reload，不能只看单元测试。**
++
++## 4. save_groups 受管守卫真机
++
++`review:` 子代理调用 `lazy_tools_save_groups`：
++
++```json
++{
++  "ok": false,
++  "error": "受管会话：工具面由角色策略决定，不允许写全局组配置；请编辑 groups 文件或 managedRoles。",
++  "saved": null
++}
++```
++
++**结论：A/B 评审发现的 blocking 已真机堵住，review 不能再写全局组配置。**
++
++## 5. schedule 真机
++
++- 顶层 `schedule_list`：`{"items":[],"total":0}`，`schedule` 组 `on=true / visible=4`，无需 enable；
++- `build:` 子代理调用 `schedule_list`：`{"code":"subagent_session"}`；
++- `review:` 子代理：`tasks` 组被角色隐藏，看不到 schedule。
++
++## 6. 测试套件
++
++```
++smoke: 128 项全过
++baseline: 7 条 FAIL 0
++adversarial: 29 / RED 0
++gate: PASS（含校准）
++findings 单元: 6/6
++encoding: 271 项干净
++```
++
++## 7. 仍未验证
++
++- A1 完整 `research → build → review → converge` 一次跑完；
++- 54 默认接 findings（现在只是 `gate --findings` 可选）；
++- B3/B4/B5；
++- 真机 UI/宿主行为。
++
++**一句话：这一轮测出来一个真问题（reload 前 label 仍解析成 build），也验证了两个修复（label、save_groups）；没跑过的仍列在“仍未验证”，不算绿。**
 ```
 
 
@@ -1941,6 +7825,9 @@ export function mountBridge(ctx, host, options) {
                     host.record('policy write', new Error(detail))
                     return send(500, { error: detail })
                   }
+                  // 2026-11-06（元宝 P0）：写盘成功后必须追平 mtime，否则下一次 agent/created
+                  // 会误判"文件被外部改过"再热重载一遍，等于一次勾选框重建两轮。
+                  if (typeof options.setPolicyMtime === 'function') options.setPolicyMtime(policyFileMtime())
                   options.applyPolicy(merged)
                 } catch (error) {
                   return send(500, { error: `保存策略失败：${String((error && error.message) || error)}` })
@@ -2174,7 +8061,11 @@ function resolveSchemastery() {
   if (home) {
     const profilesRoot = join(home, '.dsh', 'profiles')
     if (existsSync(profilesRoot)) {
-      for (const entry of readdirSync(profilesRoot)) candidates.push(join(profilesRoot, entry))
+      try {
+        for (const entry of readdirSync(profilesRoot)) candidates.push(join(profilesRoot, entry))
+      } catch {
+        // 目录存在但不可读（权限/临时故障）：退回 .dsh 根继续找，不让整个插件 import 失败。
+      }
     }
     candidates.push(join(home, '.dsh'))
   }
@@ -2860,9 +8751,9 @@ export function createHost(ctx) {
 import { createHost } from './host.js'
 import { Config } from './config.js'
 import { mountBridge, readStoredPolicy, readStoredPolicyStrict, readPolicyRaw, clientPing, readUserGroups, writeUserGroups, applyPolicyPatch, policyFileMtime, writeStoredPolicy } from './api.js'
-import { loadUsage, saveUsage, recordUsage, isToolHot, LEVEL_DAYS } from './usage.js'
+import { loadUsage, saveUsage, recordUsage, isToolHot, hotRatio as usageHotRatio, LEVEL_DAYS } from './usage.js'
 import { suggestGroups, normalizeAutoMode, CORE_TOOLS } from './autogroups.js'
-import { normalizeManagedRoles, resolveManagedRole, isAllowedByPolicy, auditManagedRoles, labelRoleCandidates, labelOfSession } from './roles.js'
+import { applyManagedRolesPatch, normalizeManagedRoles, resolveManagedRole, isAllowedByPolicy, auditManagedRoles, labelRoleCandidates, labelOfSession } from './roles.js'
 import { createPrompt, mountPromptSection } from './prompt.js'
 import { createTools } from './tools/index.js'
 
@@ -2889,7 +8780,23 @@ const CUA_SCREEN =
 const CUA_INPUT =
   're:^cua_driver_native__(bring_to_front|browser_(click|dialog|download|navigate|pointer|prepare|set_input_files|type)|click|clipboard_write|double_click|drag|end_session|escalate_session|hotkey|install_ffmpeg|invoke_menu|kill_app|launch_app|move_cursor|page|press_key|replay_trajectory|right_click|scroll|set_(agent_cursor_(enabled|motion|theme)|config|value|window_frame)|start_(recording|session)|stop_recording|type_text|zoom)$'
 
+// 受管角色允许隐藏的 CORE 写工具：review/research 要能真正只读（read/pwsh/glob/grep 仍保留）。
+// 这正是 2026-11-06 实测的边界：以前所有 CORE 都不能藏，review 只能靠提示词。
+const ROLE_HIDEABLE_CORE = new Set(['edit', 'write'])
+
 const DEFAULT_GROUPS = [
+  {
+    id: 'web',
+    match: ['web_search', 'web_fetch', 'platform_search', 'domain_search', 'research', 'read_page', 'x_search', 'multi_search', 'advanced_search', 'video_search', 'weather', 'cache_search'],
+    title: '搜索·联网',
+    defaultOn: false,
+  },
+  {
+    id: 'schedule',
+    match: ['schedule_create', 'schedule_list', 'schedule_view', 'schedule_edit'],
+    title: '定时任务',
+    defaultOn: true,
+  },
   {
     id: 'cua-screen',
     match: [CUA_SCREEN],
@@ -3057,6 +8964,9 @@ export function apply(ctx, config) {
         // universal：这个组的匹配式能匹配**任意名字**（`*` / `re:.*`）—— 与工具数量无关地判定，
         // 所以 cua_* 这类前缀组不会被误伤（2026-10-31，回答「宿主改名追不动」）。
         const sentinel = '\u0000lazy-tools-probe\u0000'
+        // 2026-11-06（冷读红 2）：单探针可被 re:^[a-z0-9_]+$ 绕过；用多个异形探针，
+        // 全中才算“万能匹配”。前缀组不会全中，字面枚举也不会。
+        const probes = ['zz_probe_alpha', 'probe_beta_9', '000_probe', 'x_y_z9', 'zzprobealpha']
         // 2026-11-05（外部审阅抓到的 P0）：V8 在**首次 test() 时才编译**正则 ——
         // 超长模式会在 test 抛 SyntaxError，把整个 apply 带崩（加载即失败）。
         // 所以这里真的执行一次 test；抛错的匹配式按无效处理并记账，不许逃出 apply。
@@ -3073,7 +8983,7 @@ export function apply(ctx, config) {
           }
         }
         res = tested
-        const universal = res.some((re) => re.test(sentinel))
+        const universal = res.some((re) => probes.every((probe) => re.test(probe)))
         return {
           ...rest,
           res,
@@ -3115,10 +9025,24 @@ export function apply(ctx, config) {
   }
   let rolesGroupSig = ''
   const auditHitsSeen = new Set()
-  const refreshManagedRoles = (force = false) => {
+  const refreshManagedRoles = (force = false, hadRolesOverride = null) => {
     if (!roleSource) {
+      // 只有「从有角色变成没角色」才需要解锁现存会话；启动时本来就没角色，别遍历重建。
+      const hadRoles = hadRolesOverride === null ? Boolean(policy.managedRoles) : Boolean(hadRolesOverride)
       policy.managedRoles = null
       rolesGroupSig = ''
+      if (hadRoles) {
+        try {
+          for (const agent of host.agentList()) {
+            const st = states.get(agent)
+            if (!st) continue
+            st.managed = null
+            if (typeof rebuild === 'function') rebuild(agent)
+          }
+        } catch (error) {
+          host.record('managedRoles rebuild', error)
+        }
+      }
       return
     }
     const groupIds = groups.map((g) => g.id)
@@ -3474,7 +9398,7 @@ export function apply(ctx, config) {
     const visibleAfterLift = host.toolNames(agent)
     const source = visibleAfterLift
     const wanted = st.managed
-      ? source.filter((name) => !CORE_TOOLS.has(name) && !isAllowedByPolicy(st.managed, name, groupOf))
+      ? source.filter((name) => (!CORE_TOOLS.has(name) || ROLE_HIDEABLE_CORE.has(name)) && !isAllowedByPolicy(st.managed, name, groupOf))
       : source.filter((name) => hiddenBy(st, name))
     // 2026-11-04（与别名/scoped 工具共存）：宿主只允许 mask **全局工具**，
     // 别的插件注册在 agent 作用域的工具（如别名转发壳）天然不可 restrict。
@@ -3624,7 +9548,7 @@ export function apply(ctx, config) {
       // 会话档位改过后 status 会和决策打架（组收起了还报 hot=true）。同一个判据，走同一个函数。
       const idleDaysView = sessionIdleDays(agent ? stateFor(agent) : null)
       const hotCount = inGroup.filter((name) => isToolHot(usageLedger, name, idleDaysView)).length
-      const hotRatio = inGroup.length === 0 ? 0 : Math.round((hotCount / inGroup.length) * 100) / 100
+      const hotRatio = usageHotRatio(hotCount, inGroup.length)
       const entry = {
         id: g.id,
         title: g.title || g.id,
@@ -3917,25 +9841,35 @@ export function apply(ctx, config) {
       },
       applyPolicy: (next) => {
         // 走 applyPolicyPatch：只改档位时天数跟着档位走（详见 api.js 里的注释）
+        const beforeRoles = JSON.stringify(roleSource || null)
+        const hadRolesBefore = Boolean(policy.managedRoles)
         const patch = Object.assign({}, next)
         // 冷读红 4b：设置页把 managedRoles **原样**塞进来会绕过归一化与审计 ——
         // allowGroups: [] 会静默把会话锁死，类型写错会让 isAllowedByPolicy 抛错（多给）。
         // 所以这里必须走和启动/热重载同一条归一化 + 审计。
         const touchesRoles = Object.prototype.hasOwnProperty.call(patch, 'managedRoles')
+        let explicitClear = false
         if (touchesRoles) {
-          patch.managedRoles = normalizeManagedRoles(patch.managedRoles)
-          if (patch.managedRoles === null) delete patch.managedRoles
+          // 2026-11-06（冷读红 1/B）：空对象是「清空角色」；无效输入保持原值。
+          const rolePatch = applyManagedRolesPatch(roleSource, patch.managedRoles)
+          explicitClear = rolePatch.explicitClear
+          if (!rolePatch.ignored) patch.managedRoles = rolePatch.next
+          else delete patch.managedRoles
         }
         applyPolicyPatch(policy, patch)
         if (touchesRoles) {
           // patch 里带了新角色表才换源；没带（=设置页没碰这一格）就保持原源 ——
           // 别拿「生效表」（可能已被审计删过条目）覆盖「配置源」。
-          if (patch.managedRoles) roleSource = patch.managedRoles
-          refreshManagedRoles(true)
+          if (explicitClear) roleSource = null
+          else if (patch.managedRoles) roleSource = patch.managedRoles
+          // 2026-11-06（元宝 P0）：角色表没变就不 refresh/rebuild；否则一次勾选框会把
+          // 所有存活会话的前缀缓存全废掉。
+          if (JSON.stringify(roleSource || null) !== beforeRoles) refreshManagedRoles(true, hadRolesBefore)
         }
         host.log('info', `policy updated via settings: ${JSON.stringify(policy)}`)
       },
       record: (where, error) => host.record(where, error),
+      setPolicyMtime: (v) => setPolicyMtime(v),
     })
     // 桥的返回值原来没人接（对面 2026-10-29 指出是死代码）：插件卸载后它还在回请求。
     // 挂到 ctx.effect 上，随插件生命周期一起关掉。
@@ -4009,6 +9943,9 @@ export function apply(ctx, config) {
   const applySessionPolicy = (agent, spec) => {
     if (!agent) return { error: 'no agent' }
     const st = stateFor(agent)
+    // 2026-11-06（元宝 P0）：受管会话的工具面由角色决定，st.modes 在 rebuild 里被忽略；
+    // 继续返回成功就是假成功。这里明确拒绝。
+    if (st.managed) return { error: '受管会话由角色决定工具面：mode / 收纳本对话不生效' }
     const input = spec || {}
     if (input.reset === true) {
       st.level = null
@@ -4483,14 +10420,21 @@ export function roleCandidatesFromLabel(label) {
  * 绝不扫第三段以后（那是任务摘要，正是误认的来源）。
  * 调用方按顺序挑「配过的那个」。
  */
+const ROLE_FIRST_SEGMENT = new Set(['review', 'build', 'research'])
+
 export function labelRoleCandidates(label) {
   if (typeof label !== 'string' || !label.trim()) return []
   const segs = label.trim().toLowerCase().split(/[:/|\s]+/).filter(Boolean)
   const ok = (part) =>
     !!part && /^[a-z0-9_-]{1,32}$/.test(part) && !GENERIC_LABEL_WORDS.has(part) && !/^\d+$/.test(part)
   const out = []
-  if (segs.length > 1 && ok(segs[1])) out.push(segs[1])
-  if (ok(segs[0])) out.push(segs[0])
+  // 2026-11-06（A/B 评审 F2）：显式角色必须优先第一段；
+  // 否则 `review: build the plugin` 会被当成 build，绕过 review 的只读面。
+  // MyGO 旧标签 `dsh-my-go:hermes: ...` 的第一段不是已知角色，仍按第二段取。
+  if (segs.length > 1 && ok(segs[1])) {
+    if (ROLE_FIRST_SEGMENT.has(segs[0])) out.push(segs[0], segs[1])
+    else out.push(segs[1], segs[0])
+  } else if (ok(segs[0])) out.push(segs[0])
   return out
 }
 /**
@@ -4629,6 +10573,25 @@ export function auditManagedRoles(managedRoles, groupIds) {
     if (!usable.length) out.dropped.push(key)
   }
   return out
+}
+
+/**
+ * 计算一次 managedRoles 补丁的结果（纯函数，便于测试）。
+ * 空对象 = 用户明确清空；normalize 失败 = 无效输入、保持原值。
+ */
+export function applyManagedRolesPatch(current, raw) {
+  const explicitClear = Boolean(raw && typeof raw === 'object' && !Array.isArray(raw) && Object.keys(raw).length === 0)
+  const normalized = normalizeManagedRoles(raw)
+  if (normalized === null && !explicitClear) {
+    return { next: current, changed: false, explicitClear: false, ignored: true }
+  }
+  const next = explicitClear ? null : normalized
+  return {
+    next,
+    changed: JSON.stringify(next || null) !== JSON.stringify(current || null),
+    explicitClear,
+    ignored: false,
+  }
 }
 
 ```
@@ -4863,7 +10826,7 @@ export function createGroupTools(deps) {
   const saveGroupsTool = {
   name: 'lazy_tools_save_groups',
   description:
-    '把 agent 分好的组写进 ~/.dsh/lazy-tools.groups.json 并立刻生效（长期有效，用户随时可手改）。会做安全校验：含常驻工具、少于 2 个、与现有组重叠过多都会被拒。',
+    '把 agent 分好的组写进 ~/.dsh/lazy-tools.groups.json（长期有效，用户随时可手改）。默认只写文件、下次会话生效；applyNow=true 才立刻生效（会打断本会话前缀缓存）。会做安全校验：含常驻工具、少于 2 个、与现有组重叠过多都会被拒。',
   parameters: {
     type: 'object',
     properties: {
@@ -4883,6 +10846,11 @@ export function createGroupTools(deps) {
   execute: async (args, exec) => {
     const agent = exec && exec.agent
     const incoming = Array.isArray(args && args.groups) ? args.groups : []
+    // 2026-11-06（A/B 评审 F1）：受管会话只能由角色决定工具面；save_groups 以前漏了守卫，
+    // review 虽然藏了 edit/write，却仍能改全局组配置。这里与 enable/disable 用同一判据。
+    if (agent && incoming.length && stateFor(agent).managed) {
+      return { error: '受管会话：工具面由角色策略决定，不允许写全局组配置；请编辑 groups 文件或 managedRoles。' }
+    }
     // 2026-10-30 合并：不传 groups = 要分类材料（原 lazy_tools_classify）。
     if (!incoming.length) {
       const namesU = unclassifiedNames(agent)
@@ -5933,6 +11901,11 @@ export function isToolHot(usage, toolName, idleDays, now = Date.now()) {
 
 export { DAY }
 
+/** 热度比例：显示与决策共用的唯一算法（不取整）。 */
+export function hotRatio(hotCount, total) {
+  return total === 0 ? 0 : hotCount / total
+}
+
 ```
 
 
@@ -6514,11 +12487,11 @@ window.__ModuleLoader__.load({
 ```js
 {
   "name": "dsh-tool-drawer",
-  "version": "0.18.7",
+  "version": "0.19.0",
   "private": false,
   "type": "module",
   "main": "lib/index.js",
-  "description": "On-demand tool groups for DeepSeek Harness: hide heavy tool sets from the context, open them on demand.",
+  "description": "On-demand tool groups and role-scoped tool surfaces for DeepSeek Harness: hide heavy tools, switch review/build/research by label.",
   "exports": {
     ".": "./lib/index.js",
     "./client": "./client.js",
@@ -6533,12 +12506,15 @@ window.__ModuleLoader__.load({
     "locale/*.json",
     "icon.svg",
     "README.md",
+    "README.en.md",
     "CHANGELOG.md",
     "DESIGN.md",
     "INTEROP.md",
     "POLICY.md",
     "LICENSE",
-    "test"
+    "test",
+    "skills",
+    "templates"
   ],
   "dsh": {
     "bundle": {
@@ -6581,7 +12557,39 @@ window.__ModuleLoader__.load({
 ### CHANGELOG.md
 
 ```js
-﻿## [0.18.7] - 2026-11-06
+﻿## [0.19.0] - 2026-11-06
+
+**角色工具面 + 门禁证据化**：
+
+- **角色 label 直接决定工具面**：`review:` / `build:` / `research:` 作为 label 第一段时优先识别；
+  `review:`/`research:` 隐藏 edit/write，`build:` 保留全量；label 第二段仍兼容 MyGO 的 `xxx:role`。
+- **受管会话不再能写全局组配置**：`lazy_tools_save_groups` 对 managed 会话直接拒绝，避免角色自己改全局面。
+- **`schedule` 组默认开**：官方 `@deepseek-ai/dsh-tool-schedule` 进默认 bundle；只给顶层 agent，子代理调用会被拒绝。
+- **findings 台账**：`review/findings.mjs`（status/validate/summarize）+ `review/findings.json`；收敛 = `round>=2 && open=0 && 连续两轮无新 finding`。
+- **门禁接入 findings**：`54` 的 `6h/7` 与 `gate --findings` 在有台账时不可跳过；**没有台账时 SKIP**，不卡老发版。
+- **变异分数**：`review/mutation-score.mjs`（元数据 + `--run` 击杀率），`gate --mutation-score`；每条 mutation 带 `protectedBy`。
+- **审计薄壳**：`review/audit.mjs` 只转发 gate 完整输出，不重写检查、不写 verdict；报告带 BOM。
+- **Release 说明带证据**：54 自动附冒烟/对抗/编码/一致性/变异/findings/冷读/制品 sha256/CI。
+- **README 中英文随包**：包内容检查要求 `package/README.en.md`。
+- **流程**：bug 三态、review 分级、小 CL/一票一行为、定时审计模板。
+
+测试：冒烟 128、对抗 29（RED 0）、校准 4、findings 6、mutation-score 12、gate PASS、编码 282 项干净；
+具体输出见本次 Release 的「验证证据」段。
+
+﻿## [0.18.8] - 2026-11-06
+
+**元宝 P0 队列（全部附复现/测试）**：
+
+- **清空角色真正生效**：`managedRoles:{}` 不再被 `delete` 后跳过，`roleSource` 置空并按变化刷新（原来返回 200 但运行时角色还在）。`POST /policy` 写盘后追平 `policyMtime`；`applyPolicy` 只在角色表真的变化时才 `refreshManagedRoles(true)`（原来合并后的补丁必带 `managedRoles`，勾一个复选框会重建两轮）。新增桥测试断言 `setPolicyMtime` 被调用。
+- **手写组万能匹配的结构防线**：哨兵可被 `re:^[a-z0-9_]+$` 绕过；新增“正则组覆盖本轮全部可隐藏工具（≥3）”的结构判定，命中即忽略并记账（`[60b]`）。
+- **受管会话的 `mode` / “收纳本对话”不再假成功**：`applySessionPolicy` 对受管会话直接返回错误（测试 `[61]` 断言），不再改一个被忽略的 `st.modes`。
+- **加载即崩的口子**：`config.js` 的 `readdirSync(profilesRoot)` 包 try/catch，目录不可读时退回 `.dsh` 根继续解析。
+- **hotRatio 显示与决策同源**：去掉 `Math.round`，不再出现“显示 0.3、决策 0.295”的边界漂移。
+- **save_groups 描述与实现一致**：默认只写文件、下次会话生效；`applyNow=true` 才立刻生效。
+
+测试：冒烟 126 项、对抗 29 项；新增 `[60c]` 晚注册、受管 mode 拒绝、mtime 值断言；refresh/config 的专门测试仍缺（冷读候选）。
+
+## [0.18.7] - 2026-11-06
 
 **复现并修复了一类「3 秒重建链」**（原始风暴日志的具体触发工具未验证，不宣称就是那一次）：
 
@@ -7423,7 +13431,13 @@ ull，不给结论）——把「首次成功率」变成可看的数。
 
 工具抽屉处理的就是这件事：平时用不上的工具组收起来，要用的时候再放出来。
 
-**状态：0.18.x。** 在一台机器上日常使用。配置面仍可能变化。Issue 和 PR 都欢迎，维护是尽力而为；需要稳定保证请自行 fork。DSH 若实现原生按需加载，这个项目应当退场。
+**状态：0.19.0。**
+
+> **0.19.0-dev 新增**：`review:` / `build:` / `research:` 角色 label（按 label 裁工具面）；
+> `review:`/`research:` 隐藏 edit/write；`findings` 台账与收敛判定；
+> mutation score 校准；`schedule` 官方包默认开启（只给顶层 agent）。
+> 这些还在测试，未发版。
+ 在一台机器上日常使用。配置面仍可能变化。Issue 和 PR 都欢迎，维护是尽力而为；需要稳定保证请自行 fork。DSH 若实现原生按需加载，这个项目应当退场。
 
 实测过的宿主：**DSH 2.0.20-next** 与 **2.0.21-next**（2.0.21 起 `pwsh` 被 `ops_*` 取代；插件不做版本分支，保护清单用两代并集，缺失的名字是空操作）。更早的版本未测。
 
@@ -8061,9 +14075,10 @@ README 的「省了多少」表格是这份数字的**唯一存放处**（2026-1
 import assert from 'node:assert/strict'
 import { apply } from '../lib/index.js'
 import { normalizePolicy, mergePolicyForStorage } from '../lib/api.js'
-import { isToolHot, recordUsage, LEVEL_DAYS, DAY } from '../lib/usage.js'
+import { hotRatio, isToolHot, recordUsage, LEVEL_DAYS, DAY } from '../lib/usage.js'
 import { createHost } from '../lib/host.js'
-import { auditManagedRoles, roleFromLabel, roleCandidatesFromLabel, labelOfSession, normalizeManagedRoles, resolveManagedRole } from '../lib/roles.js'
+import { CORE_TOOLS } from '../lib/autogroups.js'
+import { applyManagedRolesPatch, auditManagedRoles, roleFromLabel, roleCandidatesFromLabel, labelOfSession, normalizeManagedRoles, resolveManagedRole, isAllowedByPolicy, labelRoleCandidates } from '../lib/roles.js'
 import { readFileSync, writeFileSync, rmSync, utimesSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -8753,6 +14768,15 @@ async function main() {
   assert.equal(isToolHot(usage, 'vision_ocr', 1, stamp), false)
   assert.equal(isToolHot(usage, 'never_used', 7, stamp), false)
   assert.equal(isToolHot(usage, 'never_used', 0, stamp), true)
+  assert.equal(hotRatio(8, 27), 8 / 27, 'hotRatio 不许取整')
+  assert.ok(hotRatio(8, 27) < 0.3, '8/27 必须小于 0.3')
+  const roleBase = { x: { allowGroups: ['a'] } }
+  const cleared = applyManagedRolesPatch(roleBase, {})
+  assert.equal(cleared.next, null, '空对象必须清空角色')
+  assert.equal(cleared.changed, true, '清空要算变化')
+  const roleNorm = normalizeManagedRoles(roleBase)
+  const same = applyManagedRolesPatch(roleNorm, roleNorm)
+  assert.equal(same.changed, false, '相同角色表不该刷新')
   recordUsage(usage, 'dsh_browser_open', null, new Date(stamp))
   assert.equal(typeof usage.tools.dsh_browser_open, 'string')
   assert.equal(usage.groups.dsh_browser_open, undefined)
@@ -9523,6 +15547,31 @@ async function main() {
   assert.equal(sGuard.groups.find((g) => g.id === 'all').guarded, true, 'status 要如实标出这个组被忽略')
   ok('全匹配手写组被忽略并可见记账（宿主换名字也照样兜住）')
 
+  log('[60b] 手写组用正则绕过哨兵：结构判定仍要挡住')
+  const worldGuard2 = makeWorld()
+  for (const name of ['biz2_a', 'biz2_b', 'biz2_c']) {
+    worldGuard2.ctx.tools.register({ name, description: 'x', parameters: {}, output: {} })
+  }
+  apply(worldGuard2.ctx, { groups: [{ id: 'all2', match: ['re:^[a-z0-9_]+$'], defaultOn: false }], autoGroups: 'off' })
+  const agentGuard2 = worldGuard2.createAgent('agent-guard2')
+  assert.equal(worldGuard2.denyByAgent.get(agentGuard2).size, 0, '正则覆盖全部工具也必须被忽略')
+  const sGuard2 = await runTool(worldGuard2, 'lazy_tools_status', {}, agentGuard2)
+  assert.equal(sGuard2.groups.find((g) => g.id === 'all2').guarded, true, 'status 要标 guarded')
+  ok('正则绕过哨兵：结构判定兜住')
+
+  log('[60c] 万能匹配 + 晚注册：apply 时没有工具，注册后仍要挡住')
+  const worldGuard3 = makeWorld()
+  apply(worldGuard3.ctx, { groups: [{ id: 'all3', match: ['re:^[a-z0-9_]+$'], defaultOn: false }], autoGroups: 'off' })
+  for (const name of ['late_a', 'late_b', 'late_c']) {
+    worldGuard3.ctx.tools.register({ name, description: 'x', parameters: {}, output: {} })
+  }
+  const agentGuard3 = worldGuard3.createAgent('agent-guard3')
+  worldGuard3.fireToolsChange()
+  assert.equal(worldGuard3.denyByAgent.get(agentGuard3).size, 0, '晚注册也不能被万能组吞掉')
+  const sGuard3 = await runTool(worldGuard3, 'lazy_tools_status', {}, agentGuard3)
+  assert.equal(sGuard3.groups.find((g) => g.id === 'all3').guarded, true, 'status 要标 guarded')
+  ok('晚注册：万能组仍被挡住')
+
   // 2026-11-01：受管角色（默认关闭）—— preset / parentSession 决定策略，封闭默认，自愈不绕过。
   log('[61] 受管角色：preset 决定策略、封闭默认、自愈不绕过')
   const worldRole = makeWorld()
@@ -9565,10 +15614,71 @@ async function main() {
   const enableDef = worldRole.ctx.tools.get('lazy_tools_enable')
   const deniedEnable = await enableDef.execute({ group: 'role-web' }, { agent: workerRole })
   assert.ok(deniedEnable && deniedEnable.error && deniedEnable.error.includes('受管'), '受管会话里 enable 必须被拒')
+  const modeDef = worldRole.ctx.tools.get('lazy_tools_mode')
+  const deniedMode = await modeDef.execute({ collapseAll: true }, { agent: workerRole })
+  assert.ok(deniedMode && deniedMode.error && deniedMode.error.includes('受管'), '受管会话里 mode 必须明确拒绝')
+  const deniedSave = await runTool(worldRole, 'lazy_tools_save_groups', { groups: [{ id: 'role-new', match: ['role_fs_a', 'role_web_a'] }] }, workerRole)
+  assert.ok(deniedSave && deniedSave.error && deniedSave.error.includes('受管'), '受管会话里 save_groups 必须拒绝写全局组')
   ok('受管角色只认 preset/parentSession，封闭默认生效，自愈不绕过')
 
 
   // 2026-11-01：受管角色的 preset 竞态 —— Web UI 可能先用默认 preset 创建，再切回角色 preset。
+  log('[61b] label 角色：review/build/research 解析与工具面（CORE 不可藏）')
+  assert.deepEqual(labelRoleCandidates('review:任务'), ['review'], 'review:任务 第一段 review')
+  assert.deepEqual(labelRoleCandidates('build:改插件'), ['build'], 'build:改插件 第一段 build')
+  assert.deepEqual(labelRoleCandidates('research:查资料'), ['research'], 'research:查资料 第一段 research')
+  assert.deepEqual(labelRoleCandidates('dsh-my-go:hermes: 帮我改'), ['hermes', 'dsh-my-go'], 'MyGO 仍按第二段 hermes')
+  const roleMap = {
+    review: { allowGroups: ['browser-heavy'], unknown: 'hide' },
+    build: { allowGroups: ['*'], unknown: 'show' },
+    research: { allowGroups: ['search', 'browser-heavy'], unknown: 'hide' },
+  }
+  const groupOf = (name) => (name.startsWith('dsh_browser_') ? 'browser-heavy' : name.startsWith('web_') ? 'search' : null)
+  const labelAgent = (label) => ({ session: { header: { parentSession: 'role-parent', label } } })
+  assert.deepEqual(labelRoleCandidates('review: build the plugin'), ['review', 'build'], '显式 review 必须优先第一段')
+  assert.equal(resolveManagedRole(labelAgent('review: build the plugin'), roleMap).key, 'review', 'review 摘要含 build 也不能升级成 build')
+  assert.equal(resolveManagedRole(labelAgent('review:读'), roleMap).key, 'review', 'review label 必须解析成 review')
+  assert.equal(resolveManagedRole(labelAgent('build:改'), roleMap).key, 'build', 'build label 必须解析成 build')
+  assert.equal(resolveManagedRole(labelAgent('research:查'), roleMap).key, 'research', 'research label 必须解析成 research')
+  assert.equal(resolveManagedRole(labelAgent('whatever:做'), roleMap), null, '未知 label 不带角色')
+  assert.equal(isAllowedByPolicy({ role: roleMap.review }, 'dsh_browser_open', groupOf), true, 'review 允许 browser-heavy')
+  assert.equal(isAllowedByPolicy({ role: roleMap.review }, 'web_search', groupOf), false, 'review 不允许 search')
+  assert.equal(isAllowedByPolicy({ role: roleMap.research }, 'web_search', groupOf), true, 'research 允许 search')
+  assert.equal(isAllowedByPolicy({ role: roleMap.research }, 'dsh_browser_open', groupOf), true, 'research 允许 browser')
+  assert.equal(isAllowedByPolicy({ role: roleMap.build }, 'whatever', groupOf), true, 'build 不设限')
+  // CORE 边界：read/pwsh 仍保护；edit/write 已由 ROLE_HIDEABLE_CORE 允许受管角色隐藏。
+  for (const core of ['read', 'write', 'edit', 'pwsh', 'todo_write']) {
+    assert.equal(CORE_TOOLS.has(core), true, core + ' 必须在 CORE')
+  }
+  ok('label 三角色解析正确；CORE 工具不可被角色隐藏（只读只能靠提示词/沙箱）')
+
+  log('[61c] 受管角色能藏 edit/write（review 只读），build 不藏')
+  const worldCore = makeWorld()
+  for (const name of ['edit', 'write', 'core_a', 'core_b']) {
+    worldCore.ctx.tools.register({ name, description: 'x', parameters: {}, output: {} })
+  }
+  apply(worldCore.ctx, {
+    groups: [{ id: 'core-g', match: ['core_*'] }],
+    autoGroups: 'off',
+    managedRoles: {
+      'role-review': { allowGroups: ['core-g'], unknown: 'hide' },
+      'role-build': { allowGroups: ['*'], unknown: 'show' },
+    },
+  })
+  const coreReview = worldCore.createAgent('core-review', (agent) => {
+    agent.presets = { defaultId: 'cordis', composedPreset: () => 'role-review' }
+  })
+  const coreBuild = worldCore.createAgent('core-build', (agent) => {
+    agent.presets = { defaultId: 'cordis', composedPreset: () => 'role-build' }
+  })
+  const dCoreReview = worldCore.denyByAgent.get(coreReview)
+  const dCoreBuild = worldCore.denyByAgent.get(coreBuild)
+  assert.equal(dCoreReview.has('edit'), true, 'review 必须藏 edit')
+  assert.equal(dCoreReview.has('write'), true, 'review 必须藏 write')
+  assert.equal(dCoreReview.has('read'), false, 'review 不藏 read')
+  assert.equal(dCoreBuild.has('edit'), false, 'build 不藏 edit')
+  ok('受管角色能藏 edit/write；CORE 其余仍保护')
+
   log('[62] 受管角色：preset 在创建后才选中（竞态）')
   const worldRace2 = makeWorld()
   for (const name of ['race_fs_a', 'race_web_a']) {
@@ -10858,9 +16968,11 @@ async function main() {
     inject() { return () => {} },
   }
   const appliedPolicies = []
+  const appliedMtimes = []
   mountBridge(bridgeCtx, { own() {}, record() {} }, {
     getState: () => ({ ok: true }),
     applyPolicy: (next) => { appliedPolicies.push(next) },
+    setPolicyMtime: (v) => { appliedMtimes.push(v) },
     record() {},
   })
   assert.ok(typeof bridgeHandler === 'function', '桥要注册 handler')
@@ -10900,6 +17012,8 @@ async function main() {
   const withHeader = await callBridge('POST', '/lazy-tools/api/policy', { 'content-type': 'application/json', 'x-lazy-tools': '1' }, { level: 'low' })
   assert.equal(withHeader.code, 200, '带头必须放行：' + JSON.stringify(withHeader))
   assert.equal(appliedPolicies.length, 1, '放行后要真的改策略')
+  assert.equal(appliedMtimes.length, 1, '写盘后要追平 mtime')
+  assert.ok(Number(appliedMtimes[0]) > 0, '追平的 mtime 必须是有效值，不能是 0')
 
   const getState = await callBridge('GET', '/lazy-tools/api/state', {}, undefined)
   assert.equal(getState.code, 200, 'GET 不受 POST 头限制：' + JSON.stringify(getState))
@@ -11780,8 +17894,16 @@ main().catch((error) => {
   ok  两代宿主工具名（pwsh / ops_*）都在保护清单里
 [60] 手写组匹配整张表 → 忽略并记账（不依赖宿主工具名）
   ok  全匹配手写组被忽略并可见记账（宿主换名字也照样兜住）
+[60b] 手写组用正则绕过哨兵：结构判定仍要挡住
+  ok  正则绕过哨兵：结构判定兜住
+[60c] 万能匹配 + 晚注册：apply 时没有工具，注册后仍要挡住
+  ok  晚注册：万能组仍被挡住
 [61] 受管角色：preset 决定策略、封闭默认、自愈不绕过
   ok  受管角色只认 preset/parentSession，封闭默认生效，自愈不绕过
+[61b] label 角色：review/build/research 解析与工具面（CORE 不可藏）
+  ok  label 三角色解析正确；CORE 工具不可被角色隐藏（只读只能靠提示词/沙箱）
+[61c] 受管角色能藏 edit/write（review 只读），build 不藏
+  ok  受管角色能藏 edit/write；CORE 其余仍保护
 [62] 受管角色：preset 在创建后才选中（竞态）
   ok  preset 晚选中也能重算角色并重建（竞态兜住）
 [63] 隔离：放行后仍不可见 ⇒ 标成外部 deny
@@ -11891,7 +18013,7 @@ main().catch((error) => {
 [118] 陈旧 hideReport：上轮 transient、本轮退成别名壳，仍要锁
   ok  陈旧 hideReport：退成别名后仍锁，100 次事件有界
 
-smoke: 124 项全过
+smoke: 128 项全过
 
 [lazy-tools] tools.restrict: 这些名字不可限制（已逐个跳过，其余照常隐藏）：bad_name
 [lazy-tools] tools.restrict: 限制失败（非名单问题，已中止逐个重试）：restrict backend unavailable
@@ -11936,7 +18058,7 @@ ok  B "*" 万能式被忽略并记账  — 忽略 + 记账
 ok  B "re:.*" 万能式被忽略  — 忽略
 ok  B 坏正则 re:( 被忽略并记账  — 记账
 ok  B 超长 pattern（100k 字符）不许把 apply 带崩  — 可加载（坏组被忽略）
-ok  B ReDoS 回溯炸弹不挂死（子进程 3s 上限）  — 3s 内完成 (69ms)
+ok  B ReDoS 回溯炸弹不挂死（子进程 3s 上限）  — 3s 内完成 (64ms)
 
 === C. 脏数据文件（要求：不崩、能记账、默认值可用）===
 ok  C groups.json 非法 JSON  — health 仍可用
@@ -11969,30 +18091,65 @@ ok  E 组 id 与出厂组重名  — 可加载
   {
     "id": "smoke",
     "desc": "冒烟全过",
-    "cmd": ["test/smoke.mjs"],
+    "cmd": [
+      "test/smoke.mjs"
+    ],
     "expectExit": 0,
     "expectRegex": "smoke: \\d+ 项全过"
   },
   {
     "id": "adversarial",
     "desc": "对抗全过且 RED 0",
-    "cmd": ["test/adversarial.mjs"],
+    "cmd": [
+      "test/adversarial.mjs"
+    ],
     "expectExit": 0,
     "expectRegex": "RED 0"
   },
   {
     "id": "tool-names-view",
     "desc": "toolNames 优先 view（[105] 在冒烟里）",
-    "cmd": ["test/smoke.mjs"],
+    "cmd": [
+      "test/smoke.mjs"
+    ],
     "expectExit": 0,
     "expectRegex": "\\[105\\] toolNames 优先 view"
   },
   {
     "id": "empty-view",
     "desc": "空视图回退 schemas（[107]）",
-    "cmd": ["test/smoke.mjs"],
+    "cmd": [
+      "test/smoke.mjs"
+    ],
     "expectExit": 0,
     "expectRegex": "\\[107\\] 空视图必须回退 schemas"
+  },
+  {
+    "id": "gate-integrity",
+    "desc": "门禁完整性负向测试",
+    "cmd": [
+      "review/gate-integrity.test.mjs"
+    ],
+    "expectExit": 0,
+    "expectRegex": "门禁完整性：PASS"
+  },
+  {
+    "id": "config-readdir",
+    "desc": "config profiles 不可读时不崩",
+    "cmd": [
+      "test/config.test.mjs"
+    ],
+    "expectExit": 0,
+    "expectRegex": "config：PASS"
+  },
+  {
+    "id": "54-skip",
+    "desc": "54 skip 语义",
+    "cmd": [
+      "review/check-54-skip.mjs"
+    ],
+    "expectExit": 0,
+    "expectRegex": "54 skip：PASS"
   }
 ]
 

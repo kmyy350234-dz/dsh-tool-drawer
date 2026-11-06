@@ -1,4 +1,23 @@
-﻿## [0.18.8] - 2026-11-06
+﻿## [0.19.0] - 2026-11-06
+
+**角色工具面 + 门禁证据化**：
+
+- **角色 label 直接决定工具面**：`review:` / `build:` / `research:` 作为 label 第一段时优先识别；
+  `review:`/`research:` 隐藏 edit/write，`build:` 保留全量；label 第二段仍兼容 MyGO 的 `xxx:role`。
+- **受管会话不再能写全局组配置**：`lazy_tools_save_groups` 对 managed 会话直接拒绝，避免角色自己改全局面。
+- **`schedule` 组默认开**：官方 `@deepseek-ai/dsh-tool-schedule` 进默认 bundle；只给顶层 agent，子代理调用会被拒绝。
+- **findings 台账**：`review/findings.mjs`（status/validate/summarize）+ `review/findings.json`；收敛 = `round>=2 && open=0 && 连续两轮无新 finding`。
+- **门禁接入 findings**：`54` 的 `6h/7` 与 `gate --findings` 在有台账时不可跳过；**没有台账时 SKIP**，不卡老发版。
+- **变异分数**：`review/mutation-score.mjs`（元数据 + `--run` 击杀率），`gate --mutation-score`；每条 mutation 带 `protectedBy`。
+- **审计薄壳**：`review/audit.mjs` 只转发 gate 完整输出，不重写检查、不写 verdict；报告带 BOM。
+- **Release 说明带证据**：54 自动附冒烟/对抗/编码/一致性/变异/findings/冷读/制品 sha256/CI。
+- **README 中英文随包**：包内容检查要求 `package/README.en.md`。
+- **流程**：bug 三态、review 分级、小 CL/一票一行为、定时审计模板。
+
+测试：冒烟 128、对抗 29（RED 0）、校准 4、findings 6、mutation-score 12、gate PASS、编码 281 项干净；
+具体输出见本次 Release 的「验证证据」段。
+
+## [0.18.8] - 2026-11-06
 
 **元宝 P0 队列（全部附复现/测试）**：
 

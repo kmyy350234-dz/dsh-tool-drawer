@@ -11,7 +11,8 @@ import { apply } from '../lib/index.js'
 import { normalizePolicy, mergePolicyForStorage } from '../lib/api.js'
 import { hotRatio, isToolHot, recordUsage, LEVEL_DAYS, DAY } from '../lib/usage.js'
 import { createHost } from '../lib/host.js'
-import { applyManagedRolesPatch, auditManagedRoles, roleFromLabel, roleCandidatesFromLabel, labelOfSession, normalizeManagedRoles, resolveManagedRole } from '../lib/roles.js'
+import { CORE_TOOLS } from '../lib/autogroups.js'
+import { applyManagedRolesPatch, auditManagedRoles, roleFromLabel, roleCandidatesFromLabel, labelOfSession, normalizeManagedRoles, resolveManagedRole, isAllowedByPolicy, labelRoleCandidates } from '../lib/roles.js'
 import { readFileSync, writeFileSync, rmSync, utimesSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -1550,10 +1551,68 @@ async function main() {
   const modeDef = worldRole.ctx.tools.get('lazy_tools_mode')
   const deniedMode = await modeDef.execute({ collapseAll: true }, { agent: workerRole })
   assert.ok(deniedMode && deniedMode.error && deniedMode.error.includes('受管'), '受管会话里 mode 必须明确拒绝')
+  const deniedSave = await runTool(worldRole, 'lazy_tools_save_groups', { groups: [{ id: 'role-new', match: ['role_fs_a', 'role_web_a'] }] }, workerRole)
+  assert.ok(deniedSave && deniedSave.error && deniedSave.error.includes('受管'), '受管会话里 save_groups 必须拒绝写全局组')
   ok('受管角色只认 preset/parentSession，封闭默认生效，自愈不绕过')
 
 
   // 2026-11-01：受管角色的 preset 竞态 —— Web UI 可能先用默认 preset 创建，再切回角色 preset。
+  log('[61b] label 角色：review/build/research 解析与工具面（CORE 不可藏）')
+  assert.deepEqual(labelRoleCandidates('review:任务'), ['review'], 'review:任务 第一段 review')
+  assert.deepEqual(labelRoleCandidates('build:改插件'), ['build'], 'build:改插件 第一段 build')
+  assert.deepEqual(labelRoleCandidates('research:查资料'), ['research'], 'research:查资料 第一段 research')
+  assert.deepEqual(labelRoleCandidates('dsh-my-go:hermes: 帮我改'), ['hermes', 'dsh-my-go'], 'MyGO 仍按第二段 hermes')
+  const roleMap = {
+    review: { allowGroups: ['browser-heavy'], unknown: 'hide' },
+    build: { allowGroups: ['*'], unknown: 'show' },
+    research: { allowGroups: ['search', 'browser-heavy'], unknown: 'hide' },
+  }
+  const groupOf = (name) => (name.startsWith('dsh_browser_') ? 'browser-heavy' : name.startsWith('web_') ? 'search' : null)
+  const labelAgent = (label) => ({ session: { header: { parentSession: 'role-parent', label } } })
+  assert.deepEqual(labelRoleCandidates('review: build the plugin'), ['review', 'build'], '显式 review 必须优先第一段')
+  assert.equal(resolveManagedRole(labelAgent('review: build the plugin'), roleMap).key, 'review', 'review 摘要含 build 也不能升级成 build')
+  assert.equal(resolveManagedRole(labelAgent('review:读'), roleMap).key, 'review', 'review label 必须解析成 review')
+  assert.equal(resolveManagedRole(labelAgent('build:改'), roleMap).key, 'build', 'build label 必须解析成 build')
+  assert.equal(resolveManagedRole(labelAgent('research:查'), roleMap).key, 'research', 'research label 必须解析成 research')
+  assert.equal(resolveManagedRole(labelAgent('whatever:做'), roleMap), null, '未知 label 不带角色')
+  assert.equal(isAllowedByPolicy({ role: roleMap.review }, 'dsh_browser_open', groupOf), true, 'review 允许 browser-heavy')
+  assert.equal(isAllowedByPolicy({ role: roleMap.review }, 'web_search', groupOf), false, 'review 不允许 search')
+  assert.equal(isAllowedByPolicy({ role: roleMap.research }, 'web_search', groupOf), true, 'research 允许 search')
+  assert.equal(isAllowedByPolicy({ role: roleMap.research }, 'dsh_browser_open', groupOf), true, 'research 允许 browser')
+  assert.equal(isAllowedByPolicy({ role: roleMap.build }, 'whatever', groupOf), true, 'build 不设限')
+  // CORE 边界：read/pwsh 仍保护；edit/write 已由 ROLE_HIDEABLE_CORE 允许受管角色隐藏。
+  for (const core of ['read', 'write', 'edit', 'pwsh', 'todo_write']) {
+    assert.equal(CORE_TOOLS.has(core), true, core + ' 必须在 CORE')
+  }
+  ok('label 三角色解析正确；CORE 工具不可被角色隐藏（只读只能靠提示词/沙箱）')
+
+  log('[61c] 受管角色能藏 edit/write（review 只读），build 不藏')
+  const worldCore = makeWorld()
+  for (const name of ['edit', 'write', 'core_a', 'core_b']) {
+    worldCore.ctx.tools.register({ name, description: 'x', parameters: {}, output: {} })
+  }
+  apply(worldCore.ctx, {
+    groups: [{ id: 'core-g', match: ['core_*'] }],
+    autoGroups: 'off',
+    managedRoles: {
+      'role-review': { allowGroups: ['core-g'], unknown: 'hide' },
+      'role-build': { allowGroups: ['*'], unknown: 'show' },
+    },
+  })
+  const coreReview = worldCore.createAgent('core-review', (agent) => {
+    agent.presets = { defaultId: 'cordis', composedPreset: () => 'role-review' }
+  })
+  const coreBuild = worldCore.createAgent('core-build', (agent) => {
+    agent.presets = { defaultId: 'cordis', composedPreset: () => 'role-build' }
+  })
+  const dCoreReview = worldCore.denyByAgent.get(coreReview)
+  const dCoreBuild = worldCore.denyByAgent.get(coreBuild)
+  assert.equal(dCoreReview.has('edit'), true, 'review 必须藏 edit')
+  assert.equal(dCoreReview.has('write'), true, 'review 必须藏 write')
+  assert.equal(dCoreReview.has('read'), false, 'review 不藏 read')
+  assert.equal(dCoreBuild.has('edit'), false, 'build 不藏 edit')
+  ok('受管角色能藏 edit/write；CORE 其余仍保护')
+
   log('[62] 受管角色：preset 在创建后才选中（竞态）')
   const worldRace2 = makeWorld()
   for (const name of ['race_fs_a', 'race_web_a']) {
