@@ -1,10 +1,13 @@
 {
   "name": "dsh-tool-drawer",
-  "version": "0.19.2",
+  "version": "0.19.3",
   "private": false,
   "type": "module",
   "main": "lib/index.js",
   "description": "On-demand tool groups and role-scoped tool surfaces for DeepSeek Harness: hide heavy tools, switch review/build/research by label.",
+  "engines": {
+    "dsh": ">=0.2.2-rc.1 <0.3.0-0"
+  },
   "exports": {
     ".": "./lib/index.js",
     "./client": "./client.js",
@@ -38,6 +41,15 @@
       "inject": [
         "@deepseek-ai/dsh-client-ui-slots"
       ]
+    },
+    "compatibility": {
+      "dsh": ">=0.2.2-rc.1 <0.3.0-0",
+      "dshReleases": {
+        "0.2.2-rc.1": "compatible"
+      },
+      "profiles": [
+        "web"
+      ]
     }
   },
   "scripts": {
@@ -55,10 +67,13 @@
   "keywords": [
     "dsh",
     "dsh-plugin",
+    "deepseek-harness",
+    "tools",
     "tool-groups",
     "context",
     "tokens",
-    "lazy-loading"
-  ],
-  "author": "kmyy350234-dz"
+    "roles",
+    "lazy-loading",
+    "tool-exposure"
+  ]
 }

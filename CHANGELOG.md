@@ -1,3 +1,12 @@
+﻿## [0.19.3] - 2026-11-07
+
+**适配声明 + 宿主矩阵**：
+
+- 新增 `engines.dsh: ">=0.2.2-rc.1 <0.3.0-0"` 与 `dsh.compatibility`（惰性元数据；宿主 0.2.2 的 app-boot 只读 `engines.dsh`，不声称兼容字段会生效）；
+- 真实宿主验证：当前 DSH Web 进程的 `/lazy-tools/api/state` 返回 200；
+- CI 新增 `host-0-2-2`：装 `@deepseek-ai/dsh@0.2.2-rc.1`、建临时 profile、把本插件 compose 进去并 grep 确认；
+- 包内容仍不含 test/review。
+
 ﻿## [0.19.2] - 2026-11-07
 
 **安装包不再带测试**：

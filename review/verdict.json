@@ -1,6 +1,6 @@
 {
-  "version": "0.19.2",
-  "report": "review/coldread-0.19.2.md",
+  "version": "0.19.3",
+  "report": "review/coldread-0.19.3.md",
   "exists": true,
   "type": "cold",
   "red": 0,
@@ -9,7 +9,7 @@
   "unverified": 0,
   "baseline": 7,
   "baselineActual": 7,
-  "sha256": "14963f41ee5fb479",
+  "sha256": "9f8fed3d62f67ade",
   "ok": true,
   "reasons": []
 }

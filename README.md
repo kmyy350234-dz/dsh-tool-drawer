@@ -6,7 +6,7 @@
 
 工具抽屉处理的就是这件事：平时用不上的工具组收起来，要用的时候再放出来。
 
-**状态：0.19.2。**
+**状态：0.19.3。**
 
 > **0.19.0-dev 新增**：`review:` / `build:` / `research:` 角色 label（按 label 裁工具面）；
 > `review:`/`research:` 隐藏 edit/write；`findings` 台账与收敛判定；
