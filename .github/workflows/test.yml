@@ -31,7 +31,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
-      DSH_HOME: ${{ runner.temp }}/dsh-home
+      DSH_HOME: ${{ github.workspace }}/.dsh-home
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
