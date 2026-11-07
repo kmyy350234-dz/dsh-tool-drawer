@@ -112,6 +112,21 @@ check(
 
 
 // ---- 2026-11-06 V4：把"只改一份"和"执行器没接"也变成断言 ----
+check(
+  '流程：新版本冷读必须新代理',
+  /每个新版本[^\n]*新开子代理/.test(processText) && /新版本[^\n]*新子代理/.test(skillText),
+  'PROCESS/技能缺"每个新版本新开子代理"',
+)
+check(
+  '流程：同版本复读可复用',
+  /同一版本[^\n]*复读/.test(processText) && /同一版本[^\n]*复读/.test(skillText),
+  'PROCESS/技能缺"同一版本复读可复用"',
+)
+check(
+  'spec：冷读独立性策略',
+  Boolean(spec && /fresh-per-version/.test(spec.coldreadIndependence || '') && /same-version-recheck/.test(spec.coldreadIndependence || '')),
+  'gate-spec 缺 coldreadIndependence',
+)
 check('spec：consistency 不可跳过', Boolean(spec && Array.isArray(spec.skippable) && !spec.skippable.includes('consistency')), 'gate-spec 仍允许跳过 consistency')
 check('开发流程 §0 已降级', /不再作为派工硬门槛/.test(devText), '仍把写前查档当硬门槛')
 check('技能读 verdict.json', /verdict\.json/.test(skillText), '技能仍以报告末行字符串为准')

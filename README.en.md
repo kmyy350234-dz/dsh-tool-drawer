@@ -7,7 +7,7 @@
 > actually use on the bench, lets stale ones sink on their own — and brings a tool back with one call,
 > a guard that catches a real call and reopens it, or an explicit `lazy_tools_enable`.
 
-**Status:** `0.19.3`.
+**Status:** `0.19.4`.
 
 > **0.19.0-dev:** `review:` / `build:` / `research:` label-scoped tool surfaces;
 > `review:`/`research:` hide edit/write; findings ledger; mutation score;

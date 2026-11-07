@@ -1,0 +1,159 @@
+{
+  "matcher": [
+    {
+      "pattern": "foo",
+      "ok": true,
+      "matches": [
+        "foo"
+      ]
+    },
+    {
+      "pattern": "foo*",
+      "ok": true,
+      "matches": [
+        "foo",
+        "foobar"
+      ]
+    },
+    {
+      "pattern": "foo?bar",
+      "ok": true,
+      "matches": []
+    },
+    {
+      "pattern": "re:^cua_",
+      "ok": true,
+      "matches": [
+        "cua_x"
+      ]
+    },
+    {
+      "pattern": "re:[",
+      "ok": false,
+      "matches": []
+    },
+    {
+      "pattern": "*.js",
+      "ok": true,
+      "matches": [
+        "x.js"
+      ]
+    },
+    {
+      "pattern": "a.b",
+      "ok": true,
+      "matches": []
+    },
+    {
+      "pattern": "re:^[a-z0-9_]+$",
+      "ok": true,
+      "matches": [
+        "foo",
+        "foobar",
+        "fobar",
+        "cua_x",
+        "axb",
+        "abc_1"
+      ]
+    }
+  ],
+  "commonPrefix": [
+    {
+      "list": [],
+      "prefix": ""
+    },
+    {
+      "list": [
+        "cua_driver_native__a"
+      ],
+      "prefix": "cua_driver_native__a"
+    },
+    {
+      "list": [
+        "cua_driver_native__a",
+        "cua_driver_native__b",
+        "cua_driver_native__c"
+      ],
+      "prefix": "cua_driver_native__"
+    },
+    {
+      "list": [
+        "a",
+        "ab",
+        "abc"
+      ],
+      "prefix": "a"
+    },
+    {
+      "list": [
+        "x",
+        "y"
+      ],
+      "prefix": ""
+    }
+  ],
+  "picks": [
+    {
+      "a": 1,
+      "b": 2,
+      "fallback": 3,
+      "number": 1,
+      "ratio": 1
+    },
+    {
+      "a": "NaN",
+      "b": 2,
+      "fallback": 3,
+      "number": 2,
+      "ratio": 1
+    },
+    {
+      "a": "NaN",
+      "b": "NaN",
+      "fallback": 3,
+      "number": 3,
+      "ratio": 1
+    },
+    {
+      "a": 0.01,
+      "b": 1,
+      "fallback": 0.3,
+      "number": 0.01,
+      "ratio": 0.05
+    },
+    {
+      "a": 12,
+      "b": 1,
+      "fallback": 0.3,
+      "number": 12,
+      "ratio": 1
+    }
+  ],
+  "compile": [
+    {
+      "id": "web",
+      "res": [
+        "/^web_.*$/"
+      ],
+      "manual": false,
+      "universal": false,
+      "expect": 2
+    },
+    {
+      "id": "manual",
+      "res": [
+        "/^.*$/"
+      ],
+      "manual": true,
+      "universal": true,
+      "expect": null
+    }
+  ],
+  "records": [
+    {
+      "where": "group pattern",
+      "message": "无效的匹配式 \"re:[\"（组 bad），已忽略"
+    }
+  ],
+  "logs": []
+}

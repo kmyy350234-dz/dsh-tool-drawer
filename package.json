@@ -1,6 +1,6 @@
 {
   "name": "dsh-tool-drawer",
-  "version": "0.19.3",
+  "version": "0.19.4",
   "private": false,
   "type": "module",
   "main": "lib/index.js",
@@ -53,7 +53,8 @@
     }
   },
   "scripts": {
-    "test": "node test/smoke.mjs && node test/adversarial.mjs"
+    "test": "node test/smoke.mjs && node test/adversarial.mjs && node test/characterize.mjs --compare && node test/characterize-state.mjs --compare && node review/mutate.mjs",
+    "test:fast": "node test/smoke.mjs && node test/adversarial.mjs"
   },
   "license": "MIT",
   "repository": {

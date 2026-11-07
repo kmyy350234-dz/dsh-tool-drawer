@@ -34,5 +34,6 @@
   "humanReview": {
     "release": false,
     "publicActions": true
-  }
+  },
+  "coldreadIndependence": "fresh-per-version; reuse-only-for-same-version-recheck"
 }

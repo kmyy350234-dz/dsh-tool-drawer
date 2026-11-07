@@ -57,7 +57,7 @@ try {
   verdict = null
 }
 if (verdictFileExists && process.env.CI !== 'true') {
-  const judged = evaluateVerdict(verdict, pkg.version)
+  const judged = evaluateVerdict(verdict, pkg.version, { checkReport: true, baseDir: root })
   if (verdict && typeof verdict === 'object') {
     console.log(`冷读裁决：type=${verdict.type} red=${verdict.red} unverified=${verdict.unverified} ok=${verdict.ok}`)
   }

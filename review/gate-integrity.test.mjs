@@ -1,6 +1,7 @@
 // 门禁完整性：负向测试冷读裁决（JSON 块）+ verdict 校验 + 变异归因唯一性。
 // 用法：node review/gate-integrity.test.mjs
 import { spawnSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { cpSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
@@ -63,6 +64,22 @@ check('verdict：exists=false 必须失败', evaluateVerdict({ ...shape, exists:
 check('verdict：sha256 空必须失败', evaluateVerdict({ ...shape, sha256: '' }, version).ok === false)
 check('verdict：baselineActual 不符必须失败', evaluateVerdict({ ...shape, baseline: 999 }, version).ok === false)
 check('verdict：A+B 不符必须失败', evaluateVerdict({ ...shape, trackA: 1, trackB: 1 }, version).ok === false)
+const reportDir = mkdtempSync(join(tmpdir(), 'verdict-report-'))
+try {
+  const reportFile = join(reportDir, 'report.md')
+  const reportText = '# cold\n\n```verdict\n{"baseline":7,"unverified":0,"red":0,"A":0,"B":0}\n```\n'
+  writeFileSync(reportFile, reportText)
+  const hash = createHash('sha256').update(reportText).digest('hex').slice(0, 16)
+  const reportShape = { ...shape, report: 'report.md', sha256: hash }
+  const opts = { checkReport: true, baseDir: reportDir }
+  check('verdict：报告存在且 hash 对 → 通过', evaluateVerdict(reportShape, version, opts).ok === true)
+  check('verdict：报告不存在必须失败', evaluateVerdict({ ...reportShape, report: 'missing.md' }, version, opts).ok === false)
+  check('verdict：报告 hash 不符必须失败', evaluateVerdict({ ...reportShape, sha256: 'deadbeefdeadbeef' }, version, opts).ok === false)
+  writeFileSync(join(reportDir, 'directed.md'), '# x\n本轮改了什么：这是一份定向报告。\n')
+  check('verdict：定向报告必须失败', evaluateVerdict({ ...reportShape, report: 'directed.md', sha256: createHash('sha256').update(readFileSync(join(reportDir, 'directed.md'))).digest('hex').slice(0, 16) }, version, opts).ok === false)
+} finally {
+  rmSync(reportDir, { recursive: true, force: true })
+}
 
 const mutations = JSON.parse(readFileSync(join(here, 'mutations.json'), 'utf8'))
 const smoke = readFileSync(join(root, 'test', 'smoke.mjs'), 'utf8')

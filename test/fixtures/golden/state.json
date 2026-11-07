@@ -1,0 +1,98 @@
+{
+  "status": {
+    "groups": [
+      {
+        "id": "cua",
+        "on": false,
+        "mode": "hide",
+        "matched": 2,
+        "visible": 0
+      },
+      {
+        "id": "idle",
+        "on": true,
+        "mode": "all",
+        "matched": 1,
+        "visible": 1
+      }
+    ],
+    "selfHealed": 0
+  },
+  "denyAfterCreate": [
+    "cua_a",
+    "cua_b",
+    "other_tool"
+  ],
+  "activeRestrictions": [
+    [
+      "cua_a",
+      "cua_b",
+      "other_tool"
+    ]
+  ],
+  "enable": {
+    "enabled": "cua"
+  },
+  "afterEnable": [
+    {
+      "id": "cua",
+      "on": true,
+      "mode": "all",
+      "visible": 2
+    },
+    {
+      "id": "idle",
+      "on": true,
+      "mode": "all",
+      "visible": 1
+    }
+  ],
+  "collapse": {
+    "showDock": false,
+    "showClear": false,
+    "classifyNudge": true,
+    "presets": {
+      "low": 14,
+      "medium": 7,
+      "high": 3
+    },
+    "hiddenTools": 3,
+    "selfHealed": 0,
+    "globalIdleDays": 7,
+    "session": {
+      "level": null,
+      "idleDays": 7,
+      "source": "global"
+    },
+    "groups": [
+      {
+        "id": "cua",
+        "title": "CUA",
+        "on": false,
+        "hot": false,
+        "visible": 0
+      },
+      {
+        "id": "idle",
+        "title": "idle",
+        "on": false,
+        "hot": false,
+        "visible": 0
+      }
+    ]
+  },
+  "afterCollapse": [
+    {
+      "id": "cua",
+      "on": false,
+      "mode": "hide",
+      "visible": 0
+    },
+    {
+      "id": "idle",
+      "on": false,
+      "mode": "hide",
+      "visible": 0
+    }
+  ]
+}
