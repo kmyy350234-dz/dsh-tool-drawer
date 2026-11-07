@@ -1,6 +1,6 @@
 {
-  "version": "0.19.4",
-  "report": "..\\..\\perf-\\冷读-0.19.4.md",
+  "version": "0.19.5",
+  "report": "review\\coldread-0.19.5.md",
   "exists": true,
   "type": "cold",
   "red": 0,
@@ -9,7 +9,7 @@
   "unverified": 0,
   "baseline": 7,
   "baselineActual": 7,
-  "sha256": "e25bdfdf7ff64b58",
+  "sha256": "d3b1b6aeda6f0640",
   "ok": true,
   "reasons": []
 }

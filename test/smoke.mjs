@@ -8,9 +8,12 @@
 
 import assert from 'node:assert/strict'
 import { apply, sessionSelfHealed } from '../lib/index.js'
-import { normalizePolicy, mergePolicyForStorage } from '../lib/api.js'
+import { normalizePolicy, mergePolicyForStorage } from '../lib/policy-store.js'
+import { createState, STATE_FIELDS } from '../lib/session-state.js'
 import { hotRatio, isToolHot, recordUsage, LEVEL_DAYS, DAY } from '../lib/usage.js'
 import { createHost } from '../lib/host.js'
+import { createTools, REQUIRED_TOOL_DEPS } from '../lib/tools/index.js'
+import { createHeat } from '../lib/heat.js'
 import { CORE_TOOLS } from '../lib/autogroups.js'
 import { applyManagedRolesPatch, auditManagedRoles, roleFromLabel, roleCandidatesFromLabel, labelOfSession, normalizeManagedRoles, resolveManagedRole, isAllowedByPolicy, labelRoleCandidates } from '../lib/roles.js'
 import { readFileSync, writeFileSync, rmSync, utimesSync, existsSync } from 'node:fs'
@@ -32,6 +35,21 @@ process.env.LAZY_TOOLS_USAGE_FILE = `${NO_SUCH}.usage.json`
   // 临时文件的清理必须跟写入同步，否则「第二次跑必红」。
   rmSync(`${NO_SUCH}.policy.json`, { force: true })
   rmSync(`${NO_SUCH}.groups.json`, { force: true })
+
+// 会话状态必须有单一形状：rebuild/events/heat 不许再各自补字段。
+const stateShape = createState()
+assert.deepEqual(Object.keys(stateShape).sort(), [...STATE_FIELDS].sort(), '会话状态必须一次成型（createState）')
+assert.ok(stateShape.modes instanceof Map, 'state.modes 必须是 Map')
+assert.ok(stateShape.seen instanceof Set, 'state.seen 必须是 Set')
+assert.equal(stateShape.selfHealed, 0, 'state.selfHealed 必须初始化')
+assert.notEqual(createState().modes, stateShape.modes, 'createState 不许共享 Map')
+assert.throws(
+  () => createTools({ selectorSchema: () => ({}) }),
+  /createTools 缺少依赖/,
+  'createTools 缺依赖必须在加载时报，而不是第一次调工具才炸',
+)
+assert.throws(() => createHeat({}), /createHeat 缺少依赖/, 'createHeat 缺依赖必须在加载时报')
+assert.ok(REQUIRED_TOOL_DEPS.includes('clientPing'), '依赖清单必须包含 clientPing')
 
 // --quiet：只打汇总和失败项。钩子每次提交都跑它，49 行逐条输出纯属浪费（2026-10-30 加的）。
 const quiet = process.argv.includes('--quiet')
@@ -489,8 +507,22 @@ async function main() {
   const statusH = await runTool(worldH, 'lazy_tools_status', {}, agentH)
   assert.equal(sessionSelfHealed({ selfHealed: 2 }), 2, '本对话自愈累计 helper')
   assert.equal(sessionSelfHealed({}), 0, '无 selfHealed 必须为 0')
-  const sessionApiSrc = readFileSync(new URL('../lib/session-api.js', import.meta.url), 'utf8')
-  assert.match(readFileSync(new URL('../lib/index.js', import.meta.url), 'utf8') + sessionApiSrc, /selfHealed: sessionSelfHealed\(st\)/, 'sessionView 必须走会话 helper')
+  assert.equal(sessionSelfHealed({ selfHealed: '2' }), 0, '非数字 selfHealed 必须退回 0')
+  assert.equal(sessionSelfHealed({ selfHealed: NaN }), 0, 'NaN selfHealed 必须退回 0')
+  const { createSessionApi } = await import('../lib/session-api.js')
+  const viewApi = createSessionApi({
+    stateFor: (agent) => ({ hiddenNames: [], level: null, idleDays: null, selfHealed: agent && agent.bad ? '2' : 2 }),
+    policy: { presets: {}, level: 'medium', idleDays: 7, showDock: false, showClear: false, classifyNudge: true },
+    groups: [],
+    groupsView: () => [],
+    sessionIdleDays: () => 7,
+    sessionSelfHealed,
+    LEVEL_DAYS,
+    applyDefaults() {},
+    rebuild() {},
+  })
+  assert.equal(viewApi.sessionView({}).selfHealed, 2, 'sessionView 必须走会话 helper')
+  assert.equal(viewApi.sessionView({ bad: true }).selfHealed, 0, 'sessionView 必须夹住非有限 selfHealed')
   assert.equal(statusH.selfHealed, 1, '本对话自愈累计必须为 1')
   ok('守卫补开即放行 + 工具可见 + health.selfHealed=1')
   log('[22] 斜杠命令 /lazy-tools：改当前会话、乱输入报错')
@@ -769,7 +801,7 @@ async function main() {
     ok('冷启动 3 秒内新增的工具仍被收起（冷却只限重建频率，不吞检查）')
 
     log('[37] 设置页只改档位时，生效天数跟着档位走')
-    const { applyPolicyPatch } = await import('../lib/api.js')
+    const { applyPolicyPatch } = await import('../lib/policy-store.js')
     const pol = { level: 'high', idleDays: 3, presets: { low: 14, medium: 7, high: 3 } }
     applyPolicyPatch(pol, { level: 'low' })
     assert.equal(pol.idleDays, 14, '改成 low 后 idleDays 应为 14')
@@ -1120,6 +1152,9 @@ async function main() {
   const fullH = await runTool(worldSlim, 'lazy_tools_health', { full: true }, agentSlim)
   assert.equal('usage' in fullH, true, 'full 视图要带账本')
   assert.ok(fullH.stats && slimH.stats, '两档都要有 stats')
+  const slimKeys = Object.keys(slimH).filter((k) => k !== 'note').sort()
+  const fullKeys = Object.keys(fullH).filter((k) => !['usage', 'nameProbe', 'filterReport', 'bench'].includes(k)).sort()
+  assert.deepEqual(slimKeys, fullKeys, '默认健康视图必须等于 full 减 omit，不能漏字段')
   ok('默认精简保留 client + stats；full 才给 usage / 探针')
 
   log('[55] 计数器跨重载持久化：重载后 toolCalls 从账本恢复')
@@ -2594,7 +2629,7 @@ async function main() {
 
   // 2026-11-05：写用户组文件时目录要跟着文件走（可被 LAZY_TOOLS_GROUPS_FILE 覆盖）
   log('[98] writeUserGroups 指向新目录时不许 ENOENT')
-  const { writeUserGroups } = await import('../lib/api.js')
+  const { writeUserGroups } = await import('../lib/policy-store.js')
   const oldGroupsFile = process.env.LAZY_TOOLS_GROUPS_FILE
   const newDir = join(tmpdir(), 'lazy-tools-groups-' + Date.now())
   process.env.LAZY_TOOLS_GROUPS_FILE = join(newDir, 'groups.json')
@@ -2651,6 +2686,8 @@ async function main() {
   const appliedMtimes = []
   mountBridge(bridgeCtx, { own() {}, record() {} }, {
     getState: () => ({ ok: true }),
+    getSession: (id) => (id === 's1' ? { id, groups: [{ id: 'x', on: true }] } : { error: 'not found' }),
+    applySession: (id, spec) => ({ id, applied: spec }),
     applyPolicy: (next) => { appliedPolicies.push(next) },
     setPolicyMtime: (v) => { appliedMtimes.push(v) },
     record() {},
@@ -2695,9 +2732,56 @@ async function main() {
   assert.equal(appliedMtimes.length, 1, '写盘后要追平 mtime')
   assert.ok(Number(appliedMtimes[0]) > 0, '追平的 mtime 必须是有效值，不能是 0')
 
+  const wrongContentType = await callBridge('POST', '/lazy-tools/api/policy', { 'x-lazy-tools': '1' }, { level: 'low' })
+  assert.equal(wrongContentType.code, 415, '非 JSON content-type 必须 415')
+  const unknownRoute = await callBridge('GET', '/lazy-tools/api/nope', {}, undefined)
+  assert.equal(unknownRoute.code, 404, '未知路由必须 404')
   const getState = await callBridge('GET', '/lazy-tools/api/state', {}, undefined)
   assert.equal(getState.code, 200, 'GET 不受 POST 头限制：' + JSON.stringify(getState))
+  // /api/session：GET 读、POST 写；这是设置页输入框控件依赖的路由，必须有行为测试。
+  const getSession = await callBridge('GET', '/lazy-tools/api/session?id=s1', {}, undefined)
+  assert.equal(getSession.code, 200, 'GET session 必须 200：' + JSON.stringify(getSession))
+  const getSessionBody = JSON.parse(getSession.body)
+  assert.equal(getSessionBody.id, 's1', 'GET session 必须返回真实 payload')
+  assert.equal(getSessionBody.groups[0].id, 'x', 'GET session payload 必须保留 groups')
+  const postSession = await callBridge('POST', '/lazy-tools/api/session', { 'content-type': 'application/json', 'x-lazy-tools': '1' }, { id: 's1', level: 'high' })
+  assert.equal(postSession.code, 200, 'POST session 必须 200：' + JSON.stringify(postSession))
+  const postSessionBody = JSON.parse(postSession.body)
+  assert.equal(postSessionBody.applied.level, 'high', 'POST session 必须转发 body')
+  const missingId = await callBridge('GET', '/lazy-tools/api/session', {}, undefined)
+  assert.equal(missingId.code, 400, 'session 缺 id 必须 400：' + JSON.stringify(missingId))
   ok('桥鉴权行为：无头 403、带头 200、GET 放行')
+
+  // installBridge 是设置页真正用的包装层；这里只验它把路由注册上、effect 接上。
+  const { installBridge } = await import('../lib/bridge.js')
+  let installedHandler = null
+  let effectCalls = 0
+  const installCtx = {
+    get(key) {
+      if (key === 'webServer') return { register(def) { installedHandler = def.handler; return () => {} } }
+      return undefined
+    },
+    effect(fn) { effectCalls += 1; fn() },
+    inject() { return () => {} },
+  }
+  installBridge({
+    ctx: installCtx,
+    host: { own() {}, record() {}, log() {}, agentList: () => [] },
+    policy: { presets: {}, level: 'medium', idleDays: 7 },
+    groups: [],
+    states: { get: () => null },
+    stats: { selfHealed: 0 },
+    roleStore: { source: null },
+    getAgent: () => null,
+    getSessionView: () => () => ({ ok: true }),
+    getApplySessionPolicy: () => () => ({ ok: true }),
+    applyManagedRolesPatch: () => ({ ignored: true }),
+    applyPolicyPatch: () => {},
+    refreshManagedRoles: () => {},
+    setPolicyMtime: () => {},
+  })
+  assert.ok(typeof installedHandler === 'function', 'installBridge 必须注册 handler')
+  assert.equal(effectCalls, 1, 'installBridge 必须挂 ctx.effect')
 
   // 2026-11-05（元宝挑刺 1）：managedRoles.allowGroups: ['*'] 必须 = 全开，不许记成 hide
   log("[102] allowGroups ['*'] 语义：状态与放行一致")

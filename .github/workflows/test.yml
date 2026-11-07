@@ -23,6 +23,8 @@ jobs:
         run: node test/characterize.mjs --compare
       - name: 状态快照（ref-00f）
         run: node test/characterize-state.mjs --compare
+      - name: golden provenance lock
+        run: node test/golden-lock.mjs
       - name: 对抗
         run: node test/adversarial.mjs
       - name: 门禁（基线 + 异常）

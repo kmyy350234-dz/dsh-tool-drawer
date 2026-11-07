@@ -70,5 +70,85 @@
     "replace": "const caughtUp = 0",
     "expectText": "apply 时补应用必须收紧已存在 agent",
     "protectedBy": "test/smoke.mjs [7] 重载补应用"
+  },
+  {
+    "id": "state-shape",
+    "file": "lib/session-state.js",
+    "find": "    selfHealed: 0,",
+    "replace": "    selfHealed: undefined,",
+    "expectText": "state.selfHealed 必须初始化",
+    "protectedBy": "test/smoke.mjs 会话状态单一形状"
+  },
+  {
+    "id": "health-default-omit",
+    "file": "lib/tools/health.js",
+    "find": "const DEFAULT_OMIT = new Set(['usage', 'nameProbe', 'filterReport', 'bench'])",
+    "replace": "const DEFAULT_OMIT = new Set()",
+    "expectText": "默认视图不该带账本 usage",
+    "protectedBy": "test/smoke.mjs [54] 默认健康视图"
+  },
+  {
+    "id": "tools-deps-guard",
+    "file": "lib/tools/index.js",
+    "find": "const missing = REQUIRED_TOOL_DEPS.filter((key) => deps[key] === undefined || deps[key] === null)",
+    "replace": "const missing = []",
+    "expectText": "createTools 缺依赖必须在加载时报",
+    "protectedBy": "test/smoke.mjs createTools 依赖契约"
+  },
+  {
+    "id": "heat-deps-guard",
+    "file": "lib/heat.js",
+    "find": "const missing = Object.keys(deps).filter((key) => deps[key] === undefined || deps[key] === null)",
+    "replace": "const missing = []",
+    "expectText": "createHeat 缺依赖必须在加载时报",
+    "protectedBy": "test/smoke.mjs createHeat 依赖契约"
+  },
+  {
+    "id": "selfhealed-nonfinite",
+    "file": "lib/index.js",
+    "find": "return st && Number.isFinite(st.selfHealed) ? st.selfHealed : 0",
+    "replace": "return st ? st.selfHealed : 0",
+    "expectText": "无 selfHealed 必须为 0",
+    "protectedBy": "test/smoke.mjs sessionSelfHealed 非有限值"
+  },
+  {
+    "id": "session-route-get",
+    "file": "lib/api.js",
+    "find": "if (typeof options.getSession !== 'function') return send(501, { error: 'session api unavailable' })",
+    "replace": "if (true) return send(501, { error: 'session api unavailable' })",
+    "expectText": "GET session 必须 200",
+    "protectedBy": "test/smoke.mjs /api/session 路由"
+  },
+  {
+    "id": "session-view-selfhealed",
+    "file": "lib/session-api.js",
+    "find": "selfHealed: sessionSelfHealed(st)",
+    "replace": "selfHealed: st.selfHealed",
+    "expectText": "sessionView 必须夹住非有限 selfHealed",
+    "protectedBy": "test/smoke.mjs sessionView 接线"
+  },
+  {
+    "id": "session-route-body",
+    "file": "lib/api.js",
+    "find": "const state = options.applySession(id, body)",
+    "replace": "const state = options.applySession(id, {})",
+    "expectText": "POST session 必须转发 body",
+    "protectedBy": "test/smoke.mjs /api/session body"
+  },
+  {
+    "id": "tools-deps-list",
+    "file": "lib/tools/index.js",
+    "find": "'clientPing', 'strayNames',",
+    "replace": "'strayNames',",
+    "expectText": "依赖清单必须包含 clientPing",
+    "protectedBy": "test/smoke.mjs 依赖清单守护"
+  },
+  {
+    "id": "install-bridge-wrapper",
+    "file": "lib/bridge.js",
+    "find": "const unmountBridge = mountBridge(ctx, host, {",
+    "replace": "const unmountBridge = (() => {})(ctx, host, {",
+    "expectText": "installBridge 必须注册 handler",
+    "protectedBy": "test/smoke.mjs installBridge 包装层"
   }
 ]

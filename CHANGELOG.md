@@ -1,4 +1,16 @@
-﻿## [0.19.4] - 2026-11-07
+﻿## [0.19.5] - 2026-11-07
+
+**收口与测试门禁**
+
+- 会话状态 WeakMap 归 `session-state.js`，共享写走 `state-ops.js`；
+- `api.js` 的 `POST /policy` 保存编排收进 `policy-store.writePolicyMerged`；
+- 工具/热工厂依赖缺失改为加载期快失败；
+- 补 `installBridge` 包装、`/api/session` payload、会话视图 helper 行为测试；
+- golden 快照增加 `provenance.json` 基线 hash 锁；
+- 冷读报告默认落包内 `review/coldread-<版本>.md`；
+- 用户可见行为不变。
+
+## [0.19.4] - 2026-11-07
 
 **内部重构：大函数拆分，行为不变**
 

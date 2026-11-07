@@ -28,7 +28,8 @@ for (let i = 0; i < argv.length; i += 1) {
     reportArg = arg
   }
 }
-const reportPath = reportArg || join(root, '..', '..', 'perf-', `冷读-${version}.md`)
+const reportPath = reportArg || join('review', `coldread-${version}.md`)
+const reportAbs = resolve(root, reportPath)
 const outBase = outArg ? resolve(outArg) : join(here, 'verdict.json')
 const unverifiedPath = outArg ? join(dirname(outBase), 'unverified.json') : join(here, 'unverified.json')
 if (outArg) mkdirSync(dirname(outBase), { recursive: true })
@@ -36,7 +37,7 @@ if (outArg) mkdirSync(dirname(outBase), { recursive: true })
 const verdict = {
   version,
   report: reportPath,
-  exists: existsSync(reportPath),
+  exists: existsSync(reportAbs),
   type: 'missing',
   red: null,
   trackA: null,
@@ -59,7 +60,7 @@ try {
 verdict.baselineActual = baselineActual
 
 if (verdict.exists) {
-  const text = readFileSync(reportPath, 'utf8')
+  const text = readFileSync(reportAbs, 'utf8')
   verdict.sha256 = createHash('sha256').update(text).digest('hex').slice(0, 16)
   const forbidden = /改动摘要|已知风险|逐条核对|点名|本轮改了什么|对象\s*[：:]/
   verdict.type = forbidden.test(text) ? 'directed' : 'cold'
